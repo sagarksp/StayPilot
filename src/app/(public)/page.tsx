@@ -1,25 +1,6 @@
-import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import type { ReactNode } from "react";
 import { formatLandingMetric, landingContent } from "./landing-content";
 import styles from "./landing.module.css";
-
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-plus-jakarta-sans",
-  display: "swap",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const jetBrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-  display: "swap",
-});
 
 type IconName =
   | "building"
@@ -235,7 +216,7 @@ export default function PublicHomePage() {
   const content = landingContent;
 
   return (
-    <main className={`${styles.page} ${jakarta.variable} ${inter.variable} ${jetBrainsMono.variable}`}>
+    <main className={styles.page}>
       <div className={styles.productNotice} id="product-status">
         <span className={styles.noticeDot} /> StayPilot is in development. Metrics and workflows are not live yet.
       </div>

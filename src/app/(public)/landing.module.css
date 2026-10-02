@@ -10,6 +10,9 @@
   --brand-dark: #082a31;
   --bronze: #c28e38;
   --green: #16835c;
+  --font-inter: Inter, "Segoe UI";
+  --font-plus-jakarta-sans: "Plus Jakarta Sans", "Segoe UI";
+  --font-jetbrains-mono: "JetBrains Mono", "Cascadia Mono", Consolas;
   min-height: 100vh;
   overflow: hidden;
   background: var(--canvas);
