@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --page: #f5f7f5;
+  --surface: #ffffff;
+  --ink: #182b29;
+  --muted: #63716e;
+  --line: #dce4e0;
+  --brand: #176e61;
+  --brand-dark: #10564c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--page);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+}
+
+.shell-link {
+  border-radius: 0.65rem;
+  color: #d9e8e4;
+  display: block;
+  font-size: 0.92rem;
+  padding: 0.7rem 0.8rem;
+}
+
+.shell-link:hover,
+.shell-link:focus-visible {
+  background: rgb(255 255 255 / 11%);
+  color: white;
+  outline: none;
+}
+
+.portal-link {
+  border-radius: 999px;
+  color: #53625f;
+  display: inline-flex;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.8rem;
+}
+
+.portal-link:hover,
+.portal-link:focus-visible {
+  background: #e9f2ef;
+  color: var(--brand-dark);
+  outline: none;
+}
+
+.surface-card {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: 0 10px 30px rgb(22 55 47 / 4%);
+}
+
+.muted {
+  color: var(--muted);
+}
