@@ -1,12 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-
-const upcomingSections = ["My stay", "Bills", "Payments", "Receipts", "Food", "Requests"];
+import { SignOutButton } from "@/modules/auth/ui/sign-out-button";
 
 export function ResidentPortalShell({
   children,
   orgId,
-}: Readonly<{ children: ReactNode; orgId: string }>) {
+  organizationName,
+}: Readonly<{ children: ReactNode; orgId: string; organizationName: string }>) {
   return (
     <div className="min-h-screen bg-[#f7f9f8]">
       <header className="border-b border-[#dce4e0] bg-white">
@@ -15,17 +15,13 @@ export function ResidentPortalShell({
             <Link className="text-lg font-bold tracking-tight text-[#176e61]" href="/">
               StayPilot
             </Link>
-            <p className="mt-1 text-xs text-[#63716e]">Resident portal</p>
+            <p className="mt-1 text-xs text-[#63716e]">{organizationName} · Resident portal</p>
           </div>
           <nav aria-label="Resident portal" className="flex flex-wrap gap-1">
             <Link className="portal-link bg-[#e9f2ef] text-[#10564c]" href={`/org/${orgId}/resident`}>
               Home
             </Link>
-            {upcomingSections.map((section) => (
-              <span aria-disabled="true" className="portal-link opacity-55" key={section}>
-                {section}
-              </span>
-            ))}
+            <SignOutButton className="portal-link cursor-pointer border-0 bg-transparent text-sm disabled:cursor-wait disabled:opacity-60" />
           </nav>
         </div>
       </header>

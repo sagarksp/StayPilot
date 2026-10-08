@@ -1,6 +1,6 @@
 # Prisma
 
-`schema.prisma` is the MySQL foundation only. Add reviewed business models and
-create the first migration after resolving the authentication identity mapping
-and API design alignment notes. Never use `db push` as a production migration
-strategy.
+`schema.prisma` contains authentication identities, organizations, memberships,
+property inventory, resident stays, and reservations. Review and apply local
+migrations with a configured development database. Never use `db push` as a
+production migration strategy.

@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { notFound, redirect } from "next/navigation";
 import { ResidentPortalShell } from "@/components/workspace/resident-portal-shell";
+import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 
 export default async function ResidentLayout({
   children,
@@ -9,6 +11,9 @@ export default async function ResidentLayout({
   params: Promise<{ orgId: string }>;
 }>) {
   const { orgId } = await params;
+  const actor = await getOrganizationActor(orgId);
+  if (!actor) redirect("/login");
+  if (!actor.roles.includes("RESIDENT")) notFound();
 
-  return <ResidentPortalShell orgId={orgId}>{children}</ResidentPortalShell>;
+  return <ResidentPortalShell orgId={orgId} organizationName={actor.organizationName}>{children}</ResidentPortalShell>;
 }

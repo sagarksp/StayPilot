@@ -218,7 +218,7 @@ export default function PublicHomePage() {
   return (
     <main className={styles.page}>
       <div className={styles.productNotice} id="product-status">
-        <span className={styles.noticeDot} /> StayPilot is in development. Metrics and workflows are not live yet.
+        <span className={styles.noticeDot} /> StayPilot is in development. Property setup is available; other workflows are still being built.
       </div>
 
       <header className={styles.header}>
@@ -229,7 +229,7 @@ export default function PublicHomePage() {
         <nav className={styles.navigation} aria-label="Main navigation">
           {content.navigation.map((item) => <a href={item.href} key={item.href}>{item.label}</a>)}
         </nav>
-        <a className={styles.headerAction} href="#closing">Explore StayPilot <ArrowIcon /></a>
+        <a className={styles.headerAction} href="/login">Sign in <ArrowIcon /></a>
       </header>
 
       <section className={styles.hero} id="top" aria-labelledby="hero-title">

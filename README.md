@@ -5,14 +5,10 @@ domain constraints are documented in [`docs/`](docs/).
 
 ## Status
 
-This repository contains the initial Next.js application scaffold. The Owner and
-Manager workspaces share their operational resource pages; each has a separate
-dashboard entry. Residents have a separate portal shell. The current workspace
-pages are static scaffolding and do not load tenant data or enforce sessions.
-
-Authentication is intentionally not wired yet. The authentication library and
-its user/schema mapping must be selected before adding session handlers or
-tenant data access. No authentication catch-all route is defined.
+The public landing page, owner and manager workspaces, property inventory,
+resident occupancy, reservation management, and rent invoice draft/review flow
+are implemented. Email/password sign-in and organization setup use Better Auth
+with server-side sessions.
 
 ## Architecture boundaries
 
@@ -32,14 +28,36 @@ before loading tenant-owned data or issuing file URLs.
 
 Prerequisites: Node.js 22.12 or newer, npm, and a local MySQL database.
 
-1. Copy `.env.example` to `.env.local` and set a local `DATABASE_URL`.
+1. Copy `.env.example` to `.env.local`, set a local `DATABASE_URL`, and generate
+   an `AUTH_SECRET` with the command shown in `.env.example`.
 2. Install the dependencies with `npm install`.
-3. Start the development server with `npm run dev`.
+3. Generate the Prisma client with `npm run db:generate`.
+4. Apply the checked-in local schema with `npm run db:migrate:deploy`.
+5. From the `C:\StayPilot` project root, start the development server with
+   `npm run dev -- --hostname 127.0.0.1 --port 3000`, then register an owner
+   account at `/register` and create the first organization.
 
-The schema currently declares only the MySQL provider. Business models and
-migrations are intentionally held until the auth identity mapping and API
-alignment notes are resolved. Do not run database migration scripts against a
-production database from a developer workstation.
+Open the exact local URL printed by Next.js. If port 3000 is already in use,
+stop the other development server first so the browser doesn't show a different
+checkout or an older build.
+
+The Prisma schema includes global auth identities, organization memberships,
+property inventory, stays, reservations, rent rates, and invoices. Local
+database credentials and the checked-in migrations are required before the
+workflow can run. Do not run database migration scripts against a production
+database from a developer workstation.
+
+The internal billing scheduler is `POST /api/internal/billing/generate-drafts`.
+Configure the scheduler to call it daily with `Authorization: Bearer <CRON_SECRET>`;
+the endpoint creates rent drafts five days before their due date. Set a strong
+`CRON_SECRET` in each environment. Owners and assigned managers review drafts
+under Invoices; finalization is always an explicit action.
+
+Owner accounts can register and create an organization. Staff and resident
+accounts are not yet provisioned through invitation workflows.
+Email verification, password recovery, and staff/resident invitations are not
+configured yet. The platform-admin route stays unavailable until a separate
+platform-admin identity and authorization flow is implemented.
 
 ## Scripts
 

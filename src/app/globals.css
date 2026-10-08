@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap");
 @import "tailwindcss";
 
 :root {
@@ -25,7 +26,7 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--ink);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Inter, Arial, Helvetica, sans-serif;
 }
 
 a {
@@ -35,6 +36,41 @@ a {
 
 button {
   font: inherit;
+}
+
+.material-symbols-outlined {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  font-size: 24px;
+  vertical-align: middle;
+}
+
+input,
+select,
+textarea {
+  color-scheme: light;
+  font: inherit;
+}
+
+select,
+option {
+  background-color: #fff;
+  color: #182b29;
+}
+
+select:disabled,
+input:disabled,
+textarea:disabled {
+  background-color: #edf2ef;
+  color: #65736f;
+  cursor: not-allowed;
+}
+
+::selection {
+  background: #cce9de;
+  color: #123f36;
 }
 
 .shell-link {

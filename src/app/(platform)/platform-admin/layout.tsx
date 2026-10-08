@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { PlatformShell } from "@/components/workspace/platform-shell";
+import { notFound } from "next/navigation";
 
-export default function PlatformAdminLayout({ children }: Readonly<{ children: ReactNode }>) {
-  return <PlatformShell>{children}</PlatformShell>;
+export default function PlatformAdminLayout() {
+  // Keep the scaffold unavailable until a verifiable platform-admin identity exists.
+  notFound();
 }

@@ -172,7 +172,7 @@ export const landingContent = {
     eyebrow: "ROOM & BED VISIBILITY",
     title: "See property availability in context.",
     description:
-      "A planned property view will connect portfolio, floor, room, and bed-level information when live inventory data is available.",
+      "Set up properties and organize floors, rooms, and beds. Occupancy and availability views will follow when resident stay workflows are connected.",
     propertyLabel: "Property overview",
     locationLabel: "Property location will appear with live data",
     occupancy: metric("Occupancy", "percent"),
@@ -328,7 +328,7 @@ export const landingContent = {
       {
         question: "Can it manage multiple properties?",
         answer:
-          "Multi-property operations are part of the product direction. Live multi-property workflows are not available in the current application yet.",
+          "You can create multiple properties and set up their floors, rooms, and beds. Occupancy views and cross-property reporting are still being developed.",
       },
       {
         question: "Will resident and financial data appear on this page?",
@@ -354,7 +354,7 @@ export const landingContent = {
       "StayPilot is taking shape around the people, properties, and day-to-day work behind every stay.",
     primaryAction: "Explore product areas",
     secondaryAction: "Read common questions",
-    note: "StayPilot is in development. Operational data and demo access are not connected yet.",
+    note: "Property setup is available in the workspace. Resident, finance, and reporting workflows are still in development.",
   },
   footer: {
     description:

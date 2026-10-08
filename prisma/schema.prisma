@@ -6,3 +6,394 @@ generator client {
 datasource db {
   provider = "mysql"
 }
+
+model User {
+  id                    BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId              String                   @unique @default(uuid()) @map("public_id") @db.Char(36)
+  email                 String                   @unique @db.VarChar(254)
+  name                  String                   @db.VarChar(180)
+  status                String                   @default("INVITED") @db.VarChar(20)
+  createdAt             DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt             DateTime                 @updatedAt @map("updated_at") @db.DateTime(3)
+  memberships           OrganizationMembership[]
+  reservationsCreated   Reservation[]            @relation("ReservationCreator")
+  reservationsCancelled Reservation[]            @relation("ReservationCanceller")
+  reservationsExpired   Reservation[]            @relation("ReservationExpirer")
+
+  @@map("users")
+}
+
+model AuthIdentity {
+  id            String        @id @db.VarChar(36)
+  name          String        @db.VarChar(180)
+  email         String        @unique @db.VarChar(254)
+  emailVerified Boolean       @default(false) @map("email_verified")
+  image         String?       @db.Text
+  createdAt     DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
+  sessions      AuthSession[]
+  accounts      AuthAccount[]
+
+  @@map("auth_identities")
+}
+
+model AuthSession {
+  id        String       @id @db.VarChar(36)
+  expiresAt DateTime     @map("expires_at") @db.DateTime(3)
+  token     String       @unique @db.VarChar(255)
+  createdAt DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  ipAddress String?      @map("ip_address") @db.VarChar(128)
+  userAgent String?      @map("user_agent") @db.Text
+  userId    String       @map("user_id") @db.VarChar(36)
+  user      AuthIdentity @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_sessions")
+}
+
+model AuthAccount {
+  id                    String       @id @db.VarChar(36)
+  accountId             String       @map("account_id") @db.VarChar(255)
+  providerId            String       @map("provider_id") @db.VarChar(100)
+  userId                String       @map("user_id") @db.VarChar(36)
+  accessToken           String?      @map("access_token") @db.Text
+  refreshToken          String?      @map("refresh_token") @db.Text
+  idToken               String?      @map("id_token") @db.Text
+  accessTokenExpiresAt  DateTime?    @map("access_token_expires_at") @db.DateTime(3)
+  refreshTokenExpiresAt DateTime?    @map("refresh_token_expires_at") @db.DateTime(3)
+  scope                 String?      @db.Text
+  password              String?      @db.Text
+  createdAt             DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt             DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  user                  AuthIdentity @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_accounts")
+}
+
+model AuthVerification {
+  id         String   @id @db.VarChar(36)
+  identifier String   @db.VarChar(255)
+  value      String   @db.Text
+  expiresAt  DateTime @map("expires_at") @db.DateTime(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([identifier])
+  @@map("auth_verifications")
+}
+
+model Organization {
+  id            BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId      String                   @unique @default(uuid()) @map("public_id") @db.Char(36)
+  name          String                   @db.VarChar(200)
+  timezone      String                   @default("Asia/Kolkata") @db.VarChar(64)
+  status        String                   @default("ACTIVE") @db.VarChar(20)
+  createdAt     DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime                 @updatedAt @map("updated_at") @db.DateTime(3)
+  memberships   OrganizationMembership[]
+  properties    Property[]
+  floors        Floor[]
+  rooms         Room[]
+  beds          Bed[]
+  residents     Resident[]
+  residentStays ResidentStay[]
+  reservations  Reservation[]
+  stayRentRates StayRentRate[]
+  invoices      Invoice[]
+
+  @@map("organizations")
+}
+
+model OrganizationMembership {
+  id             BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String                @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt                @map("organization_id") @db.UnsignedBigInt
+  userId         BigInt                @map("user_id") @db.UnsignedBigInt
+  status         String                @default("ACTIVE") @db.VarChar(20)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
+  organization   Organization          @relation(fields: [organizationId], references: [id])
+  user           User                  @relation(fields: [userId], references: [id])
+  roles          MembershipRole[]
+  pgAssignments  ManagerPgAssignment[]
+
+  @@unique([organizationId, userId])
+  @@unique([organizationId, id])
+  @@map("organization_memberships")
+}
+
+model MembershipRole {
+  id           BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  membershipId BigInt                 @map("membership_id") @db.UnsignedBigInt
+  roleCode     String                 @map("role_code") @db.VarChar(30)
+  membership   OrganizationMembership @relation(fields: [membershipId], references: [id])
+
+  @@unique([membershipId, roleCode])
+  @@map("membership_roles")
+}
+
+model ManagerPgAssignment {
+  id             BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  organizationId BigInt                 @map("organization_id") @db.UnsignedBigInt
+  membershipId   BigInt                 @map("membership_id") @db.UnsignedBigInt
+  propertyId     BigInt                 @map("pg_id") @db.UnsignedBigInt
+  status         String                 @default("ACTIVE") @db.VarChar(20)
+  membership     OrganizationMembership @relation(fields: [organizationId, membershipId], references: [organizationId, id])
+  property       Property               @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+
+  @@unique([membershipId, propertyId])
+  @@map("manager_pg_assignments")
+}
+
+model Property {
+  id             BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String                @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt                @map("organization_id") @db.UnsignedBigInt
+  name           String                @db.VarChar(180)
+  code           String?               @db.VarChar(50)
+  addressLine1   String                @map("address_line1") @db.VarChar(255)
+  addressLine2   String?               @map("address_line2") @db.VarChar(255)
+  city           String                @db.VarChar(100)
+  state          String                @db.VarChar(100)
+  postalCode     String                @map("postal_code") @db.VarChar(20)
+  contactPhone   String?               @map("contact_phone") @db.VarChar(30)
+  contactEmail   String?               @map("contact_email") @db.VarChar(254)
+  status         String                @default("ACTIVE") @db.VarChar(20)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
+  organization   Organization          @relation(fields: [organizationId], references: [id])
+  floors         Floor[]
+  rooms          Room[]
+  beds           Bed[]
+  assignments    ManagerPgAssignment[]
+  residentStays  ResidentStay[]
+  reservations   Reservation[]
+  stayRentRates  StayRentRate[]
+  invoices       Invoice[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+  @@map("pgs")
+}
+
+model Floor {
+  id             BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String       @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt       @map("organization_id") @db.UnsignedBigInt
+  propertyId     BigInt       @map("pg_id") @db.UnsignedBigInt
+  name           String       @map("floor_name") @db.VarChar(100)
+  number         Int?         @map("floor_number")
+  status         String       @default("ACTIVE") @db.VarChar(20)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  property       Property     @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  rooms          Room[]
+  beds           Bed[]
+
+  @@unique([organizationId, propertyId, id])
+  @@unique([propertyId, name])
+  @@index([organizationId, propertyId, status])
+  @@map("floors")
+}
+
+model Room {
+  id             BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String       @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt       @map("organization_id") @db.UnsignedBigInt
+  propertyId     BigInt       @map("pg_id") @db.UnsignedBigInt
+  floorId        BigInt       @map("floor_id") @db.UnsignedBigInt
+  number         String       @map("room_number") @db.VarChar(50)
+  status         String       @default("ACTIVE") @db.VarChar(20)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  property       Property     @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  floor          Floor        @relation(fields: [organizationId, propertyId, floorId], references: [organizationId, propertyId, id])
+  beds           Bed[]
+
+  @@unique([organizationId, propertyId, id])
+  @@unique([propertyId, number])
+  @@index([organizationId, propertyId, floorId])
+  @@map("rooms")
+}
+
+model Bed {
+  id             BigInt         @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String         @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt         @map("organization_id") @db.UnsignedBigInt
+  propertyId     BigInt         @map("pg_id") @db.UnsignedBigInt
+  floorId        BigInt         @map("floor_id") @db.UnsignedBigInt
+  roomId         BigInt         @map("room_id") @db.UnsignedBigInt
+  label          String         @map("bed_label") @db.VarChar(50)
+  status         String         @default("ACTIVE") @map("operational_status") @db.VarChar(20)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.DateTime(3)
+  property       Property       @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  floor          Floor          @relation(fields: [organizationId, propertyId, floorId], references: [organizationId, propertyId, id])
+  room           Room           @relation(fields: [organizationId, propertyId, roomId], references: [organizationId, propertyId, id])
+  residentStays  ResidentStay[]
+  reservations   Reservation[]
+
+  @@unique([organizationId, propertyId, id], map: "beds_organization_id_pg_id_id_key")
+  @@unique([propertyId, roomId, label])
+  @@index([organizationId, propertyId, roomId, status])
+  @@map("beds")
+}
+
+model Resident {
+  id             BigInt         @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String         @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt         @map("organization_id") @db.UnsignedBigInt
+  name           String         @db.VarChar(180)
+  phone          String         @db.VarChar(30)
+  email          String?        @db.VarChar(254)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.DateTime(3)
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  stays          ResidentStay[]
+  reservations   Reservation[]
+
+  @@unique([organizationId, id], map: "residents_organization_id_id_key")
+  @@index([organizationId, name], map: "residents_organization_id_name_idx")
+  @@index([organizationId, phone], map: "residents_organization_id_phone_idx")
+  @@map("residents")
+}
+
+model ResidentStay {
+  id                 BigInt         @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId           String         @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId     BigInt         @map("organization_id") @db.UnsignedBigInt
+  propertyId         BigInt         @map("pg_id") @db.UnsignedBigInt
+  residentId         BigInt         @map("resident_id") @db.UnsignedBigInt
+  bedId              BigInt         @map("bed_id") @db.UnsignedBigInt
+  startDate          DateTime       @map("start_date") @db.Date
+  endDate            DateTime?      @map("end_date") @db.Date
+  status             String         @default("ACTIVE") @db.VarChar(20)
+  activeBedSlot      Int?           @map("active_bed_slot") @db.UnsignedInt
+  activeResidentSlot Int?           @map("active_resident_slot") @db.UnsignedInt
+  createdAt          DateTime       @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.DateTime(3)
+  organization       Organization   @relation(fields: [organizationId], references: [id])
+  property           Property       @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  resident           Resident       @relation(fields: [organizationId, residentId], references: [organizationId, id])
+  bed                Bed            @relation(fields: [organizationId, propertyId, bedId], references: [organizationId, propertyId, id])
+  rentRates          StayRentRate[]
+  invoices           Invoice[]
+
+  // MySQL allows multiple NULL values in a unique index. Active stays use 1;
+  // ended stays set these slots to NULL, retaining history without allowing
+  // two active stays to share one bed or resident.
+  @@unique([organizationId, propertyId, bedId, activeBedSlot], map: "resident_stays_active_bed_key")
+  @@unique([organizationId, residentId, activeResidentSlot], map: "resident_stays_active_resident_key")
+  @@index([organizationId, propertyId, status], map: "resident_stays_organization_id_pg_id_status_idx")
+  @@index([organizationId, residentId, startDate], map: "resident_stays_organization_id_resident_id_start_date_idx")
+  @@map("resident_stays")
+}
+
+model StayRentRate {
+  id               BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId         String       @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId   BigInt       @map("organization_id") @db.UnsignedBigInt
+  propertyId       BigInt       @map("pg_id") @db.UnsignedBigInt
+  residentStayId   BigInt       @map("resident_stay_id") @db.UnsignedBigInt
+  effectiveFrom    DateTime     @map("effective_from") @db.Date
+  effectiveTo      DateTime?    @map("effective_to") @db.Date
+  amountPaise      BigInt       @map("amount_paise")
+  billingCycleType String       @map("billing_cycle_type") @db.VarChar(20)
+  billingDay       Int?         @map("billing_day") @db.UnsignedTinyInt
+  createdAt        DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  property         Property     @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  residentStay     ResidentStay @relation(fields: [residentStayId], references: [id])
+
+  @@unique([residentStayId, effectiveFrom])
+  @@index([organizationId, propertyId, effectiveFrom, effectiveTo], map: "stay_rent_rates_org_pg_effective_idx")
+  @@map("stay_rent_rates")
+}
+
+model Invoice {
+  id                 BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId           String        @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId     BigInt        @map("organization_id") @db.UnsignedBigInt
+  propertyId         BigInt        @map("pg_id") @db.UnsignedBigInt
+  residentStayId     BigInt        @map("resident_stay_id") @db.UnsignedBigInt
+  invoiceNumber      String        @map("invoice_number") @db.VarChar(50)
+  invoiceType        String        @default("RENT") @map("invoice_type") @db.VarChar(30)
+  billingPeriodStart DateTime      @map("billing_period_start") @db.Date
+  billingPeriodEnd   DateTime      @map("billing_period_end") @db.Date
+  issueDate          DateTime      @map("issue_date") @db.Date
+  dueDate            DateTime      @map("due_date") @db.Date
+  status             String        @default("DRAFT") @db.VarChar(20)
+  subtotalPaise      BigInt        @map("subtotal_paise")
+  totalPaise         BigInt        @map("total_paise")
+  finalizedAt        DateTime?     @map("finalized_at") @db.DateTime(3)
+  createdAt          DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
+  organization       Organization  @relation(fields: [organizationId], references: [id])
+  property           Property      @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  residentStay       ResidentStay  @relation(fields: [residentStayId], references: [id])
+  items              InvoiceItem[]
+
+  @@unique([organizationId, invoiceNumber])
+  @@unique([residentStayId, billingPeriodStart, billingPeriodEnd, invoiceType], map: "invoices_stay_period_type_key")
+  @@index([organizationId, propertyId, status, dueDate])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id              BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  invoiceId       BigInt   @map("invoice_id") @db.UnsignedBigInt
+  itemType        String   @map("item_type") @db.VarChar(40)
+  description     String   @db.VarChar(255)
+  quantity        Decimal  @default(1) @db.Decimal(12, 3)
+  unitAmountPaise BigInt   @map("unit_amount_paise")
+  amountPaise     BigInt   @map("amount_paise")
+  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+model Reservation {
+  id                   BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId             String       @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId       BigInt       @map("organization_id") @db.UnsignedBigInt
+  propertyId           BigInt       @map("pg_id") @db.UnsignedBigInt
+  residentId           BigInt       @map("resident_id") @db.UnsignedBigInt
+  bedId                BigInt       @map("bed_id") @db.UnsignedBigInt
+  reservationDate      DateTime     @map("reservation_date") @db.Date
+  reservationStartDate DateTime     @map("reservation_start_date") @db.Date
+  reservationEndDate   DateTime     @map("reservation_end_date") @db.Date
+  expectedMoveInDate   DateTime?    @map("expected_move_in_date") @db.Date
+  status               String       @default("ACTIVE") @db.VarChar(30)
+  activeResidentSlot   Int?         @map("active_resident_slot") @db.UnsignedInt
+  notes                String?      @db.Text
+  createdById          BigInt       @map("created_by") @db.UnsignedBigInt
+  createdAt            DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  cancelledAt          DateTime?    @map("cancelled_at") @db.DateTime(3)
+  cancelledById        BigInt?      @map("cancelled_by") @db.UnsignedBigInt
+  cancellationReason   String?      @map("cancellation_reason") @db.VarChar(500)
+  expiredAt            DateTime?    @map("expired_at") @db.DateTime(3)
+  expiredById          BigInt?      @map("expired_by") @db.UnsignedBigInt
+  organization         Organization @relation(fields: [organizationId], references: [id])
+  property             Property     @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  resident             Resident     @relation(fields: [organizationId, residentId], references: [organizationId, id])
+  bed                  Bed          @relation(fields: [organizationId, propertyId, bedId], references: [organizationId, propertyId, id])
+  createdBy            User         @relation("ReservationCreator", fields: [createdById], references: [id])
+  cancelledBy          User?        @relation("ReservationCanceller", fields: [cancelledById], references: [id])
+  expiredBy            User?        @relation("ReservationExpirer", fields: [expiredById], references: [id])
+
+  // Active reservations use slot 1. Cancelled, expired, and moved-in records
+  // clear it so the resident may reserve another bed while preserving history.
+  @@unique([organizationId, residentId, activeResidentSlot], map: "reservations_active_resident_key")
+  @@index([organizationId, propertyId, status, reservationStartDate, reservationEndDate], map: "reservations_property_period_idx")
+  @@index([organizationId, residentId, reservationDate], map: "reservations_resident_date_idx")
+  @@map("reservations")
+}
