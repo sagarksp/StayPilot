@@ -4,21 +4,32 @@ import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
+import { residentInvitationUseCases } from "@/infrastructure/auth/prisma-resident-invitations";
 import { AccessDeniedError } from "@/modules/property/domain/inventory";
 import { reservationUseCases } from "../application";
 import { ReservationWorkflowError } from "../domain/reservation";
 
 const value = (formData: FormData, key: string) => String(formData.get(key) ?? "").trim();
 const billingCycle = (formData: FormData): "MOVE_IN_DAY" | "FIXED_DAY" => value(formData, "billingCycleType") === "FIXED_DAY" ? "FIXED_DAY" : "MOVE_IN_DAY";
+const depositPolicy = (formData: FormData): "FULL_MONTH" | "HALF_MONTH" | "FIXED" | "CUSTOM" => {
+  const policy = value(formData, "depositPolicyType");
+  return policy === "FULL_MONTH" || policy === "HALF_MONTH" || policy === "CUSTOM" ? policy : "FIXED";
+};
+const paymentMethod = (formData: FormData): "CASH" | "UPI" | "BANK_TRANSFER" | "CARD" | "OTHER" => {
+  const method = value(formData, "depositPaymentMethod");
+  return method === "CASH" || method === "BANK_TRANSFER" || method === "CARD" || method === "OTHER" ? method : "UPI";
+};
 const listUrl = (orgId: string) => `/org/${orgId}/reservations`;
 function errorCode(error: ReservationWorkflowError) {
   switch (error.code) {
     case "BED_UNAVAILABLE": return "bed-unavailable";
     case "ACTIVE_RESERVATION_EXISTS": return "resident-reserved";
     case "RESIDENT_HAS_ACTIVE_STAY": return "resident-active";
+    case "RESIDENT_EMAIL_TAKEN": return "email-taken";
     case "RESERVATION_START_IN_PAST": return "start-past";
     case "MOVE_IN_OUTSIDE_RESERVATION": return "move-in-range";
     case "MOVE_IN_IN_FUTURE": return "move-in-future";
+    case "PREPAID_DEPOSIT_EXCEEDS_REQUIRED": return "deposit-exceeds-required";
     case "RESERVATION_NOT_ACTIVE": return "not-active";
     case "DATE_ORDER": return "date-order";
     default: return "invalid";
@@ -47,6 +58,10 @@ export async function createReservationAction(formData: FormData) {
       newResidentName: value(formData, "newResidentName"), newResidentPhone: value(formData, "newResidentPhone"), newResidentEmail: value(formData, "newResidentEmail"),
       reservationStartDate: value(formData, "reservationStartDate"), reservationEndDate: value(formData, "reservationEndDate"),
       expectedMoveInDate: value(formData, "expectedMoveInDate"), notes: value(formData, "notes"),
+      securityDepositReceived: value(formData, "securityDepositReceived"),
+      depositPaymentMethod: paymentMethod(formData),
+      depositPaymentDate: value(formData, "depositPaymentDate"),
+      depositPaymentReference: value(formData, "depositPaymentReference"),
     });
   } catch (error) { handle(error, orgId); }
   refresh(orgId);
@@ -67,12 +82,17 @@ export async function moveInReservationAction(formData: FormData) {
   const orgId = value(formData, "orgId");
   const actor = await getOrganizationActor(orgId);
   if (!actor) redirect("/login");
-  try { await reservationUseCases.moveIn(actor, value(formData, "reservationId"), value(formData, "moveInDate"), {
+  let residentId: string;
+  try { residentId = await reservationUseCases.moveIn(actor, value(formData, "reservationId"), value(formData, "moveInDate"), {
     monthlyRent: value(formData, "monthlyRent"),
     billingCycleType: billingCycle(formData),
     billingDay: value(formData, "billingDay"),
+  }, {
+    requiredSecurityDeposit: value(formData, "requiredSecurityDeposit"),
+    depositPolicyType: depositPolicy(formData),
   }); }
   catch (error) { handle(error, orgId); }
+  try { await residentInvitationUseCases.issue(actor, residentId); } catch { /* Move-in is committed; invitation can be retried from the resident profile. */ }
   refresh(orgId);
-  redirect(listUrl(orgId));
+  redirect(`/org/${orgId}/residents/${residentId}`);
 }

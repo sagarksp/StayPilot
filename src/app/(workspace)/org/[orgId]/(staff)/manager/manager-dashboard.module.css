@@ -1,0 +1,706 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.pageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.headingCopy h1 {
+  margin: 0.65rem 0 0;
+  color: #111827;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: clamp(1.75rem, 3vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.15;
+}
+
+.headingCopy > p {
+  margin: 0.65rem 0 0;
+  color: #64748b;
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.headingMeta,
+.headerActions,
+.livePill,
+.periodCard,
+.primaryButton,
+.metricTopline,
+.propertyTopline,
+.propertyLocation,
+.capacityHeader,
+.capacityFooter {
+  display: flex;
+  align-items: center;
+}
+
+.headingMeta {
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  color: #64748b;
+  font-size: 0.76rem;
+}
+
+.livePill {
+  gap: 0.45rem;
+  color: #0e3a43;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.livePill > span {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #059669;
+  box-shadow: 0 0 0 3px #ecfdf5;
+}
+
+.metaSeparator {
+  color: #c28e38;
+  font-weight: 700;
+}
+
+.snapshotDate {
+  font-variant-numeric: tabular-nums;
+}
+
+.headerActions {
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.periodCard {
+  min-height: 2.8rem;
+  gap: 0.65rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #e8e8e4;
+  border-radius: 0.65rem;
+  background: #fff;
+}
+
+.periodIcon {
+  width: 1.1rem;
+  height: 1.1rem;
+  color: #64748b;
+}
+
+.periodCard small,
+.periodCard strong {
+  display: block;
+}
+
+.periodCard small {
+  color: #64748b;
+  font-size: 0.62rem;
+  line-height: 1.1;
+}
+
+.periodCard strong {
+  max-width: 12rem;
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.primaryButton {
+  min-height: 2.8rem;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid #0e3a43;
+  border-radius: 0.65rem;
+  background: #0e3a43;
+  color: #fff;
+  font-size: 0.83rem;
+  font-weight: 700;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.primaryButton:hover {
+  transform: translateY(-1px);
+  background: #0a2b32;
+}
+
+.primaryButton:focus-visible,
+.textLink:focus-visible,
+.propertyCard:focus-visible,
+.queueItem:focus-visible,
+.quickAction:focus-visible {
+  outline: 3px solid rgb(14 58 67 / 22%);
+  outline-offset: 3px;
+}
+
+.buttonIcon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.metricCard {
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid #e8e8e4;
+  border-radius: 0.85rem;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 3%), 0 4px 12px rgb(15 23 42 / 2%);
+}
+
+.metricTopline {
+  min-height: 1.65rem;
+  gap: 0.5rem;
+}
+
+.metricIcon,
+.quickIcon,
+.queueIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.55rem;
+}
+
+.metricIcon {
+  width: 1.65rem;
+  height: 1.65rem;
+  background: #f4f4f1;
+  color: #0e3a43;
+}
+
+.metricIcon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.metricLabel {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 0.69rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricValue {
+  margin: 0.75rem 0 0;
+  color: #111827;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: clamp(1.45rem, 2vw, 1.85rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.metricDetail {
+  overflow: hidden;
+  margin: 0.4rem 0 0;
+  color: #64748b;
+  font-size: 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contentGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+.propertiesPanel,
+.attentionPanel {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #e8e8e4;
+  border-radius: 0.95rem;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 3%), 0 4px 12px rgb(15 23 42 / 2%);
+}
+
+.panelHeading,
+.attentionHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid #e8e8e4;
+}
+
+.sectionEyebrow {
+  margin: 0;
+  color: #8a6a33;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.panelHeading h2,
+.attentionHeading h2 {
+  margin: 0.35rem 0 0;
+  color: #111827;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.panelHeading p:not(.sectionEyebrow) {
+  margin: 0.35rem 0 0;
+  color: #64748b;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.textLink {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0;
+  color: #0e3a43;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.propertyGrid {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+}
+
+.propertyCard {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 0.9rem;
+  border: 1px solid #e8e8e4;
+  border-radius: 0.8rem;
+  background: #fff;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.propertyCard:hover {
+  transform: translateY(-1px);
+  border-color: #cbd5e1;
+  background: #fbfbfa;
+}
+
+.propertyTopline {
+  min-height: 1.3rem;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.statusPill > span {
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.activeStatus {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.inactiveStatus {
+  border-color: #e4e4e7;
+  background: #f4f4f5;
+  color: #52525b;
+}
+
+.propertyCode {
+  overflow: hidden;
+  color: #64748b;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.propertyCard h3 {
+  overflow: hidden;
+  margin: 0.75rem 0 0;
+  color: #1e293b;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: 0.94rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.propertyLocation {
+  min-width: 0;
+  gap: 0.35rem;
+  margin: 0.3rem 0 0;
+  color: #64748b;
+  font-size: 0.7rem;
+}
+
+.propertyLocation span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.locationIcon {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.inventoryStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  padding: 0.7rem 0 0.65rem;
+  border-top: 1px solid #edf0ee;
+}
+
+.inventoryStat strong,
+.inventoryStat span {
+  display: block;
+}
+
+.inventoryStat strong {
+  color: #1e293b;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.inventoryStat span {
+  margin-top: 0.1rem;
+  color: #64748b;
+  font-size: 0.62rem;
+}
+
+.propertyAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: auto;
+  padding-top: 0.35rem;
+  color: #0e3a43;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.emptyState {
+  display: flex;
+  min-height: 15rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.emptyIcon {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 0.85rem;
+  background: #f4f4f1;
+  color: #0e3a43;
+}
+
+.emptyIcon svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.emptyState h3 {
+  margin: 0.9rem 0 0;
+  color: #1e293b;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: 0.94rem;
+}
+
+.emptyState p {
+  max-width: 25rem;
+  margin: 0.4rem 0 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.attentionPanel {
+  padding-bottom: 0.9rem;
+}
+
+.attentionHeading {
+  align-items: center;
+  padding-bottom: 0.8rem;
+  border-bottom: 0;
+}
+
+.attentionCount {
+  flex: none;
+  padding: 0.27rem 0.5rem;
+  border-radius: 999px;
+  background: #f4f4f1;
+  color: #475569;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.attentionIntro {
+  margin: -0.4rem 1.1rem 0.65rem;
+  color: #64748b;
+  font-size: 0.73rem;
+  line-height: 1.5;
+}
+
+.queueItem {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0 0.75rem;
+  padding: 0.7rem 0.4rem;
+  border-top: 1px solid #edf0ee;
+}
+
+.queueIcon {
+  width: 2.15rem;
+  height: 2.15rem;
+}
+
+.queueIcon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.complaintIcon {
+  background: #fff7ed;
+  color: #b45309;
+}
+
+.reservationIcon {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.queueCopy,
+.queueCopy strong,
+.queueCopy small {
+  display: block;
+  min-width: 0;
+}
+
+.queueCopy {
+  flex: 1;
+}
+
+.queueCopy strong {
+  color: #1e293b;
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.queueCopy small {
+  overflow: hidden;
+  margin-top: 0.16rem;
+  color: #64748b;
+  font-size: 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queueArrow {
+  width: 1rem;
+  height: 1rem;
+  color: #94a3b8;
+}
+
+.capacityCard {
+  margin: 0.7rem 1.1rem 0;
+  padding: 0.8rem;
+  border: 1px solid #e8e8e4;
+  border-radius: 0.7rem;
+  background: #fbfbfa;
+}
+
+.capacityHeader,
+.capacityFooter {
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.capacityHeader span,
+.capacityHeader strong {
+  color: #475569;
+  font-size: 0.66rem;
+}
+
+.capacityHeader strong {
+  color: #0e3a43;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.progressTrack {
+  height: 0.42rem;
+  overflow: hidden;
+  margin-top: 0.65rem;
+  border-radius: 999px;
+  background: #e7eeea;
+}
+
+.progressTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #0e3a43;
+  transition: width 220ms ease;
+}
+
+.capacityFooter {
+  margin-top: 0.48rem;
+  color: #64748b;
+  font-size: 0.61rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.quickActions {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.quickAction {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid #e8e8e4;
+  border-radius: 0.8rem;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 3%), 0 4px 12px rgb(15 23 42 / 2%);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.quickAction:hover {
+  border-color: #cbd5e1;
+  background: #fbfbfa;
+}
+
+.quickIcon {
+  width: 2.2rem;
+  height: 2.2rem;
+  background: #f4f4f1;
+  color: #0e3a43;
+}
+
+.quickIcon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.quickCopy,
+.quickCopy strong,
+.quickCopy small {
+  display: block;
+  min-width: 0;
+}
+
+.quickCopy {
+  flex: 1;
+}
+
+.quickCopy strong {
+  color: #1e293b;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.quickCopy small {
+  overflow: hidden;
+  margin-top: 0.2rem;
+  color: #64748b;
+  font-size: 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quickArrow {
+  width: 1rem;
+  height: 1rem;
+  color: #94a3b8;
+}
+
+@media (min-width: 640px) {
+  .pageHeader {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .headerActions {
+    justify-content: flex-end;
+  }
+
+  .metricsGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .propertyGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quickActions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .metricsGrid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .contentGrid {
+    grid-template-columns: minmax(0, 1.85fr) minmax(17rem, 1fr);
+    align-items: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryButton,
+  .propertyCard,
+  .progressTrack span,
+  .quickAction {
+    transition: none;
+  }
+}

@@ -85,7 +85,7 @@ export default async function PropertyInventoryPage({
                                 const assignment = assignmentByBedId.get(bed.id);
                                 return assignment ? (
                                   <Link className="rounded-full bg-[#eaf4ef] px-2.5 py-1 text-xs font-medium text-[#176e61] hover:bg-[#dcece5]" href={`/org/${orgId}/residents/${assignment.residentId}`} key={bed.id}>
-                                    {bed.label} · {assignment.residentName}
+                                    {bed.label} · {assignment.residentName} · {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(assignment.monthlyRentPaise) / 100)}/mo
                                   </Link>
                                 ) : (
                                   <span className="rounded-full bg-[#f1f3f2] px-2.5 py-1 text-xs font-medium text-[#596661]" key={bed.id}>

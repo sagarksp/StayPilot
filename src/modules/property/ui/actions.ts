@@ -6,6 +6,7 @@ import { ZodError } from "zod";
 import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 import { AccessDeniedError } from "../domain/inventory";
 import { propertyUseCases } from "../application";
+import { propertyStayPolicySchema } from "../application/schemas";
 
 function value(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -113,4 +114,26 @@ export async function createBedAction(formData: FormData) {
   }
   revalidatePath(editUrl(orgId, propertyId));
   redirect(editUrl(orgId, propertyId));
+}
+
+export async function updatePropertyStayPolicyAction(formData: FormData) {
+  const orgId = value(formData, "orgId");
+  const parsed = propertyStayPolicySchema.safeParse({
+    propertyId: value(formData, "propertyId"),
+    noticePeriodDays: value(formData, "noticePeriodDays"),
+    lockInMonths: value(formData, "lockInMonths"),
+  });
+  if (!parsed.success) redirect(`/org/${orgId}/settings?error=invalid`);
+  const actor = await getOrganizationActor(orgId);
+  if (!actor) redirect("/login");
+  try {
+    await propertyUseCases.updateStayPolicy(actor, parsed.data);
+  } catch (error) {
+    if (error instanceof AccessDeniedError) notFound();
+    if (error instanceof Error && error.message === "PROPERTY_NOT_FOUND") notFound();
+    throw error;
+  }
+  revalidatePath(`/org/${orgId}/settings`);
+  revalidatePath(`/org/${orgId}/residents`);
+  redirect(`/org/${orgId}/settings?saved=1`);
 }

@@ -31,7 +31,14 @@ export const createBedSchema = z.object({
   label: z.string().trim().min(1).max(50),
 });
 
+export const propertyStayPolicySchema = z.object({
+  propertyId: z.string().uuid(),
+  noticePeriodDays: z.coerce.number().int().min(0).max(365),
+  lockInMonths: z.coerce.number().int().min(0).max(120),
+});
+
 export type CreatePropertyInput = z.infer<typeof createPropertySchema>;
 export type CreateFloorInput = z.infer<typeof createFloorSchema>;
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;
 export type CreateBedInput = z.infer<typeof createBedSchema>;
+export type PropertyStayPolicyInput = z.infer<typeof propertyStayPolicySchema>;

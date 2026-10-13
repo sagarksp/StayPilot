@@ -5,6 +5,7 @@ import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 import { residentUseCases } from "@/modules/resident/application";
 import { createResidentWithStayAction } from "@/modules/resident/ui/actions";
 import { RentTermsFields } from "@/modules/billing/ui/rent-terms-fields";
+import { SecurityDepositTermsFields } from "@/modules/billing/ui/security-deposit-terms-fields";
 
 function todayInTimezone(timezone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -104,6 +105,7 @@ export default async function ResidentsPage({
               </label>
               <Field label="Move-in date" name="startDate" required defaultValue={today} type="date" />
               <RentTermsFields />
+              <SecurityDepositTermsFields />
               <div className="flex items-end sm:col-span-2">
                 <button className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#176e61] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#10564c] sm:w-auto" type="submit">Create resident and start stay</button>
               </div>
@@ -142,7 +144,7 @@ export default async function ResidentsPage({
                     {stay ? <><strong className="block truncate font-medium">{stay.propertyName}</strong><span className="muted mt-1 block truncate text-xs">{stay.floorName} · Room {stay.roomNumber} · {stay.bedLabel}</span></> : <span className="muted">No recorded stay</span>}
                   </span>
                   <span className="text-sm">
-                    {resident.currentStay ? <><span className="inline-flex rounded-full bg-[#eaf5ef] px-2.5 py-1 text-xs font-semibold text-[#256b4c]">Currently staying</span><span className="muted mt-1 block text-xs">Since {formatDate(resident.currentStay.startDate)}</span></> : <><span className="inline-flex rounded-full bg-[#f1f3f2] px-2.5 py-1 text-xs font-semibold text-[#596661]">Checked out</span><span className="muted mt-1 block text-xs">{stay?.endDate ? `Ended ${formatDate(stay.endDate)}` : "No active bed assignment"}</span></>}
+                    {resident.currentStay ? <><span className="inline-flex rounded-full bg-[#eaf5ef] px-2.5 py-1 text-xs font-semibold text-[#256b4c]">Currently staying</span><span className="muted mt-1 block text-xs">Since {formatDate(resident.currentStay.startDate)}</span>{resident.currentStay.rent ? <span className="muted mt-1 block text-xs">Rent {formatCurrency(resident.currentStay.rent.amountPaise)} / month</span> : null}</> : resident.currentReservation ? <><span className="inline-flex rounded-full bg-[#fff4df] px-2.5 py-1 text-xs font-semibold text-[#8a5a00]">Reserved · move-in pending</span><span className="muted mt-1 block text-xs">Bed held at {resident.currentReservation.propertyName}</span></> : <><span className="inline-flex rounded-full bg-[#f1f3f2] px-2.5 py-1 text-xs font-semibold text-[#596661]">Checked out</span><span className="muted mt-1 block text-xs">{stay?.endDate ? `Ended ${formatDate(stay.endDate)}` : "No active bed assignment"}</span></>}
                   </span>
                   <span aria-hidden="true" className="text-sm font-semibold text-[#176e61]">View <span>→</span></span>
                 </Link>
@@ -183,3 +185,5 @@ function Field({ label, name, placeholder, required = false, type = "text", defa
 function Summary({ label, value }: Readonly<{ label: string; value: number }>) {
   return <div className="surface-card min-w-0 px-2 py-2 sm:min-w-[120px] sm:px-4"><p className="muted text-[11px] leading-4 sm:text-xs">{label}</p><p className="mt-0.5 text-xl font-semibold">{value}</p></div>;
 }
+
+function formatCurrency(amountPaise: bigint) { return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number(amountPaise) / 100); }

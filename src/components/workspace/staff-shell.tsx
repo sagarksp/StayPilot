@@ -1,54 +1,132 @@
-import Link from "next/link";
-import type { ReactNode } from "react";
-import { SignOutButton } from "@/modules/auth/ui/sign-out-button";
+"use client";
 
-const staffResources = [
-  { href: "manager", label: "Overview" },
-  { href: "properties", label: "Properties" },
-  { href: "residents", label: "Residents" },
-  { href: "reservations", label: "Reservations" },
-  { href: "finance", label: "Invoices" },
-];
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
+import { WorkspaceIcon } from "@/components/ui/workspace-icon";
+import { SignOutButton } from "@/modules/auth/ui/sign-out-button";
+import type { OrganizationActor } from "@/modules/property/domain/inventory";
+import styles from "./staff-shell.module.css";
+
+const navigation = [
+  {
+    title: "Workspace",
+    links: [{ href: "manager", label: "Overview", icon: "grid_view" }],
+  },
+  {
+    title: "Portfolio",
+    links: [
+      { href: "properties", label: "Properties", icon: "domain" },
+      { href: "residents", label: "Residents", icon: "groups" },
+      { href: "reservations", label: "Reservations", icon: "event_available" },
+    ],
+  },
+  {
+    title: "Operations",
+    links: [
+      { href: "complaints", label: "Complaints", icon: "campaign" },
+      { href: "electricity", label: "Electricity", icon: "bolt" },
+    ],
+  },
+  {
+    title: "Finance & reports",
+    links: [
+      { href: "finance", label: "Invoices", icon: "receipt_long" },
+      { href: "payments", label: "Payments", icon: "payments" },
+      { href: "deposit-transfers", label: "Deposit transfers", icon: "account_balance_wallet" },
+      { href: "reports/electricity", label: "Reports", icon: "insights" },
+    ],
+  },
+] as const;
+
+function initials(name: string) {
+  return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "SP";
+}
 
 export function StaffShell({
   children,
-  isOwner,
-  orgId,
-}: Readonly<{ children: ReactNode; isOwner: boolean; orgId: string }>) {
-  const resources = isOwner
-    ? [{ href: "owner", label: "Overview" }, ...staffResources]
-    : staffResources;
+  actor,
+}: Readonly<{ children: ReactNode; actor: OrganizationActor }>) {
+  const pathname = usePathname();
+  const workspaceRoot = `/org/${actor.organizationId}`;
 
   return (
-    <div className="min-h-screen bg-[#fbfbfa] md:grid md:grid-cols-[250px_minmax(0,1fr)]">
-      <aside className="bg-[#0e3a43] px-5 py-6 text-white md:min-h-screen">
-        <Link className="text-lg font-bold tracking-tight" href="/">
-          StayPilot
-        </Link>
-        <p className="mt-2 text-xs uppercase tracking-[0.16em] text-[#a9c7bf]">
-          {isOwner ? "Owner workspace" : "Manager workspace"}
-        </p>
-        <nav aria-label="Staff resources" className="mt-8 space-y-1">
-          {resources.map((resource) => (
-            <Link
-              className="shell-link"
-              href={`/org/${orgId}/${resource.href}`}
-              key={resource.href}
-            >
-              {resource.label}
-            </Link>
+    <div className={styles.shell}>
+      <aside className={styles.sidebar}>
+        <div className={styles.brandBlock}>
+          <Link className={styles.brand} href="/">
+            <span className={styles.brandIcon}><WorkspaceIcon name="domain" /></span>
+            <span className={styles.brandCopy}>
+              <strong>StayPilot</strong>
+              <small>Manager workspace</small>
+            </span>
+          </Link>
+          <div className={styles.organizationCard}>
+            <span aria-hidden="true" className={styles.organizationMark}>{actor.organizationName.slice(0, 1).toUpperCase()}</span>
+            <span className={styles.organizationName}>
+              <small>Organization</small>
+              <strong>{actor.organizationName}</strong>
+            </span>
+            <span aria-label="Active organization" className={styles.activeDot} />
+          </div>
+        </div>
+
+        <nav aria-label="Manager workspace" className={styles.navigation}>
+          {navigation.map((section) => (
+            <section className={styles.navigationSection} key={section.title}>
+              <h2>{section.title}</h2>
+              <div className={styles.navigationLinks}>
+                {section.links.map((item) => {
+                  const href = `${workspaceRoot}/${item.href}`;
+                  const selected = item.href === "manager"
+                    ? pathname === href
+                    : pathname === href || pathname.startsWith(`${href}/`);
+                  const className = [styles.navigationLink, selected ? styles.navigationLinkActive : ""]
+                    .filter(Boolean)
+                    .join(" ");
+
+                  return (
+                    <Link aria-current={selected ? "page" : undefined} className={className} href={href} key={item.href}>
+                      <WorkspaceIcon name={item.icon} />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
           ))}
         </nav>
-        <div className="mt-6 border-t border-white/15 pt-4">
-          <SignOutButton className="shell-link w-full cursor-pointer border-0 bg-transparent text-left disabled:cursor-wait disabled:opacity-60" />
+
+        <div className={styles.accountBlock}>
+          <div className={styles.accountCard}>
+            <span aria-hidden="true" className={styles.avatar}>{initials(actor.userName)}</span>
+            <span className={styles.accountIdentity}>
+              <strong>{actor.userName}</strong>
+              <small>Property manager</small>
+            </span>
+          </div>
+          <SignOutButton className={styles.signOut} />
         </div>
-        <p className="mt-8 border-t border-white/15 pt-5 text-xs leading-5 text-[#a9c7bf]">
-          Properties, residents, and reservations are managed within this organization.
-        </p>
       </aside>
-      <main className="min-w-0 px-5 py-8 md:px-10 md:py-10">
-        <div className="mx-auto w-full max-w-[1280px]">{children}</div>
-      </main>
+
+      <div className={styles.workspace}>
+        <header className={styles.topbar}>
+          <div className={styles.topbarIdentity}>
+            <span aria-hidden="true" className={styles.topbarDot} />
+            <span className={styles.topbarOrganization}>{actor.organizationName}</span>
+            <span className={styles.topbarDivider}>/</span>
+            <span className={styles.topbarSection}>Operations</span>
+          </div>
+          <div className={styles.topbarAccount}>
+            <span className={styles.topbarGreeting}>Signed in as</span>
+            <strong>{actor.userName}</strong>
+            <span aria-hidden="true" className={styles.topbarAvatar}>{initials(actor.userName)}</span>
+          </div>
+        </header>
+        <main className={styles.main}>
+          <div className={styles.content}>{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

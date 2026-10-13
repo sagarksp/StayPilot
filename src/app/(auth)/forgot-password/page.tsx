@@ -1,0 +1,22 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { auth } from "@/infrastructure/auth/auth";
+import { PasswordResetRequestForm } from "@/modules/auth/ui/password-recovery-forms";
+
+export default async function ForgotPasswordPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (session) redirect("/workspace");
+
+  return (
+    <main className="mx-auto flex min-h-screen max-w-lg items-center px-6 py-12">
+      <section className="surface-card w-full p-8 md:p-10">
+        <p className="text-sm font-semibold text-[#176e61]">StayPilot</p>
+        <h1 className="mt-4 text-3xl font-semibold">Reset your password</h1>
+        <p className="muted mt-3 leading-7">Enter the email address on your account. If it matches, we’ll send you a secure reset link.</p>
+        <PasswordResetRequestForm />
+        <p className="muted mt-6 text-center text-sm">Remembered your password? <Link className="font-semibold text-[#176e61] hover:underline" href="/login">Sign in</Link></p>
+      </section>
+    </main>
+  );
+}

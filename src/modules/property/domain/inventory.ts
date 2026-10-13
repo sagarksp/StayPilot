@@ -3,6 +3,7 @@ export type StaffRole = "OWNER" | "MANAGER" | "RESIDENT";
 export type OrganizationActor = Readonly<{
   userId: string;
   userName: string;
+  userEmail?: string;
   organizationId: string;
   organizationName: string;
   organizationTimezone: string;

@@ -1,5 +1,6 @@
 import { AccessDeniedError, type OrganizationActor } from "@/modules/property/domain/inventory";
 import { prisma } from "@/infrastructure/db/prisma";
+import type { RecordPayment } from "./schemas";
 
 function assertStaff(actor: OrganizationActor) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
@@ -31,11 +32,15 @@ export const billingUseCases = {
     assertStaff(actor);
     const propertyIds = propertyScope(actor);
     const scope = { organization: { publicId: actor.organizationId }, invoiceType: "RENT", ...(propertyIds ? { property: { publicId: { in: [...propertyIds] } } } : {}) };
-    const [draftRent, finalizedRent] = await Promise.all([
+    const depositScope = { organization: { publicId: actor.organizationId }, status: "OPEN", ...(propertyIds ? { property: { publicId: { in: [...propertyIds] } } } : {}) };
+    const [draftRent, finalizedRent, collectedRent, requiredDeposit, receivedDeposit] = await Promise.all([
       prisma.invoice.aggregate({ where: { ...scope, status: "DRAFT" }, _sum: { totalPaise: true }, _count: true }),
-      prisma.invoice.aggregate({ where: { ...scope, status: "FINALIZED" }, _sum: { totalPaise: true }, _count: true }),
+      prisma.invoice.aggregate({ where: { ...scope, status: { in: ["FINALIZED", "PARTIALLY_PAID", "PAID"] } }, _sum: { totalPaise: true }, _count: true }),
+      prisma.payment.aggregate({ where: { invoice: { ...scope } }, _sum: { amountPaise: true } }),
+      prisma.securityDepositAccount.aggregate({ where: depositScope, _sum: { requiredAmountPaise: true } }),
+      prisma.securityDepositTransaction.aggregate({ where: { depositAccount: { ...depositScope } }, _sum: { amountPaise: true } }),
     ]);
-    return { draftRent, finalizedRent };
+    return { draftRent, finalizedRent, collectedRent, requiredDeposit, receivedDeposit };
   },
 
   async listInvoices(actor: OrganizationActor) {
@@ -51,6 +56,7 @@ export const billingUseCases = {
         billingPeriodEnd: true,
         dueDate: true,
         totalPaise: true,
+        amountPaidPaise: true,
         finalizedAt: true,
         property: { select: { publicId: true, name: true } },
         residentStay: {
@@ -60,8 +66,54 @@ export const billingUseCases = {
           },
         },
         items: { select: { description: true, amountPaise: true } },
+        payments: { select: { publicId: true, amountPaise: true, paymentDate: true, method: true, reference: true, notes: true, recordedByName: true }, orderBy: [{ paymentDate: "desc" }, { createdAt: "desc" }] },
       },
       orderBy: [{ dueDate: "desc" }, { createdAt: "desc" }],
+    });
+  },
+
+  async recordPayment(actor: OrganizationActor, payment: RecordPayment) {
+    assertStaff(actor);
+    const scope = propertyScope(actor);
+    return prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findFirst({
+        where: {
+          publicId: payment.invoiceId,
+          organization: { publicId: actor.organizationId },
+          ...(scope ? { property: { publicId: { in: [...scope] } } } : {}),
+          status: { in: ["FINALIZED", "PARTIALLY_PAID"] },
+        },
+        select: { id: true, organizationId: true, propertyId: true, residentStayId: true, residentStay: { select: { residentId: true } }, totalPaise: true, amountPaidPaise: true, status: true },
+      });
+      if (!invoice) throw new Error("INVOICE_NOT_PAYABLE");
+      const balance = invoice.totalPaise - invoice.amountPaidPaise;
+      if (payment.amountPaise > balance) throw new Error("PAYMENT_EXCEEDS_BALANCE");
+
+      const nextPaid = invoice.amountPaidPaise + payment.amountPaise;
+      const nextStatus = nextPaid === invoice.totalPaise ? "PAID" : "PARTIALLY_PAID";
+      const updated = await tx.invoice.updateMany({
+        where: { id: invoice.id, amountPaidPaise: invoice.amountPaidPaise, status: invoice.status },
+        data: { amountPaidPaise: nextPaid, status: nextStatus },
+      });
+      if (updated.count !== 1) throw new Error("INVOICE_CHANGED");
+
+      return tx.payment.create({
+        data: {
+          organizationId: invoice.organizationId,
+          propertyId: invoice.propertyId,
+          residentId: invoice.residentStay.residentId,
+          residentStayId: invoice.residentStayId,
+          invoiceId: invoice.id,
+          purpose: "INVOICE",
+          amountPaise: payment.amountPaise,
+          paymentDate: payment.paymentDate,
+          method: payment.method,
+          reference: payment.reference,
+          notes: payment.notes,
+          recordedByName: actor.userName,
+        },
+        select: { publicId: true, amountPaise: true },
+      });
     });
   },
 

@@ -1,6 +1,7 @@
 import {
   assertCanManageInventory,
   assertCanReadProperty,
+  AccessDeniedError,
   type OrganizationActor,
 } from "../domain/inventory";
 import type { PropertyRepository, PropertyUseCases } from "./repository";
@@ -13,7 +14,13 @@ import {
   type CreateFloorInput,
   type CreatePropertyInput,
   type CreateRoomInput,
+  propertyStayPolicySchema,
+  type PropertyStayPolicyInput,
 } from "./schemas";
+
+function assertOwner(actor: OrganizationActor) {
+  if (!actor.roles.includes("OWNER")) throw new AccessDeniedError();
+}
 
 export function createPropertyUseCases(repository: PropertyRepository): PropertyUseCases {
   return {
@@ -52,6 +59,16 @@ export function createPropertyUseCases(repository: PropertyRepository): Property
     async createBed(actor, propertyId, input: CreateBedInput) {
       assertCanManageInventory(actor, propertyId);
       return repository.createBed(actor.organizationId, propertyId, createBedSchema.parse(input));
+    },
+
+    async listStayPolicies(actor) {
+      assertOwner(actor);
+      return repository.listStayPolicies(actor.organizationId);
+    },
+
+    async updateStayPolicy(actor, input: PropertyStayPolicyInput) {
+      assertOwner(actor);
+      await repository.updateStayPolicy(actor.organizationId, propertyStayPolicySchema.parse(input));
     },
   };
 }

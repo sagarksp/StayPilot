@@ -25,16 +25,17 @@ const navigation: ReadonlyArray<Readonly<{ title: string; links: ReadonlyArray<O
   ] },
   { title: "Financials & Billing", links: [
     { label: "Invoices", icon: "receipt_long", route: "finance", available: true },
-    { label: "Payments", icon: "account_balance_wallet", available: false },
-    { label: "Security Deposits", icon: "lock", available: false },
+    { label: "Electricity", icon: "bolt", route: "electricity", available: true },
+    { label: "Payments", icon: "account_balance_wallet", route: "payments", available: true },
+    { label: "Deposit transfers", icon: "lock", route: "deposit-transfers", available: true },
     { label: "Electricity / Submeter", icon: "bolt", available: false },
   ] },
   { title: "Support & Control", links: [
-    { label: "Complaints", icon: "report_problem", available: false },
+    { label: "Complaints", icon: "report_problem", route: "complaints", available: true },
     { label: "Notices", icon: "campaign", available: false },
-    { label: "Reports", icon: "insights", available: false },
-    { label: "Staff & Managers", icon: "manage_accounts", available: false },
-    { label: "Settings", icon: "tune", available: false },
+    { label: "Reports", icon: "insights", route: "reports/electricity", available: true },
+    { label: "Staff & Managers", icon: "manage_accounts", route: "team", available: true },
+    { label: "Settings", icon: "tune", route: "settings", available: true },
   ] },
 ];
 

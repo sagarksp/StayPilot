@@ -4,6 +4,7 @@ import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 import { reservationUseCases } from "@/modules/reservation/application";
 import { cancelReservationAction, createReservationAction, moveInReservationAction } from "@/modules/reservation/ui/actions";
 import { RentTermsFields } from "@/modules/billing/ui/rent-terms-fields";
+import { SecurityDepositTermsFields } from "@/modules/billing/ui/security-deposit-terms-fields";
 
 const inputClass = "min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 outline-none focus:border-[#176e61] focus:ring-2 focus:ring-[#176e61]/15";
 const formatDate = (date: Date) => new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
@@ -20,9 +21,11 @@ function message(error?: string) {
     case "bed-unavailable": return "That bed is occupied or reserved during those dates. Choose another bed or date range.";
     case "resident-reserved": return "This resident already has an active reservation.";
     case "resident-active": return "A resident with an active stay cannot be reserved again.";
+    case "email-taken": return "Another resident in this organization already uses that email address.";
     case "start-past": return "Reservations must start today or later.";
     case "move-in-range": return "The move-in date must fall within the reservation period.";
     case "move-in-future": return "Move-in must happen today or earlier.";
+    case "deposit-exceeds-required": return "The deposit already received is greater than the required deposit. Adjust the required amount before move-in.";
     case "not-active": return "That reservation has already been changed. Refresh the page to see its current status.";
     case "date-order": return "The end date must be on or after the start date.";
     default: return null;
@@ -104,6 +107,10 @@ export default async function ReservationsPage({ params, searchParams }: Readonl
               <Field label="Reservation starts" name="reservationStartDate" type="date" required min={today} defaultValue={today} />
               <Field label="Reservation ends" name="reservationEndDate" type="date" required min={today} />
               <Field label="Expected move-in (optional)" name="expectedMoveInDate" type="date" min={today} />
+              <Field label="Security deposit received now (optional)" name="securityDepositReceived" placeholder="0.00" />
+              <Field label="Deposit payment date" name="depositPaymentDate" type="date" defaultValue={today} min={today} />
+              <label className="block space-y-2 text-sm font-medium" htmlFor="depositPaymentMethod"><span>Deposit payment method</span><select className={inputClass} id="depositPaymentMethod" name="depositPaymentMethod" defaultValue="UPI"><option value="CASH">Cash</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">Bank transfer</option><option value="CARD">Card</option><option value="OTHER">Other</option></select></label>
+              <Field label="Payment reference (optional)" name="depositPaymentReference" />
               <label className="block space-y-2 text-sm font-medium sm:col-span-2" htmlFor="notes">
                 <span>Notes <span className="font-normal text-slate-500">(optional)</span></span>
                 <textarea className={`${inputClass} min-h-24 py-3`} id="notes" name="notes" maxLength={2000} />
@@ -132,8 +139,8 @@ function Summary({ label, value }: Readonly<{ label: string; value: number }>) {
   return <div className="surface-card min-w-32 px-4 py-3"><span className="muted block text-xs">{label}</span><strong className="mt-1 block text-2xl">{value}</strong></div>;
 }
 
-function Field({ label, name, type = "text", required = false, min, defaultValue }: Readonly<{ label: string; name: string; type?: string; required?: boolean; min?: string; defaultValue?: string }>) {
-  return <label className="block space-y-2 text-sm font-medium" htmlFor={name}><span>{label}{required ? <span aria-hidden="true"> *</span> : null}</span><input className={inputClass} id={name} name={name} type={type} required={required} min={min} defaultValue={defaultValue} /></label>;
+function Field({ label, name, type = "text", required = false, min, defaultValue, placeholder }: Readonly<{ label: string; name: string; type?: string; required?: boolean; min?: string; defaultValue?: string; placeholder?: string }>) {
+  return <label className="block space-y-2 text-sm font-medium" htmlFor={name}><span>{label}{required ? <span aria-hidden="true"> *</span> : null}</span><input className={inputClass} id={name} name={name} type={type} required={required} min={min} defaultValue={defaultValue} placeholder={placeholder} inputMode={name === "securityDepositReceived" ? "decimal" : undefined} /></label>;
 }
 
 function ReservationList({ title, items, orgId, today }: Readonly<{ title: string; items: Awaited<ReturnType<typeof reservationUseCases.listReservations>>; orgId: string; today: string }>) {
@@ -151,6 +158,7 @@ function ReservationList({ title, items, orgId, today }: Readonly<{ title: strin
                   <p className="muted mt-1 text-sm">{item.residentPhone}{item.residentEmail ? ` · ${item.residentEmail}` : ""}</p>
                   <p className="mt-3 text-sm font-medium">{item.bed.propertyName} · {item.bed.floorName} · Room {item.bed.roomNumber} · {item.bed.label}</p>
                   <p className="muted mt-1 text-sm">{formatDate(item.reservationStartDate)} – {formatDate(item.reservationEndDate)}{item.expectedMoveInDate ? ` · Expected move-in ${formatDate(item.expectedMoveInDate)}` : ""}</p>
+                  {item.prepaidSecurityDepositPaise > BigInt(0) ? <p className="mt-2 text-sm font-medium">Security deposit already received: {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(item.prepaidSecurityDepositPaise) / 100)}</p> : null}
                   {item.notes ? <p className="muted mt-2 whitespace-pre-wrap text-sm">{item.notes}</p> : null}
                   {item.cancellationReason ? <p className="muted mt-2 text-sm">Cancellation reason: {item.cancellationReason}</p> : null}
                 </div>
@@ -161,6 +169,7 @@ function ReservationList({ title, items, orgId, today }: Readonly<{ title: strin
                         <input name="orgId" type="hidden" value={orgId} /><input name="reservationId" type="hidden" value={item.id} />
                         <input className={`${inputClass} min-h-10`} aria-label={`Move-in date for ${item.residentName}`} name="moveInDate" type="date" min={item.reservationStartDate.toISOString().slice(0, 10)} max={today} defaultValue={today} required />
                         <RentTermsFields />
+                        <SecurityDepositTermsFields />
                         <button className="min-h-10 rounded-lg bg-[#176e61] px-3 text-sm font-semibold text-white hover:bg-[#10564c]" type="submit">Confirm move-in</button>
                       </form>
                     ) : <p className="max-w-52 text-sm text-slate-600">Move-in can be recorded from {formatDate(item.reservationStartDate)}.</p>}

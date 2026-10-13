@@ -14,11 +14,11 @@ export function SignOutButton({ className }: Readonly<{ className: string }>) {
     setError(null);
     try {
       const result = await authClient.signOut();
-      if (result.error) {
+      if (result.error || result.data?.success !== true) {
         setError("Couldn't sign out. Please try again.");
         return;
       }
-      window.location.assign("/login");
+      window.location.replace("/login");
     } catch {
       setError("Couldn't reach StayPilot. Check your connection and try again.");
     } finally {

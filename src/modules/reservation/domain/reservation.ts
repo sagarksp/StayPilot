@@ -23,6 +23,7 @@ export type ReservationSummary = Readonly<{
   expectedMoveInDate: Date | null;
   notes: string | null;
   cancellationReason: string | null;
+  prepaidSecurityDepositPaise: bigint;
   createdAt: Date;
 }>;
 
@@ -36,10 +37,12 @@ export type ReservationErrorCode =
   | "BED_NOT_OPERATIONAL"
   | "ACTIVE_RESERVATION_EXISTS"
   | "RESIDENT_HAS_ACTIVE_STAY"
+  | "RESIDENT_EMAIL_TAKEN"
   | "RESERVATION_NOT_ACTIVE"
   | "RESERVATION_NOT_FOUND"
   | "MOVE_IN_OUTSIDE_RESERVATION"
   | "MOVE_IN_IN_FUTURE"
+  | "PREPAID_DEPOSIT_EXCEEDS_REQUIRED"
   | "RESERVATION_START_IN_PAST"
   | "DATE_ORDER";
 

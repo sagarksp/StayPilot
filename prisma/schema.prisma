@@ -19,6 +19,14 @@ model User {
   reservationsCreated   Reservation[]            @relation("ReservationCreator")
   reservationsCancelled Reservation[]            @relation("ReservationCanceller")
   reservationsExpired   Reservation[]            @relation("ReservationExpirer")
+  securityDepositTransactions SecurityDepositTransaction[]
+  checkoutProcessesCreated CheckoutProcess[] @relation("CheckoutProcessCreator")
+  electricityReadings ElectricityMeterReading[] @relation("ElectricityReadingRecorder")
+  electricityBillsCreated ElectricityBill[] @relation("ElectricityBillCreator")
+  electricityAllocationsOverridden ElectricityAllocation[] @relation("ElectricityAllocationOverrider")
+  assignedComplaints Complaint[] @relation("ComplaintAssignee")
+  complaintEvents ComplaintEvent[] @relation("ComplaintEventActor")
+  invitationsCreated UserInvitation[] @relation("UserInvitationCreator")
 
   @@map("users")
 }
@@ -102,6 +110,17 @@ model Organization {
   reservations  Reservation[]
   stayRentRates StayRentRate[]
   invoices      Invoice[]
+  payments      Payment[]
+  securityDepositAccounts SecurityDepositAccount[]
+  securityDepositTransactions SecurityDepositTransaction[]
+  checkoutProcesses CheckoutProcess[]
+  electricityMeters ElectricityMeter[]
+  electricityBills ElectricityBill[]
+  electricityReadings ElectricityMeterReading[]
+  electricityAllocations ElectricityAllocation[]
+  pgSettings PgSetting[]
+  complaints Complaint[]
+  userInvitations UserInvitation[]
 
   @@map("organizations")
 }
@@ -111,16 +130,19 @@ model OrganizationMembership {
   publicId       String                @unique @default(uuid()) @map("public_id") @db.Char(36)
   organizationId BigInt                @map("organization_id") @db.UnsignedBigInt
   userId         BigInt                @map("user_id") @db.UnsignedBigInt
+  residentId     BigInt?               @map("resident_id") @db.UnsignedBigInt
   status         String                @default("ACTIVE") @db.VarChar(20)
   createdAt      DateTime              @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt      DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
   organization   Organization          @relation(fields: [organizationId], references: [id])
   user           User                  @relation(fields: [userId], references: [id])
+  resident       Resident?             @relation(fields: [organizationId, residentId], references: [organizationId, id])
   roles          MembershipRole[]
   pgAssignments  ManagerPgAssignment[]
 
   @@unique([organizationId, userId])
   @@unique([organizationId, id])
+  @@unique([organizationId, residentId])
   @@map("organization_memberships")
 }
 
@@ -147,6 +169,41 @@ model ManagerPgAssignment {
   @@map("manager_pg_assignments")
 }
 
+model UserInvitation {
+  id             BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String                   @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt                   @map("organization_id") @db.UnsignedBigInt
+  email          String                   @db.VarChar(254)
+  roleCode       String                   @map("role_code") @db.VarChar(30)
+  tokenHash      String                   @unique @map("token_hash") @db.Char(64)
+  expiresAt      DateTime                 @map("expires_at") @db.DateTime(3)
+  acceptedAt     DateTime?                @map("accepted_at") @db.DateTime(3)
+  createdById    BigInt?                  @map("created_by") @db.UnsignedBigInt
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  residentId     BigInt?                  @map("resident_id") @db.UnsignedBigInt
+  organization   Organization             @relation(fields: [organizationId], references: [id])
+  resident       Resident?                @relation(fields: [organizationId, residentId], references: [organizationId, id], onDelete: Cascade)
+  createdBy      User?                    @relation("UserInvitationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  properties     UserInvitationProperty[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, residentId])
+  @@index([organizationId, roleCode, acceptedAt, expiresAt], map: "user_invites_org_role_exp_idx")
+  @@map("user_invitations")
+}
+
+model UserInvitationProperty {
+  organizationId BigInt         @map("organization_id") @db.UnsignedBigInt
+  invitationId   BigInt         @map("invitation_id") @db.UnsignedBigInt
+  propertyId     BigInt         @map("pg_id") @db.UnsignedBigInt
+  invitation     UserInvitation @relation(fields: [organizationId, invitationId], references: [organizationId, id], onDelete: Cascade)
+  property       Property       @relation(fields: [organizationId, propertyId], references: [organizationId, id], onDelete: Cascade)
+
+  @@id([organizationId, invitationId, propertyId])
+  @@index([organizationId, propertyId])
+  @@map("user_invitation_pgs")
+}
+
 model Property {
   id             BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
   publicId       String                @unique @default(uuid()) @map("public_id") @db.Char(36)
@@ -168,10 +225,18 @@ model Property {
   rooms          Room[]
   beds           Bed[]
   assignments    ManagerPgAssignment[]
+  invitationAssignments UserInvitationProperty[]
   residentStays  ResidentStay[]
   reservations   Reservation[]
   stayRentRates  StayRentRate[]
   invoices       Invoice[]
+  payments       Payment[]
+  securityDepositAccounts SecurityDepositAccount[]
+  checkoutProcesses CheckoutProcess[]
+  electricityMeters ElectricityMeter[]
+  electricityBills ElectricityBill[]
+  settings PgSetting?
+  complaints Complaint[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -193,6 +258,7 @@ model Floor {
   organization   Organization @relation(fields: [organizationId], references: [id])
   rooms          Room[]
   beds           Bed[]
+  electricityMeters ElectricityMeter[]
 
   @@unique([organizationId, propertyId, id])
   @@unique([propertyId, name])
@@ -214,6 +280,7 @@ model Room {
   organization   Organization @relation(fields: [organizationId], references: [id])
   floor          Floor        @relation(fields: [organizationId, propertyId, floorId], references: [organizationId, propertyId, id])
   beds           Bed[]
+  electricityMeters ElectricityMeter[]
 
   @@unique([organizationId, propertyId, id])
   @@unique([propertyId, number])
@@ -257,6 +324,9 @@ model Resident {
   organization   Organization   @relation(fields: [organizationId], references: [id])
   stays          ResidentStay[]
   reservations   Reservation[]
+  payments       Payment[]
+  invitations    UserInvitation[]
+  memberships    OrganizationMembership[]
 
   @@unique([organizationId, id], map: "residents_organization_id_id_key")
   @@index([organizationId, name], map: "residents_organization_id_name_idx")
@@ -271,8 +341,11 @@ model ResidentStay {
   propertyId         BigInt         @map("pg_id") @db.UnsignedBigInt
   residentId         BigInt         @map("resident_id") @db.UnsignedBigInt
   bedId              BigInt         @map("bed_id") @db.UnsignedBigInt
+  reservationId      BigInt?        @map("reservation_id") @db.UnsignedBigInt
   startDate          DateTime       @map("start_date") @db.Date
   endDate            DateTime?      @map("end_date") @db.Date
+  lockInMonths       Int            @default(0) @map("lock_in_months") @db.UnsignedInt
+  lockInEndDate      DateTime?      @map("lock_in_end_date") @db.Date
   status             String         @default("ACTIVE") @db.VarChar(20)
   activeBedSlot      Int?           @map("active_bed_slot") @db.UnsignedInt
   activeResidentSlot Int?           @map("active_resident_slot") @db.UnsignedInt
@@ -282,8 +355,14 @@ model ResidentStay {
   property           Property       @relation(fields: [organizationId, propertyId], references: [organizationId, id])
   resident           Resident       @relation(fields: [organizationId, residentId], references: [organizationId, id])
   bed                Bed            @relation(fields: [organizationId, propertyId, bedId], references: [organizationId, propertyId, id])
+  reservation        Reservation?  @relation(fields: [reservationId], references: [id])
   rentRates          StayRentRate[]
   invoices           Invoice[]
+  payments           Payment[]
+  securityDepositAccount SecurityDepositAccount?
+  checkoutProcesses CheckoutProcess[]
+  electricityAllocations ElectricityAllocation[]
+  complaints Complaint[]
 
   // MySQL allows multiple NULL values in a unique index. Active stays use 1;
   // ended stays set these slots to NULL, retaining history without allowing
@@ -292,6 +371,7 @@ model ResidentStay {
   @@unique([organizationId, residentId, activeResidentSlot], map: "resident_stays_active_resident_key")
   @@index([organizationId, propertyId, status], map: "resident_stays_organization_id_pg_id_status_idx")
   @@index([organizationId, residentId, startDate], map: "resident_stays_organization_id_resident_id_start_date_idx")
+  @@index([reservationId])
   @@map("resident_stays")
 }
 
@@ -331,6 +411,7 @@ model Invoice {
   status             String        @default("DRAFT") @db.VarChar(20)
   subtotalPaise      BigInt        @map("subtotal_paise")
   totalPaise         BigInt        @map("total_paise")
+  amountPaidPaise    BigInt        @default(0) @map("amount_paid_paise")
   finalizedAt        DateTime?     @map("finalized_at") @db.DateTime(3)
   createdAt          DateTime      @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt          DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
@@ -338,11 +419,312 @@ model Invoice {
   property           Property      @relation(fields: [organizationId, propertyId], references: [organizationId, id])
   residentStay       ResidentStay  @relation(fields: [residentStayId], references: [id])
   items              InvoiceItem[]
+  payments           Payment[]
 
   @@unique([organizationId, invoiceNumber])
   @@unique([residentStayId, billingPeriodStart, billingPeriodEnd, invoiceType], map: "invoices_stay_period_type_key")
   @@index([organizationId, propertyId, status, dueDate])
   @@map("invoices")
+}
+
+model Payment {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String   @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt   @map("organization_id") @db.UnsignedBigInt
+  propertyId     BigInt   @map("pg_id") @db.UnsignedBigInt
+  residentId     BigInt   @map("resident_id") @db.UnsignedBigInt
+  invoiceId      BigInt?  @map("invoice_id") @db.UnsignedBigInt
+  reservationId  BigInt?  @map("reservation_id") @db.UnsignedBigInt
+  residentStayId BigInt?  @map("resident_stay_id") @db.UnsignedBigInt
+  purpose        String   @default("INVOICE") @db.VarChar(30)
+  amountPaise    BigInt   @map("amount_paise")
+  paymentDate    DateTime @map("payment_date") @db.Date
+  method         String   @db.VarChar(30)
+  reference      String?  @db.VarChar(100)
+  notes          String?  @db.VarChar(500)
+  recordedByName String   @map("recorded_by_name") @db.VarChar(180)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  property       Property @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  resident       Resident @relation(fields: [organizationId, residentId], references: [organizationId, id])
+  invoice        Invoice? @relation(fields: [invoiceId], references: [id])
+  reservation    Reservation? @relation(fields: [reservationId], references: [id])
+  residentStay   ResidentStay? @relation(fields: [residentStayId], references: [id])
+  depositTransactions SecurityDepositTransaction[]
+
+  @@index([invoiceId, paymentDate])
+  @@index([organizationId, propertyId, paymentDate])
+  @@index([reservationId])
+  @@index([residentStayId, paymentDate])
+  @@map("payments")
+}
+
+model SecurityDepositAccount {
+  id                BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId          String      @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId    BigInt      @map("organization_id") @db.UnsignedBigInt
+  propertyId        BigInt      @map("pg_id") @db.UnsignedBigInt
+  residentStayId    BigInt      @unique @map("resident_stay_id") @db.UnsignedBigInt
+  requiredAmountPaise BigInt    @map("required_amount_paise")
+  policyType        String      @map("policy_type") @db.VarChar(30)
+  status            String      @default("OPEN") @db.VarChar(30)
+  ledgerVersion     Int         @default(0) @map("ledger_version") @db.UnsignedInt
+  createdAt         DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.DateTime(3)
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  property          Property    @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  residentStay      ResidentStay @relation(fields: [residentStayId], references: [id])
+  transactions      SecurityDepositTransaction[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, propertyId, status])
+  @@map("security_deposit_accounts")
+}
+
+model SecurityDepositTransaction {
+  id             BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String      @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt      @map("organization_id") @db.UnsignedBigInt
+  depositAccountId BigInt?   @map("deposit_account_id") @db.UnsignedBigInt
+  reservationId  BigInt?     @map("reservation_id") @db.UnsignedBigInt
+  paymentId      BigInt?     @unique @map("payment_id") @db.UnsignedBigInt
+  transferReference String?  @map("transfer_reference") @db.Char(36)
+  transactionType String     @map("transaction_type") @db.VarChar(30)
+  amountPaise    BigInt      @map("amount_paise")
+  description    String?     @db.VarChar(500)
+  createdById    BigInt      @map("created_by") @db.UnsignedBigInt
+  createdAt      DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  depositAccount SecurityDepositAccount? @relation(fields: [depositAccountId], references: [id])
+  reservation    Reservation? @relation(fields: [reservationId], references: [id])
+  payment        Payment? @relation(fields: [paymentId], references: [id])
+  createdBy      User @relation(fields: [createdById], references: [id])
+
+  @@index([organizationId, depositAccountId, createdAt], map: "sec_dep_txn_org_account_created_idx")
+  @@index([reservationId, createdAt])
+  @@index([organizationId, transferReference], map: "sec_dep_txn_org_transfer_ref_idx")
+  @@map("security_deposit_transactions")
+}
+
+model Complaint {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String   @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt   @map("organization_id") @db.UnsignedBigInt
+  propertyId     BigInt   @map("pg_id") @db.UnsignedBigInt
+  residentStayId BigInt   @map("resident_stay_id") @db.UnsignedBigInt
+  category       String   @db.VarChar(40)
+  title          String   @db.VarChar(180)
+  description    String   @db.Text
+  status         String   @default("OPEN") @db.VarChar(30)
+  assignedToId   BigInt?  @map("assigned_to") @db.UnsignedBigInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  resolvedAt     DateTime? @map("resolved_at") @db.DateTime(3)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  property       Property @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  residentStay   ResidentStay @relation(fields: [residentStayId], references: [id])
+  assignedTo     User? @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
+  events         ComplaintEvent[]
+
+  @@index([organizationId, propertyId, status, createdAt])
+  @@index([residentStayId, createdAt])
+  @@map("complaints")
+}
+
+model ComplaintEvent {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String   @unique @default(uuid()) @map("public_id") @db.Char(36)
+  complaintId    BigInt   @map("complaint_id") @db.UnsignedBigInt
+  actorId        BigInt   @map("actor_id") @db.UnsignedBigInt
+  eventType      String   @map("event_type") @db.VarChar(30)
+  fromStatus     String?  @map("from_status") @db.VarChar(30)
+  toStatus       String?  @map("to_status") @db.VarChar(30)
+  note           String?  @db.VarChar(1000)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  complaint      Complaint @relation(fields: [complaintId], references: [id])
+  actor          User @relation("ComplaintEventActor", fields: [actorId], references: [id])
+
+  @@index([complaintId, createdAt])
+  @@map("complaint_events")
+}
+
+model ElectricityMeter {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String   @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt   @map("organization_id") @db.UnsignedBigInt
+  propertyId     BigInt   @map("pg_id") @db.UnsignedBigInt
+  scopeType      String   @map("scope_type") @db.VarChar(20)
+  roomId         BigInt?  @map("room_id") @db.UnsignedBigInt
+  floorId        BigInt?  @map("floor_id") @db.UnsignedBigInt
+  meterNumber    String   @map("meter_number") @db.VarChar(100)
+  installedOn    DateTime? @map("installed_on") @db.Date
+  retiredOn      DateTime? @map("retired_on") @db.Date
+  status         String   @default("ACTIVE") @db.VarChar(20)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  property       Property @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  room           Room? @relation(fields: [organizationId, propertyId, roomId], references: [organizationId, propertyId, id])
+  floor          Floor? @relation(fields: [organizationId, propertyId, floorId], references: [organizationId, propertyId, id])
+  readings       ElectricityMeterReading[]
+  bills          ElectricityBill[]
+
+  @@unique([organizationId, propertyId, meterNumber], map: "electricity_meters_property_number_key")
+  @@index([organizationId, propertyId, status])
+  @@map("electricity_meters")
+}
+
+model PgSetting {
+  id                       BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  organizationId           BigInt   @map("organization_id") @db.UnsignedBigInt
+  propertyId               BigInt   @unique @map("pg_id") @db.UnsignedBigInt
+  noticePeriodDays         Int      @default(30) @map("notice_period_days") @db.UnsignedInt
+  lockInMonths             Int      @default(0) @map("lock_in_months") @db.UnsignedInt
+  foodMode                 String   @default("INCLUDED") @map("food_mode") @db.VarChar(20)
+  electricityMode          String   @default("ROOM_METER") @map("electricity_mode") @db.VarChar(20)
+  defaultElectricityRatePaise BigInt? @map("default_electricity_rate_paise")
+  rentReminderDays         Int      @default(5) @map("rent_reminder_days") @db.UnsignedInt
+  kycRetentionMode         String   @default("KEEP") @map("kyc_retention_mode") @db.VarChar(30)
+  kycRetentionMonths       Int?     @map("kyc_retention_months") @db.UnsignedInt
+  reservationRefundPolicy  String   @default("NON_REFUNDABLE") @map("reservation_refund_policy") @db.VarChar(30)
+  createdAt                DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  organization             Organization @relation(fields: [organizationId], references: [id])
+  property                 Property @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+
+  @@unique([organizationId, propertyId])
+  @@map("pg_settings")
+}
+
+model ElectricityMeterReading {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  organizationId BigInt   @map("organization_id") @db.UnsignedBigInt
+  meterId        BigInt   @map("meter_id") @db.UnsignedBigInt
+  readingValue   Decimal  @map("reading_value") @db.Decimal(14, 3)
+  readingAt      DateTime @map("reading_at") @db.DateTime(3)
+  recordedById   BigInt   @map("recorded_by") @db.UnsignedBigInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  meter          ElectricityMeter @relation(fields: [meterId], references: [id])
+  recordedBy     User @relation("ElectricityReadingRecorder", fields: [recordedById], references: [id])
+  previousFor    ElectricityBill[] @relation("ElectricityPreviousReading")
+  currentFor     ElectricityBill[] @relation("ElectricityCurrentReading")
+
+  @@unique([meterId, readingAt])
+  @@index([organizationId, meterId, readingAt])
+  @@map("meter_readings")
+}
+
+model ElectricityBill {
+  id                BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId          String   @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId    BigInt   @map("organization_id") @db.UnsignedBigInt
+  propertyId        BigInt   @map("pg_id") @db.UnsignedBigInt
+  meterId           BigInt?  @map("meter_id") @db.UnsignedBigInt
+  billingMode       String   @map("billing_mode") @db.VarChar(20)
+  periodStart       DateTime @map("period_start") @db.Date
+  periodEnd         DateTime @map("period_end") @db.Date
+  previousReadingId BigInt?  @map("previous_reading_id") @db.UnsignedBigInt
+  currentReadingId  BigInt?  @map("current_reading_id") @db.UnsignedBigInt
+  unitsConsumed     Decimal? @map("units_consumed") @db.Decimal(14, 3)
+  unitRatePaise     BigInt?  @map("unit_rate_paise")
+  totalAmountPaise  BigInt   @map("total_amount_paise")
+  status            String   @default("DRAFT") @db.VarChar(20)
+  createdById       BigInt   @map("created_by") @db.UnsignedBigInt
+  createdAt         DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  finalizedAt       DateTime? @map("finalized_at") @db.DateTime(3)
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  property          Property @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  meter             ElectricityMeter? @relation(fields: [meterId], references: [id])
+  previousReading  ElectricityMeterReading? @relation("ElectricityPreviousReading", fields: [previousReadingId], references: [id])
+  currentReading   ElectricityMeterReading? @relation("ElectricityCurrentReading", fields: [currentReadingId], references: [id])
+  createdBy         User @relation("ElectricityBillCreator", fields: [createdById], references: [id])
+  allocations       ElectricityAllocation[]
+
+  @@index([organizationId, propertyId, status, periodEnd])
+  @@index([meterId, periodStart, periodEnd])
+  @@map("electricity_bills")
+}
+
+model ElectricityAllocation {
+  id                    BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId              String   @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId        BigInt   @map("organization_id") @db.UnsignedBigInt
+  electricityBillId     BigInt   @map("electricity_bill_id") @db.UnsignedBigInt
+  residentStayId        BigInt   @map("resident_stay_id") @db.UnsignedBigInt
+  occupiedDays          Int?     @map("occupied_days") @db.UnsignedInt
+  calculatedAmountPaise BigInt   @map("calculated_amount_paise")
+  finalAmountPaise      BigInt   @map("final_amount_paise")
+  overrideReason        String?  @map("override_reason") @db.VarChar(500)
+  overriddenById        BigInt?  @map("overridden_by") @db.UnsignedBigInt
+  invoiceItemId         BigInt?  @unique @map("invoice_item_id") @db.UnsignedBigInt
+  createdAt             DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  organization          Organization @relation(fields: [organizationId], references: [id])
+  electricityBill       ElectricityBill @relation(fields: [electricityBillId], references: [id])
+  residentStay          ResidentStay @relation(fields: [residentStayId], references: [id])
+  overriddenBy          User? @relation("ElectricityAllocationOverrider", fields: [overriddenById], references: [id])
+  invoiceItem           InvoiceItem? @relation(fields: [invoiceItemId], references: [id])
+
+  @@unique([electricityBillId, residentStayId])
+  @@index([organizationId, residentStayId])
+  @@map("electricity_allocations")
+}
+
+model CheckoutProcess {
+  id                    BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId              String   @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId        BigInt   @map("organization_id") @db.UnsignedBigInt
+  propertyId            BigInt   @map("pg_id") @db.UnsignedBigInt
+  residentStayId        BigInt   @map("resident_stay_id") @db.UnsignedBigInt
+  status                String   @default("NOTICE") @db.VarChar(30)
+  noticeDate            DateTime? @map("notice_date") @db.Date
+  requestedCheckoutDate DateTime? @map("requested_checkout_date") @db.Date
+  approvedCheckoutDate  DateTime? @map("approved_checkout_date") @db.Date
+  actualMoveOutDate     DateTime? @map("actual_move_out_date") @db.Date
+  lockInOverride        Boolean  @default(false) @map("lock_in_override")
+  lockInOverrideReason  String?  @map("lock_in_override_reason") @db.VarChar(500)
+  createdById           BigInt   @map("created_by") @db.UnsignedBigInt
+  completedAt           DateTime? @map("completed_at") @db.DateTime(3)
+  createdAt             DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  organization          Organization @relation(fields: [organizationId], references: [id])
+  property              Property @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  residentStay          ResidentStay @relation(fields: [residentStayId], references: [id])
+  createdBy             User @relation("CheckoutProcessCreator", fields: [createdById], references: [id])
+  settlement            CheckoutSettlement?
+
+  @@index([organizationId, propertyId, status])
+  @@index([residentStayId, status])
+  @@map("checkout_processes")
+}
+
+model CheckoutSettlement {
+  id                         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId                   String   @unique @default(uuid()) @map("public_id") @db.Char(36)
+  checkoutProcessId          BigInt   @unique @map("checkout_process_id") @db.UnsignedBigInt
+  securityDepositBalancePaise BigInt   @default(0) @map("security_deposit_balance_paise")
+  totalDuesPaise              BigInt   @default(0) @map("total_dues_paise")
+  totalDeductionsPaise        BigInt   @default(0) @map("total_deductions_paise")
+  refundAmountPaise           BigInt   @default(0) @map("refund_amount_paise")
+  finalPayablePaise           BigInt   @default(0) @map("final_payable_paise")
+  status                     String   @default("SETTLED") @db.VarChar(20)
+  finalizedAt                DateTime @default(now()) @map("finalized_at") @db.DateTime(3)
+  settledAt                  DateTime @default(now()) @map("settled_at") @db.DateTime(3)
+  checkoutProcess            CheckoutProcess @relation(fields: [checkoutProcessId], references: [id])
+  items                      CheckoutSettlementItem[]
+
+  @@map("checkout_settlements")
+}
+
+model CheckoutSettlementItem {
+  id                  BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  checkoutSettlementId BigInt  @map("checkout_settlement_id") @db.UnsignedBigInt
+  itemType            String   @map("item_type") @db.VarChar(40)
+  description         String   @db.VarChar(255)
+  amountPaise         BigInt   @map("amount_paise")
+  createdAt           DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  checkoutSettlement CheckoutSettlement @relation(fields: [checkoutSettlementId], references: [id])
+
+  @@index([checkoutSettlementId])
+  @@map("checkout_settlement_items")
 }
 
 model InvoiceItem {
@@ -355,6 +737,7 @@ model InvoiceItem {
   amountPaise     BigInt   @map("amount_paise")
   createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
   invoice         Invoice  @relation(fields: [invoiceId], references: [id])
+  electricityAllocation ElectricityAllocation?
 
   @@index([invoiceId])
   @@map("invoice_items")
@@ -389,6 +772,9 @@ model Reservation {
   createdBy            User         @relation("ReservationCreator", fields: [createdById], references: [id])
   cancelledBy          User?        @relation("ReservationCanceller", fields: [cancelledById], references: [id])
   expiredBy            User?        @relation("ReservationExpirer", fields: [expiredById], references: [id])
+  residentStays        ResidentStay[]
+  payments             Payment[]
+  depositTransactions  SecurityDepositTransaction[]
 
   // Active reservations use slot 1. Cancelled, expired, and moved-in records
   // clear it so the resident may reserve another bed while preserving history.

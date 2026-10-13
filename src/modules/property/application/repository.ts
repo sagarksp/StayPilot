@@ -10,6 +10,7 @@ import type {
   CreateFloorInput,
   CreatePropertyInput,
   CreateRoomInput,
+  PropertyStayPolicyInput,
 } from "./schemas";
 
 /** Repository methods must scope every lookup and write to organizationId. */
@@ -23,6 +24,8 @@ export interface PropertyRepository {
   createFloor(organizationId: string, propertyId: string, input: CreateFloorInput): Promise<FloorSummary>;
   createRoom(organizationId: string, propertyId: string, input: CreateRoomInput): Promise<RoomSummary>;
   createBed(organizationId: string, propertyId: string, input: CreateBedInput): Promise<BedSummary>;
+  listStayPolicies(organizationId: string): Promise<ReadonlyArray<{ propertyId: string; propertyName: string; noticePeriodDays: number; lockInMonths: number }>>;
+  updateStayPolicy(organizationId: string, input: PropertyStayPolicyInput): Promise<void>;
 }
 
 export type PropertyUseCases = Readonly<{
@@ -37,4 +40,6 @@ export type PropertyUseCases = Readonly<{
   createFloor(actor: OrganizationActor, propertyId: string, input: CreateFloorInput): Promise<FloorSummary>;
   createRoom(actor: OrganizationActor, propertyId: string, input: CreateRoomInput): Promise<RoomSummary>;
   createBed(actor: OrganizationActor, propertyId: string, input: CreateBedInput): Promise<BedSummary>;
+  listStayPolicies(actor: OrganizationActor): Promise<ReadonlyArray<{ propertyId: string; propertyName: string; noticePeriodDays: number; lockInMonths: number }>>;
+  updateStayPolicy(actor: OrganizationActor, input: PropertyStayPolicyInput): Promise<void>;
 }>;

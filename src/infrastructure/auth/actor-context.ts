@@ -17,7 +17,7 @@ export async function getOrganizationActor(
       user: { email: session.user.email, status: "ACTIVE" },
     },
     select: {
-      user: { select: { publicId: true, name: true } },
+      user: { select: { publicId: true, name: true, email: true } },
       organization: {
         select: {
           publicId: true,
@@ -47,6 +47,7 @@ export async function getOrganizationActor(
   return {
     userId: membership.user.publicId,
     userName: membership.user.name,
+    userEmail: membership.user.email,
     organizationId: membership.organization.publicId,
     organizationName: membership.organization.name,
     organizationTimezone: membership.organization.timezone,

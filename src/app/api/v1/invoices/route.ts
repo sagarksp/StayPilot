@@ -8,7 +8,13 @@ export async function GET(request: Request) {
   if (!actor) return Response.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   try {
     const invoices = await billingUseCases.listInvoices(actor);
-    return Response.json({ data: invoices.map((invoice) => ({ ...invoice, totalPaise: invoice.totalPaise.toString(), items: invoice.items.map((item) => ({ ...item, amountPaise: item.amountPaise.toString() })) })) });
+    return Response.json({ data: invoices.map((invoice) => ({
+      ...invoice,
+      totalPaise: invoice.totalPaise.toString(),
+      amountPaidPaise: invoice.amountPaidPaise.toString(),
+      items: invoice.items.map((item) => ({ ...item, amountPaise: item.amountPaise.toString() })),
+      payments: invoice.payments.map((payment) => ({ ...payment, amountPaise: payment.amountPaise.toString() })),
+    })) });
   } catch (error) {
     if (error instanceof AccessDeniedError) return Response.json({ error: "FORBIDDEN" }, { status: 403 });
     throw error;

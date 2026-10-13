@@ -56,6 +56,34 @@ function toPropertySummary(row: PropertyRecord): PropertySummary {
 }
 
 export const prismaPropertyRepository: PropertyRepository = {
+  async listStayPolicies(organizationId) {
+    const properties = await prisma.property.findMany({
+      where: { organization: { publicId: organizationId }, status: { not: "ARCHIVED" } },
+      select: { publicId: true, name: true, settings: { select: { noticePeriodDays: true, lockInMonths: true } } },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    });
+    return properties.map((property) => ({
+      propertyId: property.publicId,
+      propertyName: property.name,
+      noticePeriodDays: property.settings?.noticePeriodDays ?? 30,
+      lockInMonths: property.settings?.lockInMonths ?? 0,
+    }));
+  },
+
+  async updateStayPolicy(organizationId, input) {
+    const property = await prisma.property.findFirst({
+      where: { organization: { publicId: organizationId }, publicId: input.propertyId },
+      select: { id: true },
+    });
+    if (!property) throw new Error("PROPERTY_NOT_FOUND");
+    const organization = await prisma.organization.findUniqueOrThrow({ where: { publicId: organizationId }, select: { id: true } });
+    await prisma.pgSetting.upsert({
+      where: { propertyId: property.id },
+      create: { organizationId: organization.id, propertyId: property.id, noticePeriodDays: input.noticePeriodDays, lockInMonths: input.lockInMonths },
+      update: { noticePeriodDays: input.noticePeriodDays, lockInMonths: input.lockInMonths },
+    });
+  },
+
   async listProperties(organizationId, propertyIds) {
     const rows = await prisma.property.findMany({
       where: {
@@ -122,12 +150,16 @@ export const prismaPropertyRepository: PropertyRepository = {
   },
 
   async createProperty(organizationId, input: CreatePropertyInput) {
-    const row = await prisma.property.create({
-      data: {
-        organization: { connect: { publicId: organizationId } },
-        ...input,
-      },
-      select: propertySelect,
+    const row = await prisma.$transaction(async (tx) => {
+      const property = await tx.property.create({
+        data: {
+          organization: { connect: { publicId: organizationId } },
+          ...input,
+        },
+        select: { ...propertySelect, id: true, organizationId: true },
+      });
+      await tx.pgSetting.create({ data: { organizationId: property.organizationId, propertyId: property.id } });
+      return property;
     });
     return toPropertySummary(row);
   },

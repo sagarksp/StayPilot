@@ -1,0 +1,136 @@
+.shell {
+  --surface: #f9f9ff;
+  --surface-low: #f0f3ff;
+  --surface-high: #dee8ff;
+  --surface-container: #e7eeff;
+  --ink: #111c2d;
+  --muted: #41484a;
+  --outline: #71787a;
+  --teal: #0e3a43;
+  --green: #00a875;
+  min-height: 100vh;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: Inter, Arial, sans-serif;
+}
+
+.shell,
+.shell * { box-sizing: border-box; }
+.shell a { color: inherit; text-decoration: none; }
+.shell a:focus-visible,
+.shell button:focus-visible { outline: 3px solid rgb(14 58 67 / 28%); outline-offset: 2px; }
+
+.sidebar {
+  position: fixed;
+  z-index: 30;
+  inset: 0 auto 0 0;
+  display: flex;
+  width: 272px;
+  flex-direction: column;
+  background: var(--surface-low);
+  box-shadow: 0 1px 8px rgb(0 0 0 / 4%);
+}
+
+.brandBlock,
+.accountBlock { background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 2%); }
+.brandBlock { padding: 22px 20px 15px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brandIcon { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 10px; background: var(--teal); color: #fff; }
+.brandIcon :global(.material-symbols-outlined) { font-size: 22px; }
+.brandCopy strong { display: block; font: 700 18px/1.1 "Plus Jakarta Sans", Inter, sans-serif; letter-spacing: -.035em; }
+.brandCopy small { display: block; margin-top: 4px; color: var(--muted); font: 700 10px/1.3 "Plus Jakarta Sans", Inter, sans-serif; letter-spacing: .075em; text-transform: uppercase; }
+
+.organizationCard { display: flex; min-width: 0; align-items: center; gap: 9px; margin-top: 17px; padding: 9px; border-radius: 9px; background: var(--surface-container); }
+.organizationMark { display: grid; width: 32px; height: 32px; flex: none; place-items: center; border-radius: 8px; background: #fff; color: var(--teal); font: 700 13px "Plus Jakarta Sans", Inter, sans-serif; }
+.organizationName { display: block; min-width: 0; flex: 1; }
+.organizationName small,
+.organizationName strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.organizationName small { margin-bottom: 2px; color: var(--muted); font-size: 9px; }
+.organizationName strong { font-size: 11px; font-weight: 650; }
+.activeDot,
+.topbarDot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--green); }
+
+.navigation { flex: 1; overflow-y: auto; padding: 18px 14px; }
+.navigationSection + .navigationSection { margin-top: 18px; }
+.navigationSection h2 { margin: 0 8px 7px; color: var(--outline); font: 700 10px/1.4 "Plus Jakarta Sans", Inter, sans-serif; letter-spacing: .09em; text-transform: uppercase; }
+.navigationLinks { display: grid; gap: 3px; }
+.navigationLink { display: flex; min-height: 38px; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--muted); font-size: 12px; line-height: 1.35; transition: background 120ms ease, color 120ms ease; }
+.navigationLink :global(.material-symbols-outlined) { flex: none; color: #69757c; font-size: 18px; }
+.navigationLink:hover { background: var(--surface-container); color: var(--ink); }
+.navigationLinkActive,
+.navigationLinkActive:hover { background: var(--teal); color: #fff; font-weight: 650; }
+.navigationLinkActive :global(.material-symbols-outlined),
+.navigationLinkActive:hover :global(.material-symbols-outlined) { color: #ffddb0; }
+
+.accountBlock { padding: 13px 14px 14px; }
+.accountCard { display: flex; min-width: 0; align-items: center; gap: 9px; padding: 9px; border-radius: 9px; background: var(--surface-container); }
+.avatar,
+.topbarAvatar { display: grid; flex: none; place-items: center; border-radius: 50%; background: var(--teal); color: #fff; font: 700 11px "Plus Jakarta Sans", Inter, sans-serif; }
+.avatar { width: 34px; height: 34px; }
+.accountIdentity { min-width: 0; flex: 1; }
+.accountIdentity strong,
+.accountIdentity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.accountIdentity strong { font-size: 11px; line-height: 1.4; }
+.accountIdentity small { color: var(--muted); font-size: 9px; }
+.signOut { width: 100%; margin-top: 8px; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 600; text-align: left; transition: background 120ms ease, color 120ms ease; }
+.signOut:hover { background: #fff0e8; color: #9b3d25; }
+.accountBlock :global(p[role="alert"]) { padding: 0 3px; color: #b42318 !important; }
+
+.workspace { min-width: 0; min-height: 100vh; margin-left: 272px; }
+.topbar { position: sticky; z-index: 20; top: 0; display: flex; min-height: 62px; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 26px; border-bottom: 1px solid rgb(193 200 202 / 38%); background: rgb(249 249 255 / 94%); backdrop-filter: blur(16px); }
+.topbarIdentity,
+.topbarAccount { display: flex; min-width: 0; align-items: center; gap: 9px; }
+.topbarOrganization { overflow: hidden; max-width: 300px; color: var(--ink); font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.topbarDivider { color: #a2a9ae; }
+.topbarSection,
+.topbarGreeting { color: var(--muted); font-size: 11px; }
+.topbarAccount { flex: none; gap: 8px; }
+.topbarAccount strong { max-width: 180px; overflow: hidden; color: var(--ink); font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.topbarAvatar { width: 30px; height: 30px; margin-left: 3px; }
+.main { min-width: 0; }
+.content { width: 100%; max-width: 1480px; margin: 0 auto; padding: 28px 28px 42px; }
+
+@media (max-width: 1100px) {
+  .sidebar { position: relative; display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .brandBlock { min-width: 0; padding: 10px 16px; box-shadow: none; }
+  .brandIcon { width: 35px; height: 35px; }
+  .brandCopy small,
+  .organizationCard { display: none; }
+  .navigation { position: fixed; z-index: 40; inset: auto 0 0; display: flex; width: 100%; flex: none; gap: 8px; overflow-x: auto; padding: 7px 10px max(7px, env(safe-area-inset-bottom)); border-top: 1px solid #d8e3fb; background: rgb(249 249 255 / 97%); box-shadow: 0 -4px 18px rgb(17 28 45 / 8%); backdrop-filter: blur(16px); scrollbar-width: thin; }
+  .navigationSection { flex: none; }
+  .navigationSection + .navigationSection { margin: 0; }
+  .navigationSection h2 { display: none; }
+  .navigationLinks { display: flex; gap: 3px; }
+  .navigationLink { min-width: 82px; min-height: 50px; flex-direction: column; justify-content: center; gap: 3px; padding: 4px 6px; font-size: 9px; text-align: center; white-space: nowrap; }
+  .navigationLink :global(.material-symbols-outlined) { font-size: 19px; }
+  .accountBlock { display: flex; align-items: center; gap: 8px; padding: 8px 13px; box-shadow: none; }
+  .accountCard { display: none; }
+  .signOut { width: auto; margin: 0; padding: 8px 10px; }
+  .workspace { margin-left: 0; }
+  .topbar { min-height: 52px; padding: 8px 16px; }
+  .content { padding: 22px 20px 104px; }
+}
+
+@media (max-width: 560px) {
+  .topbar { gap: 8px; padding: 8px 14px; }
+  .topbarOrganization { max-width: 46vw; }
+  .topbarDivider,
+  .topbarSection,
+  .topbarGreeting,
+  .topbarAccount strong { display: none; }
+  .topbarAccount { margin-left: auto; }
+  .topbarAvatar { width: 28px; height: 28px; margin: 0; }
+  .content { padding: 19px 14px 104px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navigationLink,
+  .signOut { transition: none; }
+}
+
+@media print {
+  .sidebar,
+  .topbar { display: none !important; }
+  .workspace { margin: 0; }
+  .content { max-width: none; padding: 0; }
+}

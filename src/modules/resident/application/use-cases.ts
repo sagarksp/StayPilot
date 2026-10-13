@@ -5,11 +5,16 @@ import {
   checkOutResidentSchema,
   createResidentSchema,
   type AssignResidentForm,
-  type CheckOutResidentData,
+  type CheckOutResidentForm,
   type CreateResidentForm,
+  moveOutNoticeSchema,
+  type MoveOutNoticeForm,
+  updateResidentEmailSchema,
+  securityDepositTransferSchema,
+  type SecurityDepositTransferForm,
 } from "./schemas";
 import { ResidentWorkflowError } from "../domain/resident";
-import { rentTermsSchema, type RentTermsInput } from "@/modules/billing/application/schemas";
+import { rentTermsSchema, recordSecurityDepositReceiptSchema, type RecordSecurityDepositReceiptInput, type RentTermsInput } from "@/modules/billing/application/schemas";
 
 function assertStaff(actor: OrganizationActor) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) {
@@ -46,12 +51,42 @@ export function createResidentUseCases(repository: ResidentRepository) {
   return {
     async listResidents(actor: OrganizationActor) {
       assertStaff(actor);
-      return repository.listResidents(actor.organizationId, propertyScope(actor));
+      return repository.listResidents(actor.organizationId, todayInTimezone(actor.organizationTimezone), propertyScope(actor));
     },
 
     async getResident(actor: OrganizationActor, residentId: string) {
       assertStaff(actor);
-      return repository.getResident(actor.organizationId, residentId, propertyScope(actor));
+      return repository.getResident(actor.organizationId, residentId, todayInTimezone(actor.organizationTimezone), propertyScope(actor));
+    },
+
+    async updateResidentEmail(actor: OrganizationActor, residentId: string, email: string) {
+      assertStaff(actor);
+      const resident = await repository.getResident(actor.organizationId, residentId, todayInTimezone(actor.organizationTimezone), propertyScope(actor));
+      if (!resident) return null;
+      const parsedEmail = updateResidentEmailSchema.parse(email);
+      await repository.updateResidentEmail(actor.organizationId, residentId, parsedEmail, propertyScope(actor));
+      return residentId;
+    },
+
+    async getResidentPortal(actor: OrganizationActor) {
+      if (!actor.roles.includes("RESIDENT")) throw new AccessDeniedError();
+      return repository.getResidentPortal(actor.organizationId, actor.userId, todayInTimezone(actor.organizationTimezone));
+    },
+
+    async listDepositTransferAccounts(actor: OrganizationActor) {
+      assertStaff(actor);
+      return repository.listDepositTransferAccounts(actor.organizationId, propertyScope(actor));
+    },
+
+    async listDepositTransfers(actor: OrganizationActor) {
+      assertStaff(actor);
+      return repository.listDepositTransfers(actor.organizationId, propertyScope(actor));
+    },
+
+    async transferSecurityDeposit(actor: OrganizationActor, input: SecurityDepositTransferForm) {
+      assertStaff(actor);
+      const parsed = securityDepositTransferSchema.parse(input);
+      await repository.transferSecurityDeposit(actor.organizationId, actor.userId, parsed, propertyScope(actor));
     },
 
     async listAvailableBeds(actor: OrganizationActor) {
@@ -62,7 +97,7 @@ export function createResidentUseCases(repository: ResidentRepository) {
     async listCurrentAssignments(actor: OrganizationActor, propertyId: string) {
       assertStaff(actor);
       assertCanReadProperty(actor, propertyId);
-      return repository.listCurrentAssignments(actor.organizationId, propertyId);
+      return repository.listCurrentAssignments(actor.organizationId, propertyId, todayInTimezone(actor.organizationTimezone));
     },
 
     async getOccupancy(actor: OrganizationActor) {
@@ -85,7 +120,7 @@ export function createResidentUseCases(repository: ResidentRepository) {
 
     async assignBed(actor: OrganizationActor, residentId: string, input: AssignResidentForm) {
       assertStaff(actor);
-      const resident = await repository.getResident(actor.organizationId, residentId, propertyScope(actor));
+      const resident = await repository.getResident(actor.organizationId, residentId, todayInTimezone(actor.organizationTimezone), propertyScope(actor));
       if (!resident) return null;
       const parsed = assignResidentBedSchema.parse(input);
       if (parsed.startDate > todayInTimezone(actor.organizationTimezone)) {
@@ -107,15 +142,37 @@ export function createResidentUseCases(repository: ResidentRepository) {
       return residentId;
     },
 
-    async checkOut(actor: OrganizationActor, residentId: string, input: CheckOutResidentData) {
+    async recordSecurityDepositReceipt(actor: OrganizationActor, residentId: string, stayId: string, input: RecordSecurityDepositReceiptInput) {
       assertStaff(actor);
-      const resident = await repository.getResident(actor.organizationId, residentId, propertyScope(actor));
+      const parsed = recordSecurityDepositReceiptSchema.parse(input);
+      await repository.recordSecurityDepositReceipt(actor.organizationId, actor.userId, actor.userName, residentId, stayId, parsed, propertyScope(actor));
+      return residentId;
+    },
+
+    async recordMoveOutNotice(actor: OrganizationActor, input: MoveOutNoticeForm) {
+      const parsed = moveOutNoticeSchema.parse(input);
+      const isStaff = actor.roles.includes("OWNER") || actor.roles.includes("MANAGER");
+      const isResident = actor.roles.includes("RESIDENT") && Boolean(actor.userEmail);
+      if (!isStaff && !isResident) throw new AccessDeniedError();
+      if (!isStaff && parsed.lockInOverrideReason) throw new AccessDeniedError();
+      const today = todayInTimezone(actor.organizationTimezone);
+      if (parsed.requestedCheckoutDate < today) throw new ResidentWorkflowError("FUTURE_MOVE_OUT");
+      await repository.recordMoveOutNotice(actor.organizationId, actor.userId, parsed.stayId, parsed, today, isStaff ? propertyScope(actor) : undefined, isResident && !isStaff ? actor.userEmail : undefined);
+      return parsed.stayId;
+    },
+
+    async checkOut(actor: OrganizationActor, residentId: string, input: CheckOutResidentForm) {
+      assertStaff(actor);
+      const resident = await repository.getResident(actor.organizationId, residentId, todayInTimezone(actor.organizationTimezone), propertyScope(actor));
       if (!resident) return null;
       const parsed = checkOutResidentSchema.parse(input);
       if (parsed.endDate > todayInTimezone(actor.organizationTimezone)) {
         throw new ResidentWorkflowError("FUTURE_MOVE_OUT");
       }
-      await repository.checkOut(actor.organizationId, residentId, parsed, propertyScope(actor));
+      if (parsed.paymentDate.toISOString().slice(0, 10) > todayInTimezone(actor.organizationTimezone)) {
+        throw new ResidentWorkflowError("FUTURE_MOVE_OUT");
+      }
+      await repository.checkOut(actor.organizationId, actor.userId, actor.userName, residentId, parsed, propertyScope(actor));
       return residentId;
     },
   };

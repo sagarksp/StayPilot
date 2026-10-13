@@ -21,5 +21,5 @@ export default async function StaffLayout({
     return <OwnerConsoleShell actor={actor}>{children}</OwnerConsoleShell>;
   }
 
-  return <StaffShell isOwner={false} orgId={orgId}>{children}</StaffShell>;
+  return <StaffShell actor={actor}>{children}</StaffShell>;
 }

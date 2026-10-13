@@ -22,3 +22,54 @@ export const rentTermsSchema = z.object({
 
 export type RentTermsInput = z.input<typeof rentTermsSchema>;
 export type RentTerms = z.output<typeof rentTermsSchema>;
+
+export const securityDepositTermsSchema = z.object({
+  requiredSecurityDeposit: z.string().trim().regex(/^\d{1,8}(?:\.\d{1,2})?$/, "Enter a deposit amount with up to two decimal places."),
+  depositPolicyType: z.enum(["FULL_MONTH", "HALF_MONTH", "FIXED", "CUSTOM"]),
+}).transform((value, context) => {
+  const [rupees, paise = ""] = value.requiredSecurityDeposit.split(".");
+  const requiredAmountPaise = BigInt(rupees) * BigInt(100) + BigInt(paise.padEnd(2, "0"));
+  if (requiredAmountPaise > BigInt("9000000000000000")) {
+    context.addIssue({ code: "custom", path: ["requiredSecurityDeposit"], message: "Enter a valid deposit amount." });
+  }
+  return { requiredAmountPaise, depositPolicyType: value.depositPolicyType };
+});
+
+export type SecurityDepositTermsInput = z.input<typeof securityDepositTermsSchema>;
+export type SecurityDepositTerms = z.output<typeof securityDepositTermsSchema>;
+
+export const recordPaymentSchema = z.object({
+  invoiceId: z.string().trim().min(1).max(36),
+  amount: z.string().trim().regex(/^\d{1,8}(?:\.\d{1,2})?$/, "Enter an amount with up to two decimal places."),
+  paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid payment date.").refine((value) => {
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  }, "Choose a valid payment date."),
+  method: z.enum(["CASH", "UPI", "BANK_TRANSFER", "CARD", "OTHER"]),
+  reference: z.string().trim().max(100).optional().transform((value) => value || null),
+  notes: z.string().trim().max(500).optional().transform((value) => value || null),
+}).transform((value, context) => {
+  const [rupees, paise = ""] = value.amount.split(".");
+  const amountPaise = BigInt(rupees) * BigInt(100) + BigInt(paise.padEnd(2, "0"));
+  if (amountPaise < BigInt(1) || amountPaise > BigInt("9000000000000000")) {
+    context.addIssue({ code: "custom", path: ["amount"], message: "Enter a positive payment amount." });
+  }
+  return { ...value, amountPaise, paymentDate: new Date(`${value.paymentDate}T00:00:00.000Z`) };
+});
+
+export type RecordPaymentInput = z.input<typeof recordPaymentSchema>;
+export type RecordPayment = z.output<typeof recordPaymentSchema>;
+
+export const recordSecurityDepositReceiptSchema = z.object({
+  amount: z.string().trim().regex(/^\d{1,8}(?:\.\d{1,2})?$/),
+  paymentDate: z.iso.date(),
+  method: z.enum(["CASH", "UPI", "BANK_TRANSFER", "CARD", "OTHER"]),
+  reference: z.string().trim().max(100).optional().transform((value) => value || null),
+}).transform((value, context) => {
+  const [rupees, paise = ""] = value.amount.split(".");
+  const amountPaise = BigInt(rupees) * BigInt(100) + BigInt(paise.padEnd(2, "0"));
+  if (amountPaise < BigInt(1)) context.addIssue({ code: "custom", path: ["amount"], message: "Enter a positive payment amount." });
+  return { ...value, amountPaise, paymentDate: new Date(`${value.paymentDate}T00:00:00.000Z`) };
+});
+export type RecordSecurityDepositReceiptInput = z.input<typeof recordSecurityDepositReceiptSchema>;
+export type RecordSecurityDepositReceipt = z.output<typeof recordSecurityDepositReceiptSchema>;

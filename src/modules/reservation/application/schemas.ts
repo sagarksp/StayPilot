@@ -10,6 +10,10 @@ export const createReservationSchema = z.object({
   reservationEndDate: z.iso.date(),
   expectedMoveInDate: z.iso.date().optional().or(z.literal("")),
   notes: z.string().trim().max(2000).optional(),
+  securityDepositReceived: z.union([z.literal(""), z.string().trim().regex(/^\d{1,8}(?:\.\d{1,2})?$/)]).optional(),
+  depositPaymentMethod: z.enum(["CASH", "UPI", "BANK_TRANSFER", "CARD", "OTHER"]).optional().default("UPI"),
+  depositPaymentDate: z.union([z.iso.date(), z.literal("")]).optional(),
+  depositPaymentReference: z.string().trim().max(100).optional(),
 }).superRefine((data, context) => {
   if (!data.residentId && (!data.newResidentName || data.newResidentName.length < 2 || !data.newResidentPhone || data.newResidentPhone.length < 8)) {
     context.addIssue({ code: "custom", path: ["newResidentName"], message: "New resident details required" });
@@ -28,6 +32,10 @@ export const createReservationSchema = z.object({
   newResidentEmail: data.newResidentEmail || undefined,
   expectedMoveInDate: data.expectedMoveInDate || undefined,
   notes: data.notes || undefined,
+  securityDepositReceivedPaise: data.securityDepositReceived ? (() => { const [rupees, paise = ""] = data.securityDepositReceived.split("."); return BigInt(rupees) * BigInt(100) + BigInt(paise.padEnd(2, "0")); })() : BigInt(0),
+  depositPaymentReference: data.depositPaymentReference || undefined,
+  depositPaymentDate: data.depositPaymentDate || undefined,
 }));
 
 export type CreateReservationData = z.infer<typeof createReservationSchema>;
+export type CreateReservationForm = z.input<typeof createReservationSchema>;

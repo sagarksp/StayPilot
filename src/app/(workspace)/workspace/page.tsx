@@ -17,5 +17,10 @@ export default async function WorkspaceRedirectPage() {
 
   const actor = await getOrganizationActor(destination.organizationId);
   if (!actor) redirect("/login");
-  redirect(`/org/${destination.organizationId}/${actor.roles.includes("OWNER") ? "owner" : "properties"}`);
+  const landingPage = actor.roles.includes("OWNER")
+    ? "owner"
+    : actor.roles.includes("MANAGER")
+      ? "manager"
+      : "resident";
+  redirect(`/org/${destination.organizationId}/${landingPage}`);
 }

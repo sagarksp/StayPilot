@@ -2,10 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import { createAuthClient } from "better-auth/react";
+import Link from "next/link";
 
 const authClient = createAuthClient();
 
-export function SignInForm() {
+export function SignInForm({ callbackURL = "/workspace" }: Readonly<{ callbackURL?: string }>) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -19,14 +20,14 @@ export function SignInForm() {
       const result = await authClient.signIn.email({
         email: String(form.get("email") ?? "").trim(),
         password: String(form.get("password") ?? ""),
-        callbackURL: "/workspace",
+        callbackURL,
       });
 
       if (result.error) {
         setError("We couldn't sign you in with those details. Check them and try again.");
         return;
       }
-      window.location.assign("/workspace");
+      window.location.assign(callbackURL);
     } catch {
       setError("We couldn't reach StayPilot. Check your connection and try again.");
     } finally {
@@ -58,6 +59,9 @@ export function SignInForm() {
           type="password"
         />
       </label>
+      <p className="-mt-2 text-right text-sm">
+        <Link className="font-semibold text-[#176e61] hover:underline" href="/forgot-password">Forgot password?</Link>
+      </p>
       {error ? <p className="text-sm text-red-700" role="alert">{error}</p> : null}
       <button
         className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#176e61] px-4 py-2 text-sm font-semibold text-white hover:bg-[#10564c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#176e61] disabled:cursor-wait disabled:opacity-60"
