@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const id = z.string().uuid();
 const rowId = z.string().regex(/^\d+$/);
 
@@ -8,6 +7,7 @@ const validDate = (value: string) => {
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 };
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(validDate, "Choose a valid calendar date.");
 
 export const electricityReportFilterSchema = z.object({
   propertyId: id.optional().or(z.literal("")),

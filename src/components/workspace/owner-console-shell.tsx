@@ -32,6 +32,7 @@ const navigation: ReadonlyArray<Readonly<{ title: string; links: ReadonlyArray<O
   ] },
   { title: "Support & Control", links: [
     { label: "Complaints", icon: "report_problem", route: "complaints", available: true },
+    { label: "Food", icon: "restaurant", route: "food", available: true },
     { label: "Notices", icon: "campaign", available: false },
     { label: "Reports", icon: "insights", route: "reports/electricity", available: true },
     { label: "Staff & Managers", icon: "manage_accounts", route: "team", available: true },

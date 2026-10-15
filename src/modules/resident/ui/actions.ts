@@ -45,6 +45,7 @@ function workflowErrorCode(error: ResidentWorkflowError) {
     case "CHECKOUT_DRAFT_INVOICES": return "checkout-drafts";
     case "CHECKOUT_PAYMENT_MISMATCH": return "checkout-balance";
     case "CHECKOUT_DEDUCTION_EXCEEDS_BALANCE": return "checkout-deduction";
+    case "CHECKOUT_DEPOSIT_ACCOUNT_REQUIRED": return "checkout-deposit-account";
     case "NOTICE_PERIOD_TOO_SHORT": return "notice-short";
     case "LOCK_IN_ACTIVE": return "lock-in-active";
     case "MOVE_OUT_NOTICE_REQUIRED": return "notice-required";
@@ -203,9 +204,12 @@ export async function checkOutResidentAction(formData: FormData) {
     await residentUseCases.checkOut(actor, residentId, {
       stayId: value(formData, "stayId"),
       endDate: value(formData, "endDate"),
+      rentExitPolicy: value(formData, "rentExitPolicy") === "PRORATED" ? "PRORATED" : "FULL_CYCLE",
       paymentDate: value(formData, "paymentDate"),
       additionalPayment: value(formData, "additionalPayment"),
       additionalPaymentMethod: paymentMethod(formData, "additionalPaymentMethod", "CASH"),
+      earlyExitCharge: value(formData, "earlyExitCharge"),
+      earlyExitChargeReason: value(formData, "earlyExitChargeReason"),
       damageDeduction: value(formData, "damageDeduction"),
       damageReason: value(formData, "damageReason"),
       depositRefundMethod: paymentMethod(formData, "depositRefundMethod", "UPI"),

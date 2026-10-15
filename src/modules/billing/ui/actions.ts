@@ -2,10 +2,35 @@
 
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
+import { randomUUID } from "node:crypto";
 import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 import { AccessDeniedError } from "@/modules/property/domain/inventory";
 import { billingUseCases } from "../application/use-cases";
-import { recordPaymentSchema } from "../application/schemas";
+import { recordPaymentSchema, reversePaymentFormSchema } from "../application/schemas";
+
+export async function reversePaymentAction(formData: FormData) {
+  const orgId = String(formData.get("orgId") ?? "").trim();
+  const paymentId = String(formData.get("paymentId") ?? "").trim();
+  const idempotencyKey = String(formData.get("idempotencyKey") ?? "").trim() || randomUUID();
+  const parsed = reversePaymentFormSchema.safeParse({ amount: String(formData.get("amount") ?? ""), reason: String(formData.get("reason") ?? "") });
+  if (!parsed.success) redirect(`/org/${orgId}/finance?error=invalid-reversal`);
+  const actor = await getOrganizationActor(orgId);
+  if (!actor) redirect("/login");
+  try {
+    await billingUseCases.reversePayment(actor, paymentId, parsed.data, idempotencyKey);
+  } catch (error) {
+    if (error instanceof AccessDeniedError) notFound();
+    if (error instanceof Error && error.message === "IDEMPOTENCY_KEY_REUSED") redirect(`/org/${orgId}/finance?error=reversal-key-reused`);
+    if (error instanceof Error && error.message === "REVERSAL_EXCEEDS_UNREVERSED_AMOUNT") redirect(`/org/${orgId}/finance?error=reversal-exceeds-remaining`);
+    if (error instanceof Error && (error.message === "PAYMENT_NOT_REVERSIBLE" || error.message === "INVOICE_CHANGED")) redirect(`/org/${orgId}/finance?error=payment-not-reversible`);
+    throw error;
+  }
+  revalidatePath(`/org/${orgId}/finance`);
+  revalidatePath(`/org/${orgId}/payments`);
+  revalidatePath(`/org/${orgId}/owner`);
+  revalidatePath(`/org/${orgId}/resident`);
+  redirect(`/org/${orgId}/finance?payment-reversed=1`);
+}
 
 export async function finalizeInvoiceAction(formData: FormData) {
   const orgId = String(formData.get("orgId") ?? "").trim();

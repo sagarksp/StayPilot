@@ -34,9 +34,10 @@ export type ResidentStaySummary = Readonly<{
     dueDate: Date;
     status: string;
     totalPaise: bigint;
+    adjustmentPaise: bigint;
     amountPaidPaise: bigint;
     items: readonly Readonly<{ description: string; quantity: number; unitAmountPaise: bigint; lineTotalPaise: bigint }>[];
-    payments: readonly Readonly<{ amountPaise: bigint; paymentDate: Date; method: string; reference: string | null }>[];
+    payments: readonly Readonly<{ amountPaise: bigint; paymentDate: Date; method: string; reference: string | null; transactionType: string; notes: string | null }>[];
   }>[];
 }>;
 
@@ -144,6 +145,7 @@ export type ResidentWorkflowErrorCode =
   | "CHECKOUT_DRAFT_INVOICES"
   | "CHECKOUT_PAYMENT_MISMATCH"
   | "CHECKOUT_DEDUCTION_EXCEEDS_BALANCE"
+  | "CHECKOUT_DEPOSIT_ACCOUNT_REQUIRED"
   | "NOTICE_PERIOD_TOO_SHORT"
   | "LOCK_IN_ACTIVE"
   | "MOVE_OUT_NOTICE_REQUIRED"

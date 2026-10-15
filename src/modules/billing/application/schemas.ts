@@ -60,6 +60,31 @@ export const recordPaymentSchema = z.object({
 export type RecordPaymentInput = z.input<typeof recordPaymentSchema>;
 export type RecordPayment = z.output<typeof recordPaymentSchema>;
 
+const positivePaise = z.union([
+  z.number().int().positive().max(9_000_000_000_000_000).transform((value) => BigInt(value)),
+  z.string().regex(/^[1-9]\d{0,15}$/).transform((value) => BigInt(value)),
+]).refine((value) => value <= BigInt("9000000000000000"), "Enter a valid reversal amount.");
+
+export const reversePaymentSchema = z.object({
+  amountPaise: positivePaise,
+  reason: z.string().trim().min(3).max(500),
+});
+
+export const reversePaymentFormSchema = z.object({
+  amount: z.string().trim().regex(/^\d{1,8}(?:\.\d{1,2})?$/),
+  reason: z.string().trim().min(3).max(500),
+}).transform((value, context) => {
+  const [rupees, paise = ""] = value.amount.split(".");
+  const amountPaise = BigInt(rupees) * BigInt(100) + BigInt(paise.padEnd(2, "0"));
+  if (amountPaise < BigInt(1) || amountPaise > BigInt("9000000000000000")) {
+    context.addIssue({ code: "custom", path: ["amount"], message: "Enter a positive reversal amount." });
+  }
+  return { amountPaise, reason: value.reason };
+});
+
+export type ReversePaymentInput = z.output<typeof reversePaymentSchema>;
+export type ReversePaymentForm = z.output<typeof reversePaymentFormSchema>;
+
 export const recordSecurityDepositReceiptSchema = z.object({
   amount: z.string().trim().regex(/^\d{1,8}(?:\.\d{1,2})?$/),
   paymentDate: z.iso.date(),

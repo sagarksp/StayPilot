@@ -37,6 +37,10 @@ const complaintSelect = {
     select: { publicId: true, eventType: true, fromStatus: true, toStatus: true, note: true, createdAt: true, actor: { select: { name: true } } },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
+  attachments: {
+    select: { publicId: true, originalName: true, contentType: true, byteSize: true, createdAt: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  },
 } satisfies Prisma.ComplaintSelect;
 
 type ComplaintRecord = Prisma.ComplaintGetPayload<{ select: typeof complaintSelect }>;
@@ -63,6 +67,7 @@ function toSummary(record: ComplaintRecord): ComplaintSummary {
     updatedAt: record.updatedAt,
     resolvedAt: record.resolvedAt,
     events: record.events.map((event) => ({ id: event.publicId, type: event.eventType, fromStatus: event.fromStatus, toStatus: event.toStatus, note: event.note, actorName: event.actor.name, createdAt: event.createdAt })),
+    attachments: record.attachments.map((attachment) => ({ id: attachment.publicId, name: attachment.originalName, contentType: attachment.contentType, byteSize: attachment.byteSize, createdAt: attachment.createdAt })),
   };
 }
 

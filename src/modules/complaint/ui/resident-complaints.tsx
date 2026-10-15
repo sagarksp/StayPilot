@@ -1,6 +1,7 @@
 import type { ComplaintSummary } from "../domain/complaint";
 import type { ResidentStaySummary } from "@/modules/resident/domain/resident";
 import { createComplaintAction } from "./actions";
+import { ComplaintAttachments } from "./complaint-attachments";
 
 const categories = ["ELECTRICITY", "PLUMBING", "CLEANING", "FOOD", "WIFI", "FURNITURE", "SECURITY", "OTHER"] as const;
 
@@ -35,7 +36,7 @@ export function ResidentComplaints({
 }>) {
   const currentStays = stays.filter((stay) => ["ACTIVE", "NOTICE_PERIOD"].includes(stay.status));
   const message = complaintError(errorCode);
-  return <section className="space-y-4" aria-labelledby="complaints-heading">
+  return <section className="space-y-4" aria-labelledby="support-heading" id="support-heading">
     <div><p className="text-sm font-semibold text-[#176e61]">SUPPORT</p><h2 className="mt-1 text-xl font-semibold" id="complaints-heading">Maintenance and service requests</h2><p className="muted mt-1 text-sm">Report an issue to your property team and track its status here.</p></div>
     {created ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900" role="status">Your complaint was submitted to the property team.</p> : null}
     {message ? <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="alert">{message}</p> : null}
@@ -53,6 +54,7 @@ export function ResidentComplaints({
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{complaint.description}</p>
       {complaint.assignedToName ? <p className="muted mt-2 text-xs">Assigned to {complaint.assignedToName}</p> : null}
       <p className="muted mt-2 text-xs">Submitted {date(complaint.createdAt)} · Room {complaint.roomNumber} · Bed {complaint.bedLabel}</p>
+      <div className="mt-4 border-t border-slate-200 pt-4"><ComplaintAttachments attachments={complaint.attachments} complaintId={complaint.id} orgId={orgId} /></div>
       {complaint.events.length > 1 ? <details className="mt-3"><summary className="cursor-pointer text-sm font-medium text-[#176e61]">Request updates</summary><ul className="mt-2 space-y-2 border-l-2 border-slate-200 pl-3">{complaint.events.filter((event) => event.type !== "CREATED").map((event) => <li className="text-sm" key={event.id}><strong>{event.toStatus ? label(event.toStatus) : label(event.type)}</strong>{event.note ? <span> · {event.note}</span> : null}<p className="muted mt-0.5 text-xs">{date(event.createdAt)} · {event.actorName}</p></li>)}</ul></details> : null}
     </article>)}</div> : <p className="surface-card muted p-5 text-sm">You have not submitted any requests.</p>}
   </section>;

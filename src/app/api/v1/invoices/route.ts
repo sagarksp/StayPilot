@@ -11,6 +11,7 @@ export async function GET(request: Request) {
     return Response.json({ data: invoices.map((invoice) => ({
       ...invoice,
       totalPaise: invoice.totalPaise.toString(),
+      adjustmentPaise: invoice.adjustmentPaise.toString(),
       amountPaidPaise: invoice.amountPaidPaise.toString(),
       items: invoice.items.map((item) => ({ ...item, amountPaise: item.amountPaise.toString() })),
       payments: invoice.payments.map((payment) => ({ ...payment, amountPaise: payment.amountPaise.toString() })),

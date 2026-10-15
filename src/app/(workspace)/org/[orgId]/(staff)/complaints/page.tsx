@@ -3,6 +3,7 @@ import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 import { complaintUseCases } from "@/modules/complaint/application";
 import { updateComplaintAction } from "@/modules/complaint/ui/actions";
 import type { ComplaintStatus } from "@/modules/complaint/domain/complaint";
+import { ComplaintAttachments } from "@/modules/complaint/ui/complaint-attachments";
 
 function label(value: string) {
   return value.replaceAll("_", " ").toLowerCase().replace(/^\w/, (first) => first.toUpperCase());
@@ -47,6 +48,7 @@ export default async function ComplaintsPage({
         return <article className="space-y-4 px-5 py-5 sm:px-6" key={complaint.id}>
           <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold">{complaint.title}</h3><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{label(complaint.status)}</span></div><p className="muted mt-1 text-sm">{label(complaint.category)} · {complaint.propertyName} · Room {complaint.roomNumber} · Bed {complaint.bedLabel}</p><p className="muted mt-1 text-sm">{complaint.residentName} · Submitted {date(complaint.createdAt)}</p></div></div>
           <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{complaint.description}</p>
+          <ComplaintAttachments attachments={complaint.attachments} complaintId={complaint.id} orgId={orgId} />
           {complaint.status !== "CLOSED" ? <form action={updateComplaintAction} className="grid gap-3 rounded-lg border border-[#e2e8f0] bg-[#fbfcfb] p-4 sm:grid-cols-2">
             <input name="orgId" type="hidden" value={orgId} /><input name="complaintId" type="hidden" value={complaint.id} />
             <label className="grid gap-1 text-sm font-medium">Status<select className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={complaint.status} name="status">{nextStatuses.map((status) => <option key={status} value={status}>{label(status)}</option>)}</select></label>

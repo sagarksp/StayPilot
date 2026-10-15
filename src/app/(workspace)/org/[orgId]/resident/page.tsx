@@ -3,8 +3,11 @@ import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 import { AccessDeniedError } from "@/modules/property/domain/inventory";
 import { complaintUseCases } from "@/modules/complaint/application";
 import { ResidentComplaints } from "@/modules/complaint/ui/resident-complaints";
+import { foodUseCases } from "@/modules/food/application/use-cases";
+import { ResidentFoodPolls } from "@/modules/food/ui/resident-food-polls";
 import { residentUseCases } from "@/modules/resident/application";
 import { submitResidentMoveOutNoticeAction } from "@/modules/resident/ui/actions";
+
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
@@ -43,7 +46,7 @@ export default async function ResidentHomePage({
   searchParams,
 }: Readonly<{
   params: Promise<{ orgId: string }>;
-  searchParams: Promise<{ error?: string; "complaint-error"?: string; "complaint-created"?: string }>;
+  searchParams: Promise<{ error?: string; "complaint-error"?: string; "complaint-created"?: string; "food-error"?: string; "food-voted"?: string }>;
 }>) {
   const [{ orgId }, query] = await Promise.all([params, searchParams]);
   const actor = await getOrganizationActor(orgId);
@@ -78,18 +81,38 @@ export default async function ResidentHomePage({
   const minimumMoveOutDate = lockInDate && lockInDate > minimumDateByNotice ? lockInDate : minimumDateByNotice;
   const invoices = resident.stays.flatMap((stay) => stay.invoices.map((invoice) => ({ ...invoice, stayProperty: stay.propertyName })))
     .filter((invoice) => ["FINALIZED", "PARTIALLY_PAID", "PAID"].includes(invoice.status))
-    .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
+    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   const complaints = await complaintUseCases.listForResident(actor);
+  const foodPolls = await foodUseCases.listForResident(actor);
+  const invoiceBalance = (invoice: typeof invoices[number]) => invoice.totalPaise + invoice.adjustmentPaise - invoice.amountPaidPaise;
+  const outstandingInvoices = invoices.filter((invoice) => invoiceBalance(invoice) > BigInt(0));
+  const totalOutstandingPaise = outstandingInvoices.reduce((total, invoice) => total + invoiceBalance(invoice), BigInt(0));
+  const overdueInvoiceCount = outstandingInvoices.filter((invoice) => invoice.dueDate.toISOString().slice(0, 10) < today).length;
+  const openComplaintCount = complaints.filter((complaint) => complaint.status === "OPEN" || complaint.status === "IN_PROGRESS").length;
+  const nextDueInvoice = outstandingInvoices[0] ?? null;
 
   return (
     <section className="space-y-7">
       <header>
-        <p className="text-sm font-semibold uppercase tracking-wide text-[#176e61]">Resident portal</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Hello, {resident.name}</h1>
-        <p className="muted mt-2 max-w-2xl leading-6">Your stay, finalized bills, payment receipts, and security deposit activity.</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-[#176e61]">Resident dashboard</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Welcome back, {resident.name}</h1>
+        <p className="muted mt-2 max-w-2xl leading-6">A clear view of your stay, bills, and requests.</p>
+        <nav aria-label="Dashboard sections" className="mt-5 flex flex-wrap gap-2">
+          <a className="rounded-full border border-[#dce4e0] bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-[#176e61] hover:text-[#176e61]" href="#stay-heading">My stay</a>
+          <a className="rounded-full border border-[#dce4e0] bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-[#176e61] hover:text-[#176e61]" href="#invoices-heading">Bills and receipts</a>
+          <a className="rounded-full border border-[#dce4e0] bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-[#176e61] hover:text-[#176e61]" href="#food-heading">Food polls</a>
+          <a className="rounded-full border border-[#dce4e0] bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-[#176e61] hover:text-[#176e61]" href="#support-heading">Support requests</a>
+        </nav>
       </header>
 
       {error ? <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="alert">{error}</p> : null}
+
+      <section aria-label="Account overview" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <OverviewCard label="Outstanding balance" value={formatCurrency(totalOutstandingPaise)} detail={outstandingInvoices.length ? `${outstandingInvoices.length} unpaid ${outstandingInvoices.length === 1 ? "bill" : "bills"}` : "You're all caught up"} href="#invoices-heading" tone={totalOutstandingPaise > BigInt(0) ? "amber" : "green"} />
+        <OverviewCard label="Overdue bills" value={String(overdueInvoiceCount)} detail={overdueInvoiceCount ? "Please review your unpaid bills" : "No overdue bills"} href="#invoices-heading" tone={overdueInvoiceCount ? "amber" : "neutral"} />
+        <OverviewCard label="Open requests" value={String(openComplaintCount)} detail={openComplaintCount ? "Updates from your property team" : "No requests need attention"} href="#support-heading" tone="neutral" />
+        <OverviewCard label="Security deposit" value={formatCurrency(currentStay?.securityDeposit?.balancePaise ?? BigInt(0))} detail={currentStay ? "Current stay balance" : "No active stay"} href={currentStay ? "#deposit-heading" : "#stay-heading"} tone="green" />
+      </section>
 
       {currentStay ? (
         <section className="surface-card p-5 sm:p-6" aria-labelledby="stay-heading">
@@ -116,15 +139,25 @@ export default async function ResidentHomePage({
           )}
         </section>
       ) : resident.currentReservation ? (
-        <section className="surface-card p-5 sm:p-6"><p className="text-sm font-semibold text-[#176e61]">UPCOMING STAY</p><h2 className="mt-2 text-xl font-semibold">{resident.currentReservation.propertyName}</h2><p className="muted mt-1 text-sm">Room {resident.currentReservation.roomNumber} · Bed {resident.currentReservation.bedLabel}</p><p className="mt-3 text-sm">Move-in window: {formatDate(resident.currentReservation.startDate)} – {formatDate(resident.currentReservation.endDate)}</p></section>
-      ) : <section className="surface-card p-5 sm:p-6"><h2 className="text-lg font-semibold">No current stay</h2><p className="muted mt-1 text-sm">Your previous stays and bills remain available below.</p></section>}
+        <section className="surface-card p-5 sm:p-6"><p className="text-sm font-semibold text-[#176e61]">UPCOMING STAY</p><h2 className="mt-2 text-xl font-semibold" id="stay-heading">{resident.currentReservation.propertyName}</h2><p className="muted mt-1 text-sm">Room {resident.currentReservation.roomNumber} · Bed {resident.currentReservation.bedLabel}</p><p className="mt-3 text-sm">Move-in window: {formatDate(resident.currentReservation.startDate)} – {formatDate(resident.currentReservation.endDate)}</p></section>
+      ) : <section className="surface-card p-5 sm:p-6"><h2 className="text-lg font-semibold" id="stay-heading">No current stay</h2><p className="muted mt-1 text-sm">Your previous stays and bills remain available below.</p></section>}
+
+      <section aria-label="Next payment" className="surface-card flex flex-wrap items-center justify-between gap-4 border-l-4 border-l-[#176e61] p-5 sm:p-6">
+        {nextDueInvoice ? <>
+          <div><p className="text-sm font-semibold text-[#176e61]">NEXT PAYMENT</p><h2 className="mt-1 text-lg font-semibold">{nextDueInvoice.invoiceNumber} · {nextDueInvoice.stayProperty}</h2><p className="muted mt-1 text-sm">Due {formatDate(nextDueInvoice.dueDate)}{nextDueInvoice.dueDate.toISOString().slice(0, 10) < today ? " · Overdue" : ""}</p></div>
+          <div className="flex items-center gap-4"><strong className="text-lg">{formatCurrency(invoiceBalance(nextDueInvoice))}</strong><a className="rounded-lg bg-[#176e61] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#10564c]" href="#invoices-heading">View bill</a></div>
+        </> : <div><p className="text-sm font-semibold text-[#176e61]">NEXT PAYMENT</p><h2 className="mt-1 text-lg font-semibold">You’re all caught up</h2><p className="muted mt-1 text-sm">Any finalized bills will appear here when they’re ready.</p></div>}
+      </section>
 
       <ResidentComplaints orgId={orgId} stays={resident.stays} complaints={complaints} errorCode={query["complaint-error"]} created={query["complaint-created"]} />
+
+      <div id="food-heading"><ResidentFoodPolls orgId={orgId} polls={foodPolls} timezone={actor.organizationTimezone} message={query["food-voted"] ? "Your meal choice has been saved." : query["food-error"] === "poll-closed" ? "Voting has closed for that poll." : query["food-error"] ? "Your vote could not be saved. Choose an option from an open poll and try again." : null} /></div>
 
       <section className="space-y-3" aria-labelledby="invoices-heading">
         <div><p className="text-sm font-semibold text-[#176e61]">BILLING</p><h2 className="mt-1 text-xl font-semibold" id="invoices-heading">Invoices and receipts</h2></div>
         {invoices.length ? invoices.map((invoice) => {
-          const balance = invoice.totalPaise - invoice.amountPaidPaise;
+          const effectiveTotal = invoice.totalPaise + invoice.adjustmentPaise;
+          const balance = effectiveTotal > invoice.amountPaidPaise ? effectiveTotal - invoice.amountPaidPaise : BigInt(0);
           return <article className="surface-card p-5" key={invoice.id}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><h3 className="font-semibold">{invoice.invoiceNumber}</h3><p className="muted mt-1 text-sm">{invoice.invoiceType === "ELECTRICITY" ? "Electricity" : "Rent"} · {invoice.stayProperty} · Due {formatDate(invoice.dueDate)}</p><p className="muted mt-1 text-xs">Billing period: {formatDate(invoice.billingPeriodStart)} – {formatDate(invoice.billingPeriodEnd)}</p></div>
@@ -133,17 +166,58 @@ export default async function ResidentHomePage({
             <div className="mt-4 space-y-2 border-t border-[#e2e8f0] pt-3 text-sm">
               {invoice.items.map((item, index) => <div className="flex justify-between gap-4" key={`${invoice.id}-${index}`}><span>{item.description}{item.quantity !== 1 ? ` × ${item.quantity}` : ""}</span><span className="font-medium">{formatCurrency(item.lineTotalPaise)}</span></div>)}
             </div>
-            <div className="mt-4 flex flex-wrap justify-between gap-2 border-t border-[#e2e8f0] pt-3 text-sm"><span>Total {formatCurrency(invoice.totalPaise)} · Paid {formatCurrency(invoice.amountPaidPaise)}</span><strong>Balance {formatCurrency(balance)}</strong></div>
-            {invoice.payments.length ? <details className="mt-3"><summary className="cursor-pointer text-sm font-medium text-[#176e61]">Payment receipts ({invoice.payments.length})</summary><ul className="mt-2 space-y-1 text-sm text-slate-600">{invoice.payments.map((payment, index) => <li key={`${invoice.id}-payment-${index}`}>{formatDate(payment.paymentDate)} · {formatCurrency(payment.amountPaise)} · {payment.method.replaceAll("_", " ")}{payment.reference ? ` · Ref ${payment.reference}` : ""}</li>)}</ul></details> : null}
+            <div className="mt-4 flex flex-wrap justify-between gap-2 border-t border-[#e2e8f0] pt-3 text-sm"><span>Total {formatCurrency(effectiveTotal)}{invoice.adjustmentPaise !== BigInt(0) ? ` (checkout adjustment ${invoice.adjustmentPaise > BigInt(0) ? "+" : "−"}${formatCurrency(invoice.adjustmentPaise > BigInt(0) ? invoice.adjustmentPaise : -invoice.adjustmentPaise)})` : ""} · Paid {formatCurrency(invoice.amountPaidPaise)}</span><strong>Balance {formatCurrency(balance)}</strong></div>
+            {invoice.payments.length ? <details className="mt-3"><summary className="cursor-pointer text-sm font-medium text-[#176e61]">Payment activity ({invoice.payments.length})</summary><ul className="mt-2 space-y-1 text-sm text-slate-600">{invoice.payments.map((payment, index) => <li key={`${invoice.id}-payment-${index}`}>{payment.transactionType === "REVERSAL" ? "Reversal" : "Payment"} · {formatDate(payment.paymentDate)} · {formatCurrency(payment.amountPaise)} · {payment.method.replaceAll("_", " ")}{payment.reference ? ` · Ref ${payment.reference}` : ""}{payment.transactionType === "REVERSAL" && payment.notes ? ` · Reason: ${payment.notes}` : ""}</li>)}</ul></details> : null}
           </article>;
         }) : <p className="surface-card muted p-5 text-sm">No finalized invoices yet. Draft bills will appear after the property reviews them.</p>}
       </section>
 
-      {currentStay?.securityDeposit?.transactions.length ? <section className="surface-card p-5 sm:p-6" aria-labelledby="deposit-heading"><div className="flex flex-wrap items-baseline justify-between gap-3"><div><p className="text-sm font-semibold text-[#176e61]">SECURITY DEPOSIT</p><h2 className="mt-1 text-xl font-semibold" id="deposit-heading">Deposit activity</h2></div><strong>{formatCurrency(currentStay.securityDeposit.balancePaise)} balance</strong></div><ul className="mt-4 divide-y divide-slate-100">{currentStay.securityDeposit.transactions.map((transaction) => <li className="flex flex-wrap justify-between gap-2 py-3 text-sm" key={transaction.id}><span>{transaction.description ?? transaction.type.replaceAll("_", " ")}{transaction.paymentDate ? ` · ${formatDate(transaction.paymentDate)}` : ""}</span><strong className={transaction.amountPaise < BigInt(0) ? "text-slate-600" : "text-[#256b4c]"}>{transaction.amountPaise < BigInt(0) ? "−" : "+"}{formatCurrency(transaction.amountPaise < BigInt(0) ? -transaction.amountPaise : transaction.amountPaise)}</strong></li>)}</ul></section> : null}
+      {currentStay ? <section className="surface-card p-5 sm:p-6" aria-labelledby="deposit-heading"><div className="flex flex-wrap items-baseline justify-between gap-3"><div><p className="text-sm font-semibold text-[#176e61]">SECURITY DEPOSIT</p><h2 className="mt-1 text-xl font-semibold" id="deposit-heading">Deposit activity</h2></div><strong>{formatCurrency(currentStay.securityDeposit?.balancePaise ?? BigInt(0))} balance</strong></div>{currentStay.securityDeposit?.transactions.length ? <ul className="mt-4 divide-y divide-slate-100">{currentStay.securityDeposit.transactions.map((transaction) => <li className="flex flex-wrap justify-between gap-2 py-3 text-sm" key={transaction.id}><span>{transaction.description ?? transaction.type.replaceAll("_", " ")}{transaction.paymentDate ? ` · ${formatDate(transaction.paymentDate)}` : ""}</span><strong className={transaction.amountPaise < BigInt(0) ? "text-slate-600" : "text-[#256b4c]"}>{transaction.amountPaise < BigInt(0) ? "−" : "+"}{formatCurrency(transaction.amountPaise < BigInt(0) ? -transaction.amountPaise : transaction.amountPaise)}</strong></li>)}</ul> : <p className="muted mt-4 text-sm">No deposit activity has been recorded for this stay.</p>}</section> : null}
     </section>
   );
 }
 
 function Summary({ label, value }: Readonly<{ label: string; value: string }>) {
   return <div className="rounded-lg bg-[#f5f7f5] p-3"><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-1 text-sm font-semibold">{value}</p></div>;
+}
+
+type OverviewCardTone = "amber" | "green" | "neutral";
+
+function OverviewCard({
+  label,
+  value,
+  detail,
+  href,
+  tone,
+}: Readonly<{
+  label: string;
+  value: string;
+  detail: string;
+  href: string;
+  tone: OverviewCardTone;
+}>) {
+  const toneClasses: Record<OverviewCardTone, string> = {
+    amber: "border-amber-200 bg-amber-50",
+    green: "border-emerald-200 bg-emerald-50",
+    neutral: "border-slate-200 bg-white",
+  };
+
+  return (
+    <a
+      href={href}
+      className={`block rounded-xl border p-4 transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176e61] ${toneClasses[tone]}`}
+    >
+      <p className="text-sm font-medium text-slate-600">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-semibold text-slate-900">
+        {value}
+      </p>
+
+      <p className="mt-1 text-sm text-slate-600">
+        {detail}
+      </p>
+    </a>
+  );
 }

@@ -177,7 +177,7 @@ export default async function OwnerDashboardPage({
           <div className={styles.financeCards}>
             <FinanceCard label="Draft Rent Invoices" icon="request_quote" note={`${numberFormat.format(draftRent._count)} awaiting review`} value={formatPaise(draftRent._sum.totalPaise ?? BigInt(0))} />
             <FinanceCard label="Realized Collections" icon="payments" note="Payments recorded against finalized rent invoices" tone="blue" value={formatPaise(billingOverview.collectedRent._sum.amountPaise ?? BigInt(0))} />
-            <FinanceCard label="Finalized Rent Invoices" icon="pending_actions" note={`${numberFormat.format(finalizedRent._count)} finalized · paid and outstanding`} tone="gold" value={formatPaise(finalizedRent._sum.totalPaise ?? BigInt(0))} />
+            <FinanceCard label="Finalized Rent Invoices" icon="pending_actions" note={`${numberFormat.format(finalizedRent._count)} finalized · paid and outstanding`} tone="gold" value={formatPaise((finalizedRent._sum.totalPaise ?? BigInt(0)) + (finalizedRent._sum.adjustmentPaise ?? BigInt(0)))} />
             <FinanceCard label="Security Deposits Received" icon="verified_user" note={`Required across active stays: ${formatPaise(billingOverview.requiredDeposit._sum.requiredAmountPaise ?? BigInt(0))}`} value={formatPaise(billingOverview.receivedDeposit._sum.amountPaise ?? BigInt(0))} />
           </div>
           <div className={styles.financeFooter}>

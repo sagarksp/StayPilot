@@ -1,12 +1,20 @@
 # StayPilot Project Status
 
-**Last updated:** 2026-10-13
+**Last updated:** 2026-10-16
 
 **Overall status:** In progress
 
 This file tracks completed major project milestones. New major features should be added here as they are completed.
 
 ## Completed milestones
+
+### 2026-10-16 — Payment reversal ledger
+
+**Status:** Complete
+
+Added reasoned reversals for eligible invoice payments. Reversal rows are append-only, signed negative transactions linked to their original payment. The API requires an idempotency key, enforces the unreversed amount, and recalculates the invoice balance and status in a transaction. Staff can create reversals from finance; staff and residents see reversal activity and reasons in payment history. Payments tied to deposit transactions or completed stays are not eligible in this flow.
+
+**Key areas:** `src/modules/billing/application/`, `src/modules/billing/ui/actions.ts`, `src/app/api/v1/organizations/[orgId]/payments/[paymentId]/reverse/route.ts`, `src/app/(workspace)/org/[orgId]/(staff)/finance/page.tsx`, `src/modules/resident/`, `prisma/schema.prisma`, `prisma/migrations/20261016000000_payment_reversals/migration.sql`, `README.md`
 
 ### 2026-10-02 — Project scaffold
 
@@ -152,7 +160,7 @@ Owners and assigned managers can transfer deposit balances between eligible open
 
 **Status:** Complete
 
-Residents can submit text-based maintenance or service complaints for an active stay and follow status updates in the resident portal. Owners and assigned managers can list complaints in their property scope, assign them to a manager assigned to that property, progress them through `OPEN` → `IN_PROGRESS` → `RESOLVED` → `CLOSED`, and provide a required resolution note. Complaint creation, assignment, category changes, and status changes are stored in an append-only event history. Added self-service and staff APIs plus organization-scoped complaint status/category metrics. File attachments are not included because file management is not implemented yet.
+Residents can submit text-based maintenance or service complaints for an active stay and follow status updates in the resident portal. Owners and assigned managers can list complaints in their property scope, assign them to a manager assigned to that property, progress them through `OPEN` → `IN_PROGRESS` → `RESOLVED` → `CLOSED`, and provide a required resolution note. Complaint creation, assignment, category changes, and status changes are stored in an append-only event history. Added self-service and staff APIs plus organization-scoped complaint status/category metrics. Complaint attachments were added in the 2026-10-13 milestone below.
 
 **Key areas:** `src/modules/complaint/`, `src/app/(workspace)/org/[orgId]/(staff)/complaints/page.tsx`, `src/app/(workspace)/org/[orgId]/resident/page.tsx`, `src/app/api/v1/me/complaints/`, `src/app/api/v1/organizations/[orgId]/complaints/`, `src/app/api/v1/organizations/[orgId]/reports/complaints/`, `prisma/schema.prisma`, `prisma/migrations/20261013000000_complaints/migration.sql`, `src/components/workspace/owner-console-shell.tsx`, `src/components/workspace/staff-shell.tsx`
 
@@ -213,3 +221,27 @@ Aligned the manager workspace shell with the Stitch operations dashboard palette
 Added account recovery through a generic reset request flow and a single-use, one-hour Better Auth token. Reset messages are delivered through Gmail SMTP when configured, reset requests avoid disclosing whether an account exists, and successful password changes revoke active sessions.
 
 **Key areas:** `src/infrastructure/auth/auth.ts`, `src/modules/auth/ui/password-recovery-forms.tsx`, `src/modules/auth/ui/sign-in-form.tsx`, `src/app/(auth)/forgot-password/page.tsx`, `src/app/(auth)/reset-password/page.tsx`, `README.md`, `src/app/(auth)/README.md`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-13 — Complaint file attachments
+
+**Status:** Complete
+
+Residents and staff can attach up to five JPEG, PNG, WebP, or PDF files to a complaint, with a 10 MB per-file limit and content signature validation. Files are stored in private S3 with server-side encryption; uploads and one-minute download redirects require the same organization, property, or resident complaint access as the complaint itself.
+
+**Key areas:** `src/modules/complaint/infrastructure/attachments.ts`, `src/modules/complaint/ui/complaint-attachments.tsx`, `src/modules/complaint/infrastructure/prisma-complaint-repository.ts`, `src/app/api/v1/organizations/[orgId]/complaints/[complaintId]/attachments/`, `prisma/schema.prisma`, `prisma/migrations/20261015000000_complaint_attachments/migration.sql`, `.env.example`, `README.md`
+
+### 2026-10-15 — Move-out rent clear-out
+
+**Status:** Complete
+
+Checkout now lets an owner or manager select full-cycle rent or rent prorated through the actual move-out date, and optionally record a reasoned early-exit charge. If finalized rent was paid above the selected amount, the difference becomes a checkout credit that can cover rent or electricity dues and then be refunded with the remaining deposit. Finalized invoice totals and line items remain unchanged; a separate adjustment is recorded and shown in invoice balances.
+
+**Key areas:** `src/modules/resident/`, `src/modules/billing/`, `src/app/(workspace)/org/[orgId]/(staff)/residents/[residentId]/page.tsx`, `src/app/(workspace)/org/[orgId]/resident/page.tsx`, `prisma/schema.prisma`, `prisma/migrations/20261015010000_checkout_rent_adjustments/migration.sql`
+
+### 2026-10-15 — Food meal poll MVP
+
+**Status:** Complete
+
+Added per-property meal type configuration and polls for meal dates from the next local day onward. Owners and assigned managers can configure meal types; assigned managers can create polls, set a voting cutoff before the meal date, close polls early, and review aggregate option counts. Residents with an active or notice-period stay can submit or update one vote per stay until the cutoff. Polls and votes are tenant- and property-scoped; owners can configure meal types but cannot view poll results.
+
+**Key areas:** `src/modules/food/`, `src/app/(workspace)/org/[orgId]/(staff)/food/page.tsx`, `src/app/api/v1/organizations/[orgId]/pgs/[pgId]/food/`, `src/app/api/v1/me/food/`, `src/app/(workspace)/org/[orgId]/resident/page.tsx`, `prisma/schema.prisma`, `prisma/migrations/20261015020000_food_polls/migration.sql`

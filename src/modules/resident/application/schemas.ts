@@ -29,15 +29,19 @@ export const updateResidentEmailSchema = z.string().trim().email().max(254).tran
 export const checkOutResidentSchema = z.object({
   stayId: z.string().uuid(),
   endDate: z.iso.date(),
+  rentExitPolicy: z.enum(["FULL_CYCLE", "PRORATED"]),
   paymentDate: z.iso.date(),
   additionalPayment: z.union([z.literal(""), z.string().trim().regex(/^\d{1,8}(?:\.\d{1,2})?$/)]).optional(),
   additionalPaymentMethod: z.enum(["CASH", "UPI", "BANK_TRANSFER", "CARD", "OTHER"]).default("CASH"),
+  earlyExitCharge: z.union([z.literal(""), z.string().trim().regex(/^\d{1,8}(?:\.\d{1,2})?$/)]).optional(),
+  earlyExitChargeReason: z.string().trim().max(500).optional(),
   damageDeduction: z.union([z.literal(""), z.string().trim().regex(/^\d{1,8}(?:\.\d{1,2})?$/)]).optional(),
   damageReason: z.string().trim().max(500).optional(),
   depositRefundMethod: z.enum(["CASH", "UPI", "BANK_TRANSFER", "CARD", "OTHER"]).default("UPI"),
   reference: z.string().trim().max(100).optional(),
 }).superRefine((data, context) => {
   if (data.damageDeduction && !data.damageReason?.trim()) context.addIssue({ code: "custom", path: ["damageReason"], message: "A reason is required for a damage deduction." });
+  if (data.earlyExitCharge && !data.earlyExitChargeReason?.trim()) context.addIssue({ code: "custom", path: ["earlyExitChargeReason"], message: "A reason is required for an early-exit charge." });
 }).transform((data) => {
   const toPaise = (amount: string | undefined) => {
     if (!amount) return BigInt(0);
@@ -48,6 +52,8 @@ export const checkOutResidentSchema = z.object({
     ...data,
     paymentDate: new Date(`${data.paymentDate}T00:00:00.000Z`),
     additionalPaymentPaise: toPaise(data.additionalPayment),
+    earlyExitChargePaise: toPaise(data.earlyExitCharge),
+    earlyExitChargeReason: data.earlyExitChargeReason?.trim() || null,
     damageDeductionPaise: toPaise(data.damageDeduction),
     damageReason: data.damageReason?.trim() || null,
     reference: data.reference?.trim() || null,

@@ -10,8 +10,13 @@ dashboard, property inventory, resident occupancy, reservation management,
 rent and electricity billing,
 payment recording, checkout settlement, and resident billing self-service are
 implemented, including auditable security-deposit transfers within an
-organization. The resident portal supports text-based maintenance requests;
-staff can assign, resolve, and close them with a recorded status history.
+organization. The resident portal supports maintenance requests with private
+photo and PDF attachments; staff can assign, resolve, and close them with a
+recorded status history. Configure `AWS_REGION`, `AWS_S3_BUCKET`,
+`AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` to enable private S3 storage.
+The bucket should block public access; complaint downloads require organization
+membership and a complaint-scoped authorization check, and links expire after
+one minute.
 Owners can invite managers, assign property access, and resend single-use
 activation links. Owners can enable or disable owner and manager memberships;
 each organization must retain one active owner. Email/password sign-in,
@@ -44,13 +49,17 @@ Prerequisites: Node.js 22.12 or newer, npm, and a local MySQL database.
 3. Generate the Prisma client with `npm run db:generate`.
 4. Apply the checked-in local schema with `npm run db:migrate:deploy`.
 5. From the `C:\StayPilot` project root, start the development server with
-   `npm run dev -- --hostname 127.0.0.1 --port 3000`, then register an owner
+   `npm run dev -- --hostname localhost --port 3000`, then register an owner
    account at `/register` and create the first organization.
 
 Set `APP_URL` to the exact origin used in the browser. For the command above,
-use `http://127.0.0.1:3000`; `localhost` and `127.0.0.1` use separate browser
+use `http://localhost:3000`; `localhost` and `127.0.0.1` use separate browser
 cookies, so invitation links opened on the other host will not carry the sign-in
 session.
+
+Complaint attachments accept JPEG, PNG, WebP, and PDF files up to 10 MB each,
+with a maximum of five files per complaint. Limit S3 permissions to the
+configured bucket and the application's complaint attachment object prefix.
 
 Open the exact local URL printed by Next.js. If port 3000 is already in use,
 stop the other development server first so the browser doesn't show a different
@@ -58,7 +67,9 @@ checkout or an older build.
 
 If a database-backed page such as Security deposit transfers or Complaints fails
 to load after pulling updates, apply any newly checked-in local migrations with
-`npm run db:migrate:deploy`, then restart the development server. Check the
+`npm run db:migrate:deploy`, then restart the development server. Complaint pages
+need the `20261015000000_complaint_attachments` migration because their queries
+include attachment metadata. Check the
 configured database first; do not run this command against production from a
 developer workstation.
 
@@ -76,8 +87,10 @@ the endpoint creates rent drafts five days before their due date. Set a strong
 under Invoices; finalization is always an explicit action.
 
 Owners and assigned managers can record full or partial payments against
-finalized invoices from the finance page. Payment amounts are allocated to one
-invoice at a time; online payment collection and reversals are not included.
+finalized invoices from the finance page. They can reverse eligible invoice
+payments with a reason; reversals are stored as signed append-only ledger rows,
+use an idempotency key in the API, and update the invoice's paid balance.
+Online payment collection is not included.
 
 After a confirmed move-in, StayPilot creates a resident activation invitation
 when the profile has an email address. The link is single-use, expires after

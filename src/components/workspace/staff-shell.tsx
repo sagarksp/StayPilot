@@ -25,6 +25,7 @@ const navigation = [
     title: "Operations",
     links: [
       { href: "complaints", label: "Complaints", icon: "campaign" },
+      { href: "food", label: "Food", icon: "restaurant" },
       { href: "electricity", label: "Electricity", icon: "bolt" },
     ],
   },

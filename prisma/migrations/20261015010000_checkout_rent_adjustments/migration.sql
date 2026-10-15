@@ -1,0 +1,1 @@
+ALTER TABLE `invoices` ADD COLUMN `adjustment_paise` BIGINT NOT NULL DEFAULT 0;

@@ -12,6 +12,14 @@ export type ComplaintEventSummary = Readonly<{
   createdAt: Date;
 }>;
 
+export type ComplaintAttachmentSummary = Readonly<{
+  id: string;
+  name: string;
+  contentType: string;
+  byteSize: number;
+  createdAt: Date;
+}>;
+
 export type ComplaintSummary = Readonly<{
   id: string;
   stayId: string;
@@ -31,6 +39,7 @@ export type ComplaintSummary = Readonly<{
   updatedAt: Date;
   resolvedAt: Date | null;
   events: readonly ComplaintEventSummary[];
+  attachments: readonly ComplaintAttachmentSummary[];
 }>;
 
 export class ComplaintWorkflowError extends Error {

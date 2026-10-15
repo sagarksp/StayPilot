@@ -72,7 +72,7 @@ export const electricityUseCases = {
           select: {
             invoiceItem: {
               select: {
-                invoice: { select: { status: true, totalPaise: true, amountPaidPaise: true } },
+                invoice: { select: { status: true, totalPaise: true, adjustmentPaise: true, amountPaidPaise: true } },
               },
             },
           },
@@ -92,8 +92,9 @@ export const electricityUseCases = {
           draftInvoicePaise += invoice.totalPaise;
         } else if (["FINALIZED", "PARTIALLY_PAID", "PAID"].includes(invoice.status)) {
           collectedPaise += invoice.amountPaidPaise;
-          outstandingPaise += invoice.totalPaise > invoice.amountPaidPaise
-            ? invoice.totalPaise - invoice.amountPaidPaise
+          const effectiveTotal = invoice.totalPaise + invoice.adjustmentPaise;
+          outstandingPaise += effectiveTotal > invoice.amountPaidPaise
+            ? effectiveTotal - invoice.amountPaidPaise
             : BigInt(0);
         }
       }
@@ -123,8 +124,8 @@ export const electricityUseCases = {
     if (!dbOrg) return { properties, meters: [], readings: [], bills: [] };
     const propertyIds = properties.map((property) => property.id);
     const [meters, readings, bills] = await Promise.all([
-      prisma.electricityMeter.findMany({ where: { organizationId: dbOrg.id, propertyId: { in: propertyIds } }, select: { publicId: true, meterNumber: true, scopeType: true, status: true, property: { select: { publicId: true, name: true } }, room: { select: { publicId: true, number: true } }, floor: { select: { publicId: true, name: true } }, readings: { select: { id: true, readingValue: true, readingAt: true }, orderBy: { readingAt: "desc" }, take: 6 } }, orderBy: [{ property: { name: "asc" } }, { meterNumber: "asc" }] }),
-      prisma.electricityMeterReading.findMany({ where: { organizationId: dbOrg.id, meter: { propertyId: { in: propertyIds }, status: "ACTIVE" } }, select: { id: true, meterId: true, readingValue: true, readingAt: true, meter: { select: { publicId: true, meterNumber: true, propertyId: true } } }, orderBy: { readingAt: "desc" }, take: 100 }),
+      prisma.electricityMeter.findMany({ where: { organizationId: dbOrg.id, propertyId: { in: propertyIds } }, select: { publicId: true, meterNumber: true, scopeType: true, status: true, installedOn: true, retiredOn: true, property: { select: { publicId: true, name: true } }, room: { select: { publicId: true, number: true } }, floor: { select: { publicId: true, name: true } }, readings: { select: { id: true, readingValue: true, readingAt: true }, orderBy: { readingAt: "desc" }, take: 6 } }, orderBy: [{ property: { name: "asc" } }, { meterNumber: "asc" }] }),
+      prisma.electricityMeterReading.findMany({ where: { organizationId: dbOrg.id, meter: { propertyId: { in: propertyIds } } }, select: { id: true, meterId: true, readingValue: true, readingAt: true, meter: { select: { publicId: true, meterNumber: true, propertyId: true } } }, orderBy: [{ meterId: "asc" }, { readingAt: "asc" }, { id: "asc" }] }),
       prisma.electricityBill.findMany({ where: { organizationId: dbOrg.id, propertyId: { in: propertyIds } }, select: { publicId: true, billingMode: true, periodStart: true, periodEnd: true, totalAmountPaise: true, status: true, unitsConsumed: true, property: { select: { name: true } }, meter: { select: { meterNumber: true } }, allocations: { select: { publicId: true, occupiedDays: true, calculatedAmountPaise: true, finalAmountPaise: true, overrideReason: true, residentStay: { select: { resident: { select: { name: true } }, bed: { select: { room: { select: { number: true } }, label: true } } } } } } }, orderBy: [{ periodEnd: "desc" }, { createdAt: "desc" }], take: 50 }),
     ]);
     return { properties, meters, readings, bills };
@@ -153,15 +154,23 @@ export const electricityUseCases = {
 
   async recordReading(actor: OrganizationActor, input: ReadingInput) {
     staff(actor);
-    const meter = await prisma.electricityMeter.findFirst({ where: { publicId: input.meterId, organization: { publicId: actor.organizationId }, status: "ACTIVE", ...(propertyScope(actor) ? { property: { publicId: { in: propertyScope(actor) } } } : {}) }, select: { id: true, organizationId: true } });
+    const allowed = propertyScope(actor);
+    const meter = await prisma.electricityMeter.findFirst({ where: { publicId: input.meterId, organization: { publicId: actor.organizationId }, status: "ACTIVE", ...(allowed ? { property: { publicId: { in: allowed } } } : {}) }, select: { id: true, organizationId: true, installedOn: true } });
     if (!meter) throw new AccessDeniedError();
     const readingDate = day(input.readingAt);
     const reading = new Prisma.Decimal(input.readingValue);
-    const prior = await prisma.electricityMeterReading.findFirst({ where: { meterId: meter.id, readingAt: { lt: readingDate } }, orderBy: { readingAt: "desc" }, select: { readingValue: true } });
-    const next = await prisma.electricityMeterReading.findFirst({ where: { meterId: meter.id, readingAt: { gt: readingDate } }, orderBy: { readingAt: "asc" }, select: { readingValue: true } });
-    if ((prior && reading.lessThan(prior.readingValue)) || (next && reading.greaterThan(next.readingValue))) throw new Error("READING_NOT_MONOTONIC");
+    if (meter.installedOn && readingDate < day(meter.installedOn.toISOString().slice(0, 10))) throw new Error("READING_BEFORE_INSTALL");
     const user = await prisma.user.findUniqueOrThrow({ where: { publicId: actor.userId }, select: { id: true } });
-    return prisma.electricityMeterReading.create({ data: { organizationId: meter.organizationId, meterId: meter.id, readingValue: reading, readingAt: readingDate, recordedById: user.id } });
+    return prisma.$transaction(async (tx) => {
+      const lockedMeter = await tx.$queryRaw<Array<{ id: bigint }>>`SELECT id FROM electricity_meters WHERE id = ${meter.id} AND organization_id = ${meter.organizationId} AND status = 'ACTIVE' FOR UPDATE`;
+      if (!lockedMeter.length) throw new AccessDeniedError();
+      const duplicate = await tx.electricityMeterReading.findFirst({ where: { meterId: meter.id, readingAt: readingDate }, select: { id: true } });
+      if (duplicate) throw new Error("READING_DATE_ALREADY_EXISTS");
+      const prior = await tx.electricityMeterReading.findFirst({ where: { meterId: meter.id, readingAt: { lt: readingDate } }, orderBy: [{ readingAt: "desc" }, { id: "desc" }], select: { readingValue: true } });
+      const next = await tx.electricityMeterReading.findFirst({ where: { meterId: meter.id, readingAt: { gt: readingDate } }, orderBy: [{ readingAt: "asc" }, { id: "asc" }], select: { readingValue: true } });
+      if ((prior && reading.lessThan(prior.readingValue)) || (next && reading.greaterThan(next.readingValue))) throw new Error("READING_NOT_MONOTONIC");
+      return tx.electricityMeterReading.create({ data: { organizationId: meter.organizationId, meterId: meter.id, readingValue: reading, readingAt: readingDate, recordedById: user.id } });
+    });
   },
 
   async retireMeter(actor: OrganizationActor, input: MeterStatusInput) {
@@ -197,10 +206,12 @@ export const electricityUseCases = {
       totalAmountPaise = cents(input.totalAmount);
     } else {
       if (!input.meterId || !input.previousReadingId || !input.currentReadingId || !input.unitRate) throw new Error("METER_READINGS_REQUIRED");
-      const meter = await prisma.electricityMeter.findFirst({ where: { publicId: input.meterId, organizationId: org.id, propertyId: property.id, status: "ACTIVE", scopeType: input.billingMode === "ROOM_METER" ? "ROOM" : "FLOOR" }, select: { id: true } });
+      const meter = await prisma.electricityMeter.findFirst({ where: { publicId: input.meterId, organizationId: org.id, propertyId: property.id, scopeType: input.billingMode === "ROOM_METER" ? "ROOM" : "FLOOR" }, select: { id: true, status: true, installedOn: true, retiredOn: true } });
       if (!meter) throw new Error("INVALID_METER");
+      if (meter.installedOn && start < day(meter.installedOn.toISOString().slice(0, 10))) throw new Error("BILL_BEFORE_METER_INSTALL");
+      if (meter.status !== "ACTIVE" && (!meter.retiredOn || end > day(meter.retiredOn.toISOString().slice(0, 10)))) throw new Error("BILL_AFTER_METER_RETIRE");
       const [previous, current] = await Promise.all([input.previousReadingId, input.currentReadingId].map((rowId) => prisma.electricityMeterReading.findFirst({ where: { id: BigInt(rowId), meterId: meter.id }, select: { id: true, readingValue: true, readingAt: true } })));
-      if (!previous || !current || previous.id === current.id || previous.readingAt >= current.readingAt || previous.readingAt > start || current.readingAt < end || current.readingValue.lessThan(previous.readingValue)) throw new Error("INVALID_READING_RANGE");
+      if (!previous || !current || previous.id === current.id || previous.readingAt >= current.readingAt || previous.readingAt > start || current.readingAt < end || (meter.installedOn && previous.readingAt < day(meter.installedOn.toISOString().slice(0, 10))) || (meter.status !== "ACTIVE" && meter.retiredOn && current.readingAt > day(meter.retiredOn.toISOString().slice(0, 10))) || current.readingValue.lessThan(previous.readingValue)) throw new Error("INVALID_READING_RANGE");
       const consumedMilli = BigInt(current.readingValue.minus(previous.readingValue).mul(1000).toFixed(0));
       ratePaise = cents(input.unitRate);
       unitsConsumed = current.readingValue.minus(previous.readingValue);
@@ -218,16 +229,24 @@ export const electricityUseCases = {
     return prisma.$transaction(async (tx) => {
       const bill = await tx.electricityBill.findFirst({ where: { publicId: billPublicId, organization: { publicId: actor.organizationId }, status: "DRAFT", ...(allowed ? { property: { publicId: { in: allowed } } } : {}) }, select: { id: true, organizationId: true, propertyId: true, billingMode: true, meterId: true, periodStart: true, periodEnd: true, totalAmountPaise: true, meter: { select: { roomId: true, floorId: true } } } });
       if (!bill) throw new Error("BILL_NOT_DRAFT");
-      const stays = await tx.residentStay.findMany({ where: { organizationId: bill.organizationId, propertyId: bill.propertyId, startDate: { lte: bill.periodEnd }, OR: [{ endDate: null }, { endDate: { gte: bill.periodStart } }], ...(bill.billingMode === "ROOM_METER" ? { bed: { roomId: bill.meter?.roomId ?? BigInt(-1) } } : bill.billingMode === "FLOOR_METER" ? { bed: { room: { floorId: bill.meter?.floorId ?? BigInt(-1) } } } : {}) }, select: { id: true, startDate: true, endDate: true } });
+      const stays = await tx.residentStay.findMany({ where: { organizationId: bill.organizationId, propertyId: bill.propertyId, startDate: { lte: bill.periodEnd }, OR: [{ endDate: null }, { endDate: { gte: bill.periodStart } }], ...(bill.billingMode === "ROOM_METER" ? { bed: { roomId: bill.meter?.roomId ?? BigInt(-1) } } : bill.billingMode === "FLOOR_METER" ? { bed: { room: { floorId: bill.meter?.floorId ?? BigInt(-1) } } } : {}) }, select: { id: true, startDate: true, endDate: true }, orderBy: [{ startDate: "asc" }, { id: "asc" }] });
       const participants = stays.map((stay) => ({ stay, days: overlapDays(stay.startDate, stay.endDate ?? bill.periodEnd, bill.periodStart, bill.periodEnd) })).filter((entry) => entry.days > 0);
       if (!participants.length) throw new Error("NO_RESIDENTS_IN_PERIOD");
       const allDays = participants.reduce((sum, entry) => sum + entry.days, 0);
-      let allocated = BigInt(0);
+      const shares = participants.map((entry) => {
+        const weightedTotal = bill.totalAmountPaise * BigInt(entry.days);
+        return { ...entry, amount: weightedTotal / BigInt(allDays), remainder: weightedTotal % BigInt(allDays) };
+      });
+      const allocated = shares.reduce((sum, entry) => sum + entry.amount, BigInt(0));
+      const remainingPaise = bill.totalAmountPaise - allocated;
+      const remainderOrder = [...shares].sort((left, right) => {
+        if (left.remainder !== right.remainder) return left.remainder > right.remainder ? -1 : 1;
+        return left.stay.id < right.stay.id ? -1 : left.stay.id > right.stay.id ? 1 : 0;
+      });
+      for (let index = 0; index < Number(remainingPaise); index += 1) remainderOrder[index].amount += BigInt(1);
       await tx.electricityAllocation.deleteMany({ where: { electricityBillId: bill.id, invoiceItemId: null } });
-      for (const [index, entry] of participants.entries()) {
-        const amount = index === participants.length - 1 ? bill.totalAmountPaise - allocated : bill.totalAmountPaise * BigInt(entry.days) / BigInt(allDays);
-        allocated += amount;
-        await tx.electricityAllocation.create({ data: { organizationId: bill.organizationId, electricityBillId: bill.id, residentStayId: entry.stay.id, occupiedDays: entry.days, calculatedAmountPaise: amount, finalAmountPaise: amount } });
+      for (const entry of shares) {
+        await tx.electricityAllocation.create({ data: { organizationId: bill.organizationId, electricityBillId: bill.id, residentStayId: entry.stay.id, occupiedDays: entry.days, calculatedAmountPaise: entry.amount, finalAmountPaise: entry.amount } });
       }
       return participants.length;
     });

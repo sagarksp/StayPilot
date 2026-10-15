@@ -24,7 +24,15 @@ export function SignInForm({ callbackURL = "/workspace" }: Readonly<{ callbackUR
       });
 
       if (result.error) {
-        setError("We couldn't sign you in with those details. Check them and try again.");
+        if (result.error.code === "INVALID_ORIGIN" || result.error.code === "MISSING_OR_NULL_ORIGIN") {
+          setError("The sign-in page is using a different address than the app configuration. Open StayPilot using the host configured in APP_URL.");
+        } else if (result.error.status === 429) {
+          setError("There have been too many sign-in attempts. Wait a minute, then try again.");
+        } else if (result.error.status >= 500) {
+          setError("The sign-in service couldn't complete your request. Please try again in a moment.");
+        } else {
+          setError("We couldn't sign you in with those details. Check your email and password, then try again.");
+        }
         return;
       }
       window.location.assign(callbackURL);

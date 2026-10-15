@@ -23,9 +23,11 @@ model User {
   checkoutProcessesCreated CheckoutProcess[] @relation("CheckoutProcessCreator")
   electricityReadings ElectricityMeterReading[] @relation("ElectricityReadingRecorder")
   electricityBillsCreated ElectricityBill[] @relation("ElectricityBillCreator")
+  foodPollsCreated FoodPoll[] @relation("FoodPollCreator")
   electricityAllocationsOverridden ElectricityAllocation[] @relation("ElectricityAllocationOverrider")
   assignedComplaints Complaint[] @relation("ComplaintAssignee")
   complaintEvents ComplaintEvent[] @relation("ComplaintEventActor")
+  complaintAttachments ComplaintAttachment[] @relation("ComplaintAttachmentUploader")
   invitationsCreated UserInvitation[] @relation("UserInvitationCreator")
 
   @@map("users")
@@ -121,6 +123,9 @@ model Organization {
   pgSettings PgSetting[]
   complaints Complaint[]
   userInvitations UserInvitation[]
+  mealTypes FoodMealType[]
+  foodPolls FoodPoll[]
+  foodVotes FoodVote[]
 
   @@map("organizations")
 }
@@ -237,6 +242,8 @@ model Property {
   electricityBills ElectricityBill[]
   settings PgSetting?
   complaints Complaint[]
+  mealTypes FoodMealType[]
+  foodPolls FoodPoll[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])
@@ -363,10 +370,12 @@ model ResidentStay {
   checkoutProcesses CheckoutProcess[]
   electricityAllocations ElectricityAllocation[]
   complaints Complaint[]
+  foodVotes FoodVote[]
 
   // MySQL allows multiple NULL values in a unique index. Active stays use 1;
   // ended stays set these slots to NULL, retaining history without allowing
   // two active stays to share one bed or resident.
+  @@unique([organizationId, id], map: "resident_stays_organization_id_id_key")
   @@unique([organizationId, propertyId, bedId, activeBedSlot], map: "resident_stays_active_bed_key")
   @@unique([organizationId, residentId, activeResidentSlot], map: "resident_stays_active_resident_key")
   @@index([organizationId, propertyId, status], map: "resident_stays_organization_id_pg_id_status_idx")
@@ -411,6 +420,7 @@ model Invoice {
   status             String        @default("DRAFT") @db.VarChar(20)
   subtotalPaise      BigInt        @map("subtotal_paise")
   totalPaise         BigInt        @map("total_paise")
+  adjustmentPaise    BigInt        @default(0) @map("adjustment_paise")
   amountPaidPaise    BigInt        @default(0) @map("amount_paid_paise")
   finalizedAt        DateTime?     @map("finalized_at") @db.DateTime(3)
   createdAt          DateTime      @default(now()) @map("created_at") @db.DateTime(3)
@@ -436,12 +446,16 @@ model Payment {
   invoiceId      BigInt?  @map("invoice_id") @db.UnsignedBigInt
   reservationId  BigInt?  @map("reservation_id") @db.UnsignedBigInt
   residentStayId BigInt?  @map("resident_stay_id") @db.UnsignedBigInt
+  transactionType String  @default("PAYMENT") @map("transaction_type") @db.VarChar(20)
+  originalPaymentId BigInt? @map("original_payment_id") @db.UnsignedBigInt
   purpose        String   @default("INVOICE") @db.VarChar(30)
   amountPaise    BigInt   @map("amount_paise")
   paymentDate    DateTime @map("payment_date") @db.Date
   method         String   @db.VarChar(30)
   reference      String?  @db.VarChar(100)
   notes          String?  @db.VarChar(500)
+  idempotencyKey String?  @map("idempotency_key") @db.VarChar(100)
+  requestHash    String?  @map("request_hash") @db.Char(64)
   recordedByName String   @map("recorded_by_name") @db.VarChar(180)
   createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
   organization   Organization @relation(fields: [organizationId], references: [id])
@@ -450,12 +464,16 @@ model Payment {
   invoice        Invoice? @relation(fields: [invoiceId], references: [id])
   reservation    Reservation? @relation(fields: [reservationId], references: [id])
   residentStay   ResidentStay? @relation(fields: [residentStayId], references: [id])
+  originalPayment Payment? @relation("PaymentReversals", fields: [originalPaymentId], references: [id], onDelete: Restrict)
+  reversals      Payment[] @relation("PaymentReversals")
   depositTransactions SecurityDepositTransaction[]
 
+  @@unique([organizationId, idempotencyKey])
   @@index([invoiceId, paymentDate])
   @@index([organizationId, propertyId, paymentDate])
   @@index([reservationId])
   @@index([residentStayId, paymentDate])
+  @@index([organizationId, originalPaymentId])
   @@map("payments")
 }
 
@@ -525,6 +543,7 @@ model Complaint {
   residentStay   ResidentStay @relation(fields: [residentStayId], references: [id])
   assignedTo     User? @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
   events         ComplaintEvent[]
+  attachments    ComplaintAttachment[]
 
   @@index([organizationId, propertyId, status, createdAt])
   @@index([residentStayId, createdAt])
@@ -546,6 +565,23 @@ model ComplaintEvent {
 
   @@index([complaintId, createdAt])
   @@map("complaint_events")
+}
+
+model ComplaintAttachment {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String    @unique @default(uuid()) @map("public_id") @db.Char(36)
+  complaintId    BigInt    @map("complaint_id") @db.UnsignedBigInt
+  uploadedById   BigInt    @map("uploaded_by") @db.UnsignedBigInt
+  objectKey      String    @unique @map("object_key") @db.VarChar(512)
+  originalName   String    @map("original_name") @db.VarChar(255)
+  contentType    String    @map("content_type") @db.VarChar(100)
+  byteSize       Int       @map("byte_size") @db.UnsignedInt
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  complaint      Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  uploadedBy     User      @relation("ComplaintAttachmentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([complaintId, createdAt])
+  @@map("complaint_attachments")
 }
 
 model ElectricityMeter {
@@ -725,6 +761,81 @@ model CheckoutSettlementItem {
 
   @@index([checkoutSettlementId])
   @@map("checkout_settlement_items")
+}
+
+model FoodMealType {
+  id             BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String       @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt       @map("organization_id") @db.UnsignedBigInt
+  propertyId     BigInt       @map("pg_id") @db.UnsignedBigInt
+  name           String       @db.VarChar(80)
+  displayOrder   Int          @default(0) @map("display_order")
+  status         String       @default("ACTIVE") @db.VarChar(20)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  property       Property     @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  polls          FoodPoll[]
+
+  @@unique([propertyId, name])
+  @@unique([organizationId, propertyId, id])
+  @@index([organizationId, propertyId, status, displayOrder])
+  @@map("meal_types")
+}
+
+model FoodPoll {
+  id             BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String           @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt           @map("organization_id") @db.UnsignedBigInt
+  propertyId     BigInt           @map("pg_id") @db.UnsignedBigInt
+  mealTypeId     BigInt           @map("meal_type_id") @db.UnsignedBigInt
+  mealDate       DateTime         @map("meal_date") @db.Date
+  opensAt        DateTime         @map("opens_at") @db.DateTime(3)
+  closesAt       DateTime         @map("closes_at") @db.DateTime(3)
+  status         String           @default("OPEN") @db.VarChar(20)
+  createdById    BigInt           @map("created_by") @db.UnsignedBigInt
+  createdAt      DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  property       Property        @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  mealType       FoodMealType    @relation(fields: [organizationId, propertyId, mealTypeId], references: [organizationId, propertyId, id])
+  createdBy      User            @relation("FoodPollCreator", fields: [createdById], references: [id])
+  options        FoodPollOption[]
+  votes          FoodVote[]
+
+  @@unique([organizationId, id])
+  @@unique([propertyId, mealDate, mealTypeId])
+  @@index([organizationId, propertyId, mealDate, status])
+  @@map("food_polls")
+}
+
+model FoodPollOption {
+  id         BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId   String    @unique @default(uuid()) @map("public_id") @db.Char(36)
+  pollId     BigInt    @map("food_poll_id") @db.UnsignedBigInt
+  label      String    @db.VarChar(180)
+  displayOrder Int     @default(0) @map("display_order")
+  poll       FoodPoll  @relation(fields: [pollId], references: [id])
+  votes      FoodVote[]
+
+  @@unique([pollId, id])
+  @@map("food_poll_options")
+}
+
+model FoodVote {
+  id             BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  organizationId BigInt        @map("organization_id") @db.UnsignedBigInt
+  pollId         BigInt        @map("food_poll_id") @db.UnsignedBigInt
+  residentStayId BigInt        @map("resident_stay_id") @db.UnsignedBigInt
+  optionId       BigInt        @map("option_id") @db.UnsignedBigInt
+  votedAt        DateTime      @default(now()) @map("voted_at") @db.DateTime(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  poll           FoodPoll     @relation(fields: [organizationId, pollId], references: [organizationId, id])
+  residentStay   ResidentStay @relation(fields: [organizationId, residentStayId], references: [organizationId, id])
+  option         FoodPollOption @relation(fields: [pollId, optionId], references: [pollId, id])
+
+  @@unique([pollId, residentStayId])
+  @@index([organizationId, residentStayId, votedAt])
+  @@map("food_votes")
 }
 
 model InvoiceItem {

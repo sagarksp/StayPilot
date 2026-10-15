@@ -1,6 +1,7 @@
 import { AccessDeniedError, type OrganizationActor } from "@/modules/property/domain/inventory";
+import { createHash } from "node:crypto";
 import { prisma } from "@/infrastructure/db/prisma";
-import type { RecordPayment } from "./schemas";
+import type { RecordPayment, ReversePaymentInput } from "./schemas";
 
 function assertStaff(actor: OrganizationActor) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
@@ -26,6 +27,13 @@ function monthlyDueDate(start: Date, billingDay: number, monthOffset: number) {
   return new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), Math.min(billingDay, lastDay)));
 }
 function iso(date: Date) { return date.toISOString().slice(0, 10); }
+function reversalRequestHash(actor: OrganizationActor, paymentId: string, input: ReversePaymentInput) {
+  return createHash("sha256").update(`${actor.organizationId}\n${actor.userId}\n${paymentId}\n${input.amountPaise}\n${input.reason}`).digest("hex");
+}
+function idempotentReversal(record: { publicId: string; amountPaise: bigint; requestHash: string | null }, requestHash: string) {
+  if (record.requestHash !== requestHash) throw new Error("IDEMPOTENCY_KEY_REUSED");
+  return { publicId: record.publicId, amountPaise: record.amountPaise, replayed: true };
+}
 
 export const billingUseCases = {
   async getOverview(actor: OrganizationActor) {
@@ -35,7 +43,7 @@ export const billingUseCases = {
     const depositScope = { organization: { publicId: actor.organizationId }, status: "OPEN", ...(propertyIds ? { property: { publicId: { in: [...propertyIds] } } } : {}) };
     const [draftRent, finalizedRent, collectedRent, requiredDeposit, receivedDeposit] = await Promise.all([
       prisma.invoice.aggregate({ where: { ...scope, status: "DRAFT" }, _sum: { totalPaise: true }, _count: true }),
-      prisma.invoice.aggregate({ where: { ...scope, status: { in: ["FINALIZED", "PARTIALLY_PAID", "PAID"] } }, _sum: { totalPaise: true }, _count: true }),
+      prisma.invoice.aggregate({ where: { ...scope, status: { in: ["FINALIZED", "PARTIALLY_PAID", "PAID"] } }, _sum: { totalPaise: true, adjustmentPaise: true }, _count: true }),
       prisma.payment.aggregate({ where: { invoice: { ...scope } }, _sum: { amountPaise: true } }),
       prisma.securityDepositAccount.aggregate({ where: depositScope, _sum: { requiredAmountPaise: true } }),
       prisma.securityDepositTransaction.aggregate({ where: { depositAccount: { ...depositScope } }, _sum: { amountPaise: true } }),
@@ -56,17 +64,19 @@ export const billingUseCases = {
         billingPeriodEnd: true,
         dueDate: true,
         totalPaise: true,
+        adjustmentPaise: true,
         amountPaidPaise: true,
         finalizedAt: true,
         property: { select: { publicId: true, name: true } },
         residentStay: {
           select: {
             resident: { select: { publicId: true, name: true } },
+            status: true,
             bed: { select: { label: true, room: { select: { number: true } } } },
           },
         },
         items: { select: { description: true, amountPaise: true } },
-        payments: { select: { publicId: true, amountPaise: true, paymentDate: true, method: true, reference: true, notes: true, recordedByName: true }, orderBy: [{ paymentDate: "desc" }, { createdAt: "desc" }] },
+        payments: { select: { publicId: true, amountPaise: true, paymentDate: true, method: true, reference: true, notes: true, recordedByName: true, transactionType: true, originalPaymentId: true, purpose: true, depositTransactions: { select: { id: true } }, reversals: { where: { transactionType: "REVERSAL" }, select: { amountPaise: true } } }, orderBy: [{ paymentDate: "desc" }, { createdAt: "desc" }] },
       },
       orderBy: [{ dueDate: "desc" }, { createdAt: "desc" }],
     });
@@ -83,16 +93,17 @@ export const billingUseCases = {
           ...(scope ? { property: { publicId: { in: [...scope] } } } : {}),
           status: { in: ["FINALIZED", "PARTIALLY_PAID"] },
         },
-        select: { id: true, organizationId: true, propertyId: true, residentStayId: true, residentStay: { select: { residentId: true } }, totalPaise: true, amountPaidPaise: true, status: true },
+        select: { id: true, organizationId: true, propertyId: true, residentStayId: true, residentStay: { select: { residentId: true } }, totalPaise: true, adjustmentPaise: true, amountPaidPaise: true, status: true },
       });
       if (!invoice) throw new Error("INVOICE_NOT_PAYABLE");
-      const balance = invoice.totalPaise - invoice.amountPaidPaise;
+      const effectiveTotal = invoice.totalPaise + invoice.adjustmentPaise;
+      const balance = effectiveTotal - invoice.amountPaidPaise;
       if (payment.amountPaise > balance) throw new Error("PAYMENT_EXCEEDS_BALANCE");
 
       const nextPaid = invoice.amountPaidPaise + payment.amountPaise;
-      const nextStatus = nextPaid === invoice.totalPaise ? "PAID" : "PARTIALLY_PAID";
+      const nextStatus = nextPaid >= effectiveTotal ? "PAID" : "PARTIALLY_PAID";
       const updated = await tx.invoice.updateMany({
-        where: { id: invoice.id, amountPaidPaise: invoice.amountPaidPaise, status: invoice.status },
+        where: { id: invoice.id, amountPaidPaise: invoice.amountPaidPaise, adjustmentPaise: invoice.adjustmentPaise, status: invoice.status },
         data: { amountPaidPaise: nextPaid, status: nextStatus },
       });
       if (updated.count !== 1) throw new Error("INVOICE_CHANGED");
@@ -115,6 +126,115 @@ export const billingUseCases = {
         select: { publicId: true, amountPaise: true },
       });
     });
+  },
+
+  async reversePayment(actor: OrganizationActor, paymentId: string, input: ReversePaymentInput, idempotencyKey: string) {
+    assertStaff(actor);
+    if (idempotencyKey.length < 16 || idempotencyKey.length > 100) throw new Error("INVALID_IDEMPOTENCY_KEY");
+    const requestHash = reversalRequestHash(actor, paymentId, input);
+    const existing = await prisma.payment.findFirst({
+      where: { organization: { publicId: actor.organizationId }, idempotencyKey },
+      select: { publicId: true, amountPaise: true, requestHash: true },
+    });
+    if (existing) return idempotentReversal(existing, requestHash);
+
+    const scope = propertyScope(actor);
+    const organization = await prisma.organization.findUnique({ where: { publicId: actor.organizationId }, select: { id: true } });
+    if (!organization) throw new Error("PAYMENT_NOT_REVERSIBLE");
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const lockedOriginal = await tx.$queryRaw<Array<{ id: bigint }>>`SELECT id FROM payments WHERE public_id = ${paymentId} AND organization_id = ${organization.id} FOR UPDATE`;
+        if (!lockedOriginal.length) throw new Error("PAYMENT_NOT_REVERSIBLE");
+        const original = await tx.payment.findFirst({
+          where: {
+            publicId: paymentId,
+            organization: { publicId: actor.organizationId },
+            ...(scope ? { property: { publicId: { in: [...scope] } } } : {}),
+            transactionType: "PAYMENT",
+            purpose: "INVOICE",
+            amountPaise: { gt: BigInt(0) },
+          },
+          select: {
+            id: true,
+            organizationId: true,
+            propertyId: true,
+            residentId: true,
+            residentStayId: true,
+            invoiceId: true,
+            purpose: true,
+            amountPaise: true,
+            method: true,
+            reference: true,
+            depositTransactions: { select: { id: true } },
+            residentStay: { select: { status: true } },
+          },
+        });
+        if (!original || !original.invoiceId || !original.residentStayId || !original.residentStay) throw new Error("PAYMENT_NOT_REVERSIBLE");
+
+        const retry = await tx.payment.findFirst({
+          where: { organizationId: original.organizationId, idempotencyKey },
+          select: { publicId: true, amountPaise: true, requestHash: true },
+        });
+        if (retry) return idempotentReversal(retry, requestHash);
+
+        if (original.depositTransactions.length || original.residentStay.status === "COMPLETED") throw new Error("PAYMENT_NOT_REVERSIBLE");
+        const previousReversals = await tx.payment.aggregate({
+          where: { organizationId: original.organizationId, originalPaymentId: original.id, transactionType: "REVERSAL" },
+          _sum: { amountPaise: true },
+        });
+        const alreadyReversed = -(previousReversals._sum.amountPaise ?? BigInt(0));
+        const remainingReversible = original.amountPaise - alreadyReversed;
+        if (input.amountPaise > remainingReversible) throw new Error("REVERSAL_EXCEEDS_UNREVERSED_AMOUNT");
+
+        await tx.$queryRaw<Array<{ id: bigint }>>`SELECT id FROM invoices WHERE id = ${original.invoiceId} AND organization_id = ${original.organizationId} FOR UPDATE`;
+        const invoice = await tx.invoice.findFirst({
+          where: { id: original.invoiceId, organizationId: original.organizationId, status: { in: ["FINALIZED", "PARTIALLY_PAID", "PAID"] } },
+          select: { id: true, totalPaise: true, adjustmentPaise: true, amountPaidPaise: true, status: true },
+        });
+        if (!invoice || input.amountPaise > invoice.amountPaidPaise) throw new Error("INVOICE_CHANGED");
+
+        const nextPaid = invoice.amountPaidPaise - input.amountPaise;
+        const effectiveTotal = invoice.totalPaise + invoice.adjustmentPaise;
+        const nextStatus = nextPaid >= effectiveTotal ? "PAID" : nextPaid > BigInt(0) ? "PARTIALLY_PAID" : "FINALIZED";
+        const changed = await tx.invoice.updateMany({
+          where: { id: invoice.id, amountPaidPaise: invoice.amountPaidPaise, adjustmentPaise: invoice.adjustmentPaise, status: invoice.status },
+          data: { amountPaidPaise: nextPaid, status: nextStatus },
+        });
+        if (changed.count !== 1) throw new Error("INVOICE_CHANGED");
+
+        const reversal = await tx.payment.create({
+          data: {
+            organizationId: original.organizationId,
+            propertyId: original.propertyId,
+            residentId: original.residentId,
+            residentStayId: original.residentStayId,
+            invoiceId: original.invoiceId,
+            transactionType: "REVERSAL",
+            originalPaymentId: original.id,
+            purpose: original.purpose,
+            amountPaise: -input.amountPaise,
+            paymentDate: dateOnly(new Date()),
+            method: original.method,
+            reference: original.reference,
+            notes: input.reason,
+            idempotencyKey,
+            requestHash,
+            recordedByName: actor.userName,
+          },
+          select: { publicId: true, amountPaise: true },
+        });
+        return { ...reversal, replayed: false };
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
+        const replay = await prisma.payment.findFirst({
+          where: { organization: { publicId: actor.organizationId }, idempotencyKey },
+          select: { publicId: true, amountPaise: true, requestHash: true },
+        });
+        if (replay) return idempotentReversal(replay, requestHash);
+      }
+      throw error;
+    }
   },
 
   async finalize(actor: OrganizationActor, invoiceId: string) {

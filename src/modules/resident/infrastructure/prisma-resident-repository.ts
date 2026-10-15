@@ -65,9 +65,10 @@ function staySelect(asOfDate: string) {
       dueDate: true,
       status: true,
       totalPaise: true,
+      adjustmentPaise: true,
       amountPaidPaise: true,
       items: { select: { description: true, quantity: true, unitAmountPaise: true, amountPaise: true }, orderBy: { id: "asc" } },
-      payments: { select: { amountPaise: true, paymentDate: true, method: true, reference: true }, orderBy: { paymentDate: "asc" } },
+      payments: { select: { amountPaise: true, paymentDate: true, method: true, reference: true, transactionType: true, notes: true }, orderBy: { paymentDate: "asc" } },
     },
   },
     securityDepositAccount: {
@@ -130,7 +131,10 @@ function toStaySummary(stay: StayRecord): ResidentStaySummary {
       billingCycleType: stay.rentRates[0].billingCycleType as "MOVE_IN_DAY" | "FIXED_DAY",
       billingDay: stay.rentRates[0].billingDay,
     } : null,
-    finalizedInvoiceDuePaise: stay.invoices.filter((invoice) => invoice.status === "FINALIZED" || invoice.status === "PARTIALLY_PAID").reduce((sum, invoice) => sum + invoice.totalPaise - invoice.amountPaidPaise, BigInt(0)),
+    finalizedInvoiceDuePaise: stay.invoices.filter((invoice) => invoice.status === "FINALIZED" || invoice.status === "PARTIALLY_PAID").reduce((sum, invoice) => {
+      const balance = invoice.totalPaise + invoice.adjustmentPaise - invoice.amountPaidPaise;
+      return sum + (balance > BigInt(0) ? balance : BigInt(0));
+    }, BigInt(0)),
     draftInvoiceCount: stay.invoices.filter((invoice) => invoice.status === "DRAFT").length,
     securityDeposit: stay.securityDepositAccount ? {
       requiredAmountPaise: stay.securityDepositAccount.requiredAmountPaise,
@@ -157,6 +161,7 @@ function toStaySummary(stay: StayRecord): ResidentStaySummary {
       dueDate: invoice.dueDate,
       status: invoice.status,
       totalPaise: invoice.totalPaise,
+      adjustmentPaise: invoice.adjustmentPaise,
       amountPaidPaise: invoice.amountPaidPaise,
       items: invoice.items.map((item) => ({ description: item.description, quantity: Number(item.quantity), unitAmountPaise: item.unitAmountPaise, lineTotalPaise: item.amountPaise })),
       payments: invoice.payments,
@@ -194,6 +199,28 @@ function addDays(value: Date, days: number) {
   const result = new Date(value);
   result.setUTCDate(result.getUTCDate() + days);
   return result;
+}
+
+function monthlyDueDate(year: number, month: number, billingDay: number) {
+  const first = new Date(Date.UTC(year, month, 1));
+  const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(billingDay, lastDay)));
+}
+
+function billingPeriodFor(date: Date, billingDay: number) {
+  let start = monthlyDueDate(date.getUTCFullYear(), date.getUTCMonth(), billingDay);
+  if (start > date) start = monthlyDueDate(date.getUTCFullYear(), date.getUTCMonth() - 1, billingDay);
+  const next = monthlyDueDate(start.getUTCFullYear(), start.getUTCMonth() + 1, billingDay);
+  return { start, end: addDays(next, -1) };
+}
+
+function proratedRent(amountPaise: bigint, startDate: Date, endDate: Date, periodStart: Date, periodEnd: Date) {
+  const overlapStart = startDate > periodStart ? startDate : periodStart;
+  const overlapEnd = endDate < periodEnd ? endDate : periodEnd;
+  if (overlapStart > overlapEnd) return BigInt(0);
+  const occupiedDays = Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / 86400000) + 1;
+  const cycleDays = Math.floor((periodEnd.getTime() - periodStart.getTime()) / 86400000) + 1;
+  return (amountPaise * BigInt(occupiedDays) + BigInt(Math.floor(cycleDays / 2))) / BigInt(cycleDays);
 }
 
 function managerPropertyFilter(propertyIds?: readonly string[]) {
@@ -737,10 +764,11 @@ export const prismaResidentRepository: ResidentRepository = {
           status: { in: ["ACTIVE", "NOTICE_PERIOD"] },
         },
         select: {
-          id: true, organizationId: true, propertyId: true, residentId: true, startDate: true, status: true,
+          id: true, publicId: true, organizationId: true, propertyId: true, residentId: true, startDate: true, status: true,
           checkoutProcesses: { where: { status: "NOTICE" }, orderBy: { createdAt: "desc" }, take: 1, select: { id: true, requestedCheckoutDate: true } },
           securityDepositAccount: { select: { id: true, ledgerVersion: true, status: true, transactions: { select: { amountPaise: true } } } },
-          invoices: { select: { id: true, invoiceNumber: true, invoiceType: true, dueDate: true, totalPaise: true, amountPaidPaise: true, status: true }, orderBy: [{ dueDate: "asc" }, { id: "asc" }] },
+          rentRates: { where: { effectiveFrom: { lte: dateOnly(input.endDate) }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: dateOnly(input.endDate) } }] }, orderBy: { effectiveFrom: "desc" }, take: 1, select: { amountPaise: true, billingCycleType: true, billingDay: true } },
+          invoices: { select: { id: true, invoiceNumber: true, invoiceType: true, billingPeriodStart: true, billingPeriodEnd: true, dueDate: true, totalPaise: true, adjustmentPaise: true, amountPaidPaise: true, status: true }, orderBy: [{ dueDate: "asc" }, { id: "asc" }] },
         },
       })]);
       if (!actor || !stay) throw new ResidentWorkflowError("STAY_NOT_ACTIVE");
@@ -751,13 +779,67 @@ export const prismaResidentRepository: ResidentRepository = {
       if (endDate < checkoutProcess.requestedCheckoutDate) throw new ResidentWorkflowError("CHECKOUT_BEFORE_NOTICE_DATE");
       if (stay.invoices.some((invoice) => invoice.status === "DRAFT")) throw new ResidentWorkflowError("CHECKOUT_DRAFT_INVOICES");
 
+      const settledInvoices = [...stay.invoices];
+      let rentAdjustmentPaise = BigInt(0);
+      let rentCreditPaise = BigInt(0);
+      const rentRate = stay.rentRates[0];
+      if (rentRate) {
+        const billingDay = rentRate.billingCycleType === "MOVE_IN_DAY" ? stay.startDate.getUTCDate() : rentRate.billingDay;
+        if (billingDay) {
+          const period = billingPeriodFor(endDate, billingDay);
+          const targetRentPaise = input.rentExitPolicy === "FULL_CYCLE"
+            ? rentRate.amountPaise
+            : proratedRent(rentRate.amountPaise, stay.startDate, endDate, period.start, period.end);
+          const existingRentIndex = settledInvoices.findIndex((invoice) => invoice.invoiceType === "RENT" && invoice.billingPeriodStart.getTime() === period.start.getTime() && invoice.billingPeriodEnd.getTime() === period.end.getTime());
+          if (existingRentIndex >= 0) {
+            const invoice = settledInvoices[existingRentIndex];
+            if (invoice.status === "DRAFT") throw new ResidentWorkflowError("CHECKOUT_DRAFT_INVOICES");
+            rentAdjustmentPaise = targetRentPaise - invoice.totalPaise;
+            const nextStatus = invoice.amountPaidPaise >= targetRentPaise ? "PAID" : invoice.amountPaidPaise > BigInt(0) ? "PARTIALLY_PAID" : "FINALIZED";
+            const updated = await tx.invoice.updateMany({
+              where: { id: invoice.id, totalPaise: invoice.totalPaise, adjustmentPaise: invoice.adjustmentPaise, amountPaidPaise: invoice.amountPaidPaise, status: invoice.status },
+              data: { adjustmentPaise: rentAdjustmentPaise, status: nextStatus },
+            });
+            if (updated.count !== 1) throw new ResidentWorkflowError("CHECKOUT_PAYMENT_MISMATCH");
+            rentCreditPaise = invoice.amountPaidPaise > targetRentPaise ? invoice.amountPaidPaise - targetRentPaise : BigInt(0);
+            settledInvoices[existingRentIndex] = { ...invoice, adjustmentPaise: rentAdjustmentPaise, status: nextStatus };
+          } else if (targetRentPaise > BigInt(0)) {
+            const periodKey = `${period.start.getUTCFullYear()}${String(period.start.getUTCMonth() + 1).padStart(2, "0")}`;
+            const invoice = await tx.invoice.create({
+              data: {
+                organizationId: stay.organizationId,
+                propertyId: stay.propertyId,
+                residentStayId: stay.id,
+                invoiceNumber: `CO-${stay.publicId.slice(0, 8).toUpperCase()}-${periodKey}`,
+                invoiceType: "RENT",
+                billingPeriodStart: period.start,
+                billingPeriodEnd: period.end,
+                issueDate: endDate,
+                dueDate: endDate,
+                subtotalPaise: targetRentPaise,
+                totalPaise: targetRentPaise,
+                status: "FINALIZED",
+                finalizedAt: new Date(),
+                items: { create: { itemType: "RENT", description: `Final rent (${input.rentExitPolicy === "FULL_CYCLE" ? "full billing cycle" : "prorated through move-out"})`, quantity: 1, unitAmountPaise: targetRentPaise, amountPaise: targetRentPaise } },
+              },
+              select: { id: true, invoiceNumber: true, invoiceType: true, billingPeriodStart: true, billingPeriodEnd: true, dueDate: true, totalPaise: true, adjustmentPaise: true, amountPaidPaise: true, status: true },
+            });
+            settledInvoices.push(invoice);
+          }
+        }
+      }
+
       const depositAccount = stay.securityDepositAccount;
       let depositBalance = depositAccount?.transactions.reduce((sum, transaction) => sum + transaction.amountPaise, BigInt(0)) ?? BigInt(0);
+      if (rentCreditPaise > BigInt(0)) depositBalance += rentCreditPaise;
+      if (rentCreditPaise > BigInt(0) && !depositAccount) throw new ResidentWorkflowError("CHECKOUT_DEPOSIT_ACCOUNT_REQUIRED");
       if (depositBalance < BigInt(0)) depositBalance = BigInt(0);
-      const invoiceBalances = stay.invoices
+      const invoiceBalances = settledInvoices
         .filter((invoice) => invoice.status === "FINALIZED" || invoice.status === "PARTIALLY_PAID")
-        .map((invoice) => ({ ...invoice, balance: invoice.totalPaise - invoice.amountPaidPaise }));
-      const totalDues = invoiceBalances.reduce((sum, invoice) => sum + invoice.balance, BigInt(0));
+        .map((invoice) => ({ ...invoice, balance: invoice.totalPaise + invoice.adjustmentPaise - invoice.amountPaidPaise }))
+        .filter((invoice) => invoice.balance > BigInt(0));
+      const invoiceDues = invoiceBalances.reduce((sum, invoice) => sum + invoice.balance, BigInt(0));
+      const totalDues = invoiceDues + input.earlyExitChargePaise;
       const depositApplied = depositBalance < totalDues ? depositBalance : totalDues;
       const amountDueAfterDeposit = totalDues - depositApplied;
       if (input.additionalPaymentPaise !== amountDueAfterDeposit) throw new ResidentWorkflowError("CHECKOUT_PAYMENT_MISMATCH");
@@ -772,10 +854,13 @@ export const prismaResidentRepository: ResidentRepository = {
         finalPayablePaise: BigInt(0),
         status: "SETTLED",
         items: { create: [
+          ...(rentAdjustmentPaise !== BigInt(0) ? [{ itemType: "RENT_ADJUSTMENT", description: `Final-cycle rent adjustment (${input.rentExitPolicy === "FULL_CYCLE" ? "full billing cycle" : "prorated through move-out"})`, amountPaise: rentAdjustmentPaise }] : []),
+          ...(rentCreditPaise > BigInt(0) ? [{ itemType: "RENT_CREDIT", description: "Prepaid rent above the selected move-out rent policy", amountPaise: -rentCreditPaise }] : []),
           ...invoiceBalances.map((invoice) => ({ itemType: "PENDING_INVOICE", description: `${invoice.invoiceType === "ELECTRICITY" ? "Electricity" : "Rent"} invoice ${invoice.invoiceNumber}`, amountPaise: invoice.balance })),
-          ...(depositApplied > BigInt(0) ? [{ itemType: "DEPOSIT", description: "Security deposit applied to invoice dues", amountPaise: depositApplied }] : []),
-          ...(input.damageDeductionPaise > BigInt(0) ? [{ itemType: "DAMAGE", description: input.damageReason!, amountPaise: input.damageDeductionPaise }] : []),
-          ...(input.additionalPaymentPaise > BigInt(0) ? [{ itemType: "OTHER", description: "Additional invoice balance collected", amountPaise: input.additionalPaymentPaise }] : []),
+          ...(input.earlyExitChargePaise > BigInt(0) ? [{ itemType: "EARLY_EXIT_CHARGE", description: input.earlyExitChargeReason!.slice(0, 255), amountPaise: input.earlyExitChargePaise }] : []),
+          ...(depositApplied > BigInt(0) ? [{ itemType: "DEPOSIT", description: "Security deposit applied to checkout dues", amountPaise: depositApplied }] : []),
+          ...(input.damageDeductionPaise > BigInt(0) ? [{ itemType: "DAMAGE", description: input.damageReason!.slice(0, 255), amountPaise: input.damageDeductionPaise }] : []),
+          ...(input.additionalPaymentPaise > BigInt(0) ? [{ itemType: "OTHER", description: "Final checkout amount collected", amountPaise: input.additionalPaymentPaise }] : []),
           ...(refundAmount > BigInt(0) ? [{ itemType: "REFUND", description: "Security deposit refund", amountPaise: refundAmount }] : []),
         ] },
       } });
@@ -791,13 +876,31 @@ export const prismaResidentRepository: ResidentRepository = {
         const paidAmount = depositPart + additionalPart;
         if (paidAmount === BigInt(0)) continue;
         const newPaid = invoice.amountPaidPaise + paidAmount;
-        const updated = await tx.invoice.updateMany({ where: { id: invoice.id, amountPaidPaise: invoice.amountPaidPaise, status: invoice.status }, data: { amountPaidPaise: newPaid, status: newPaid === invoice.totalPaise ? "PAID" : "PARTIALLY_PAID" } });
+        const effectiveTotal = invoice.totalPaise + invoice.adjustmentPaise;
+        const updated = await tx.invoice.updateMany({ where: { id: invoice.id, amountPaidPaise: invoice.amountPaidPaise, adjustmentPaise: invoice.adjustmentPaise, status: invoice.status }, data: { amountPaidPaise: newPaid, status: newPaid >= effectiveTotal ? "PAID" : "PARTIALLY_PAID" } });
         if (updated.count !== 1) throw new ResidentWorkflowError("CHECKOUT_PAYMENT_MISMATCH");
         if (depositPart > BigInt(0)) {
           const payment = await tx.payment.create({ data: { organizationId: stay.organizationId, propertyId: stay.propertyId, residentId: stay.residentId, residentStayId: stay.id, invoiceId: invoice.id, purpose: "INVOICE", amountPaise: depositPart, paymentDate: input.paymentDate, method: "OTHER", notes: "Applied from security deposit at checkout", recordedByName: actorName }, select: { id: true } });
           await tx.securityDepositTransaction.create({ data: { organizationId: stay.organizationId, depositAccountId: depositAccount!.id, paymentId: payment.id, transactionType: "DEDUCTION", amountPaise: -depositPart, description: `Applied to ${invoice.invoiceType === "ELECTRICITY" ? "electricity" : "rent"} invoice ${invoice.invoiceNumber} at checkout`, createdById: actor.id } });
         }
         if (additionalPart > BigInt(0)) await tx.payment.create({ data: { organizationId: stay.organizationId, propertyId: stay.propertyId, residentId: stay.residentId, residentStayId: stay.id, invoiceId: invoice.id, purpose: "INVOICE", amountPaise: additionalPart, paymentDate: input.paymentDate, method: input.additionalPaymentMethod, reference: input.reference, notes: "Final invoice balance paid at checkout", recordedByName: actorName } });
+      }
+
+      const remainingAdditional = additionalToApply;
+      const remainingDeposit = depositToApply;
+      if (input.earlyExitChargePaise > BigInt(0)) {
+        const depositForCharge = remainingDeposit < input.earlyExitChargePaise ? remainingDeposit : input.earlyExitChargePaise;
+        const additionalForCharge = input.earlyExitChargePaise - depositForCharge;
+        if (additionalForCharge > remainingAdditional) throw new ResidentWorkflowError("CHECKOUT_PAYMENT_MISMATCH");
+        if (depositForCharge > BigInt(0)) {
+          const payment = await tx.payment.create({ data: { organizationId: stay.organizationId, propertyId: stay.propertyId, residentId: stay.residentId, residentStayId: stay.id, purpose: "CHECKOUT_CHARGE", amountPaise: depositForCharge, paymentDate: input.paymentDate, method: "OTHER", notes: "Early-exit charge applied from security deposit at checkout", recordedByName: actorName }, select: { id: true } });
+          await tx.securityDepositTransaction.create({ data: { organizationId: stay.organizationId, depositAccountId: depositAccount!.id, paymentId: payment.id, transactionType: "DEDUCTION", amountPaise: -depositForCharge, description: input.earlyExitChargeReason!, createdById: actor.id } });
+        }
+        if (additionalForCharge > BigInt(0)) await tx.payment.create({ data: { organizationId: stay.organizationId, propertyId: stay.propertyId, residentId: stay.residentId, residentStayId: stay.id, purpose: "CHECKOUT_CHARGE", amountPaise: additionalForCharge, paymentDate: input.paymentDate, method: input.additionalPaymentMethod, reference: input.reference, notes: input.earlyExitChargeReason, recordedByName: actorName } });
+      }
+
+      if (rentCreditPaise > BigInt(0) && depositAccount) {
+        await tx.securityDepositTransaction.create({ data: { organizationId: stay.organizationId, depositAccountId: depositAccount.id, transactionType: "RENT_CREDIT", amountPaise: rentCreditPaise, description: "Prepaid rent credit applied to checkout clear-out", createdById: actor.id } });
       }
 
       if (input.damageDeductionPaise > BigInt(0) && depositAccount) {
