@@ -24,6 +24,35 @@ export const createPollSchema = z.object({
 
 export const voteSchema = z.object({ pollId: id, optionId: id });
 
+const menuItemSchema = z.object({
+  date,
+  mealTypeId: id,
+  dishName: z.string().trim().min(1).max(255),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+export const foodMenuSchema = z.object({
+  propertyId: id,
+  title: z.string().trim().max(160).optional().or(z.literal("")),
+  validFrom: date,
+  validTo: date,
+  items: z.array(menuItemSchema).min(1).max(300),
+}).refine((value) => value.validFrom <= value.validTo, {
+  path: ["validTo"],
+  message: "The menu end date must be on or after its start date.",
+});
+
+export const updateFoodMenuSchema = foodMenuSchema.extend({ menuId: id });
+export const foodMenuRangeSchema = z.object({
+  from: date.optional(),
+  to: date.optional(),
+}).refine((value) => !value.from || !value.to || value.from <= value.to, {
+  path: ["to"],
+  message: "The end date must be on or after the start date.",
+});
+
 export type MealTypesInput = z.infer<typeof mealTypesSchema>;
 export type CreatePollInput = z.infer<typeof createPollSchema>;
 export type VoteInput = z.infer<typeof voteSchema>;
+export type FoodMenuInput = z.infer<typeof foodMenuSchema>;
+export type UpdateFoodMenuInput = z.infer<typeof updateFoodMenuSchema>;

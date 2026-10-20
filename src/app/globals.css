@@ -3,13 +3,24 @@
 
 :root {
   color-scheme: light;
-  --page: #f5f7f5;
+  --page: #f5f7fb;
   --surface: #ffffff;
-  --ink: #182b29;
-  --muted: #63716e;
-  --line: #dce4e0;
-  --brand: #176e61;
-  --brand-dark: #10564c;
+  --ink: #172b4d;
+  --muted: #64748b;
+  --line: #dce3ed;
+  --brand: #2563eb;
+  --brand-dark: #1d4ed8;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0f172a;
+  --surface: #172033;
+  --ink: #e6eeea;
+  --muted: #a8b4c7;
+  --line: #3b4a63;
+  --brand: #93c5fd;
+  --brand-dark: #bfdbfe;
 }
 
 * {
@@ -57,8 +68,62 @@ textarea {
 select,
 option {
   background-color: #fff;
-  color: #182b29;
+  color: #172b4d;
 }
+
+:root[data-theme="dark"] body { background: var(--page); color: var(--ink); }
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea { color-scheme: dark; border-color: #475569; background-color: #1e293b; color: var(--ink); }
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] option { background-color: #1e293b; color: var(--ink); }
+:root[data-theme="dark"] .surface-card { border-color: var(--line); background: var(--surface); color: var(--ink); }
+:root[data-theme="dark"] .muted { color: var(--muted); }
+:root[data-theme="dark"] .bg-white { background-color: #1e293b !important; }
+:root[data-theme="dark"] .bg-slate-50,
+:root[data-theme="dark"] .bg-slate-100,
+:root[data-theme="dark"] .bg-gray-50,
+:root[data-theme="dark"] .bg-gray-100 { background-color: #263247 !important; }
+:root[data-theme="dark"] [class~="bg-[#f1f7f4]"],
+:root[data-theme="dark"] [class~="bg-[#f5f7fb]"],
+:root[data-theme="dark"] [class~="bg-[#f5faf7]"],
+:root[data-theme="dark"] [class~="bg-[#f7faf8]"],
+:root[data-theme="dark"] [class~="bg-[#f5f8f6]"],
+:root[data-theme="dark"] [class~="bg-[#fbfcfb]"],
+:root[data-theme="dark"] [class~="bg-[#fbfdfb]"],
+:root[data-theme="dark"] [class~="bg-[#eff8f3]"],
+:root[data-theme="dark"] [class~="bg-[#edf5f1]"],
+:root[data-theme="dark"] [class~="bg-[#e7f2ee]"],
+:root[data-theme="dark"] [class~="bg-[#eaf4ef]"],
+:root[data-theme="dark"] [class~="bg-[#eaf5ef]"],
+:root[data-theme="dark"] [class~="bg-[#f1f3f2]"],
+:root[data-theme="dark"] [class~="bg-[#f7f7f5]"],
+:root[data-theme="dark"] [class~="bg-[#dcece5]"] { background-color: #263247 !important; }
+:root[data-theme="dark"] .border-slate-200,
+:root[data-theme="dark"] .border-slate-300,
+:root[data-theme="dark"] .border-gray-200,
+:root[data-theme="dark"] .border-gray-300 { border-color: #3b4a63 !important; }
+:root[data-theme="dark"] .text-slate-900,
+:root[data-theme="dark"] .text-slate-800,
+:root[data-theme="dark"] .text-slate-700,
+:root[data-theme="dark"] .text-slate-600,
+:root[data-theme="dark"] .text-gray-900,
+:root[data-theme="dark"] .text-gray-800,
+:root[data-theme="dark"] .text-gray-700,
+:root[data-theme="dark"] .text-gray-600 { color: #d2ddd7 !important; }
+:root[data-theme="dark"] [class~="text-[#172b4d]"],
+:root[data-theme="dark"] [class~="text-[#263b37]"],
+:root[data-theme="dark"] [class~="text-[#2563eb]"],
+:root[data-theme="dark"] [class~="text-[#1e3a8a]"] { color: #93c5fd !important; }
+:root[data-theme="dark"] [class~="text-[#256b4c]"],
+:root[data-theme="dark"] [class~="text-[#24594b]"],
+:root[data-theme="dark"] [class~="text-[#047857]"] { color: #86efac !important; }
+:root[data-theme="dark"] [class~="border-[#c9ded6]"],
+:root[data-theme="dark"] [class~="border-[#d8e6de]"],
+:root[data-theme="dark"] [class~="border-[#dbeafe]"],
+:root[data-theme="dark"] [class~="border-[#cbd5e1]"] { border-color: #3b4a63 !important; }
+:root[data-theme="dark"] [class*="Card"],
+:root[data-theme="dark"] [class*="card"] { border-color: var(--line); }
 
 select:disabled,
 input:disabled,
@@ -69,8 +134,8 @@ textarea:disabled {
 }
 
 ::selection {
-  background: #cce9de;
-  color: #123f36;
+  background: #dbeafe;
+  color: #172554;
 }
 
 .shell-link {
@@ -90,7 +155,7 @@ textarea:disabled {
 
 .portal-link {
   border-radius: 999px;
-  color: #53625f;
+  color: #53647e;
   display: inline-flex;
   font-size: 0.85rem;
   padding: 0.55rem 0.8rem;
@@ -98,7 +163,7 @@ textarea:disabled {
 
 .portal-link:hover,
 .portal-link:focus-visible {
-  background: #e9f2ef;
+  background: #eff6ff;
   color: var(--brand-dark);
   outline: none;
 }

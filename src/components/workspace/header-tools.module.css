@@ -1,0 +1,22 @@
+.tools { display: inline-flex; min-width: 0; flex: none; align-items: center; gap: 10px; }
+.clock { display: grid; min-width: 0; justify-items: end; gap: 2px; color: #475569; line-height: 1.1; white-space: nowrap; }
+.clockDate { font-size: 10px; font-weight: 600; }
+.clockTime { color: #172b4d; font: 650 12px/1.1 "JetBrains Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
+.themeButton { display: grid; width: 38px; height: 38px; flex: none; place-items: center; border: 1px solid #dce3ed; border-radius: 10px; background: #fff; color: #2563eb; cursor: pointer; transition: background 120ms ease, border-color 120ms ease; }
+.themeButton:hover { border-color: #93b4e8; background: #eff6ff; }
+.themeButton svg { width: 19px; height: 19px; }
+:global(html[data-theme="dark"]) .clock { color: #bac8c2; }
+:global(html[data-theme="dark"]) .clockTime { color: #edf5f1; }
+:global(html[data-theme="dark"]) .themeButton { border-color: #3b4a63; background: #1e293b; color: #bfdbfe; }
+:global(html[data-theme="dark"]) .themeButton:hover { background: #263247; }
+
+@media (max-width: 560px) {
+  .tools { flex: 1; justify-content: flex-end; }
+  .clock { display: flex; align-items: baseline; gap: 8px; }
+  .clockDate { font-size: 11px; }
+  .clockTime { font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .themeButton { transition: none; }
+}

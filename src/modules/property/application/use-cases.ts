@@ -14,6 +14,7 @@ import {
   type CreateFloorInput,
   type CreatePropertyInput,
   type CreateRoomInput,
+  type OccupancyReportFilters,
   propertyStayPolicySchema,
   type PropertyStayPolicyInput,
 } from "./schemas";
@@ -64,6 +65,15 @@ export function createPropertyUseCases(repository: PropertyRepository): Property
     async listStayPolicies(actor) {
       assertOwner(actor);
       return repository.listStayPolicies(actor.organizationId);
+    },
+
+    async getOccupancyReport(actor: OrganizationActor, filters: OccupancyReportFilters) {
+      if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
+      const allowed = actor.roles.includes("OWNER") ? undefined : actor.allowedPgIds;
+      if (filters.propertyId && allowed && !allowed.includes(filters.propertyId)) throw new AccessDeniedError();
+      const report = await repository.getOccupancyReport(actor.organizationId, allowed, filters);
+      if (filters.propertyId && !report.properties.some((property) => property.publicId === filters.propertyId)) throw new AccessDeniedError();
+      return report;
     },
 
     async updateStayPolicy(actor, input: PropertyStayPolicyInput) {

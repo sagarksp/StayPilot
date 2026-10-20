@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/infrastructure/db/prisma";
+import { AccessDeniedError } from "../domain/inventory";
 import type {
   BedSummary,
   FloorSummary,
@@ -13,6 +14,7 @@ import type {
   CreateFloorInput,
   CreatePropertyInput,
   CreateRoomInput,
+  OccupancyReportFilters,
 } from "../application/schemas";
 
 const propertySelect = {
@@ -56,6 +58,84 @@ function toPropertySummary(row: PropertyRecord): PropertySummary {
 }
 
 export const prismaPropertyRepository: PropertyRepository = {
+  async getOccupancyReport(organizationId, propertyIds, filters: OccupancyReportFilters) {
+    if (filters.propertyId && propertyIds && !propertyIds.includes(filters.propertyId)) throw new AccessDeniedError();
+    const asOf = new Date(`${filters.asOf}T00:00:00.000Z`);
+    const properties = await prisma.property.findMany({
+      where: {
+        organization: { publicId: organizationId },
+        status: "ACTIVE",
+        ...(propertyIds ? { publicId: { in: [...propertyIds] } } : {}),
+        ...(filters.propertyId ? { publicId: filters.propertyId } : {}),
+      },
+      select: {
+        publicId: true,
+        name: true,
+        beds: {
+          where: {
+            status: { in: ["ACTIVE", "MAINTENANCE"] },
+            room: { status: "ACTIVE" },
+            floor: { status: "ACTIVE" },
+          },
+          select: {
+            status: true,
+            residentStays: {
+              where: {
+                status: { in: ["ACTIVE", "NOTICE_PERIOD", "CHECKOUT_PROCESSING"] },
+                startDate: { lte: asOf },
+                OR: [{ endDate: null }, { endDate: { gte: asOf } }],
+              },
+              select: { publicId: true },
+              take: 1,
+            },
+            reservations: {
+              where: {
+                status: "ACTIVE",
+                reservationStartDate: { lte: asOf },
+                reservationEndDate: { gte: asOf },
+              },
+              select: { publicId: true },
+              take: 1,
+            },
+          },
+        },
+      },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    });
+
+    const rows = properties.map((property) => {
+        const operational = property.beds.filter((bed) => bed.status === "ACTIVE");
+        const occupiedBeds = operational.filter((bed) => bed.residentStays.length > 0).length;
+        const reservedBeds = operational.filter((bed) => bed.residentStays.length === 0 && bed.reservations.length > 0).length;
+        const operationalBeds = operational.length;
+        return {
+          propertyId: property.publicId,
+          propertyName: property.name,
+          operationalBeds,
+          occupiedBeds,
+          reservedBeds,
+          availableBeds: operationalBeds - occupiedBeds - reservedBeds,
+          maintenanceBeds: property.beds.filter((bed) => bed.status === "MAINTENANCE").length,
+          occupancyPercent: operationalBeds ? occupiedBeds / operationalBeds * 100 : 0,
+        };
+      });
+    const totals = rows.reduce((result, row) => ({
+      operationalBeds: result.operationalBeds + row.operationalBeds,
+      occupiedBeds: result.occupiedBeds + row.occupiedBeds,
+      reservedBeds: result.reservedBeds + row.reservedBeds,
+      availableBeds: result.availableBeds + row.availableBeds,
+      maintenanceBeds: result.maintenanceBeds + row.maintenanceBeds,
+      occupancyPercent: 0,
+    }), { operationalBeds: 0, occupiedBeds: 0, reservedBeds: 0, availableBeds: 0, maintenanceBeds: 0, occupancyPercent: 0 });
+    totals.occupancyPercent = totals.operationalBeds ? totals.occupiedBeds / totals.operationalBeds * 100 : 0;
+
+    return {
+      properties: properties.map(({ publicId, name }) => ({ publicId, name })),
+      rows,
+      totals,
+    };
+  },
+
   async listStayPolicies(organizationId) {
     const properties = await prisma.property.findMany({
       where: { organization: { publicId: organizationId }, status: { not: "ARCHIVED" } },

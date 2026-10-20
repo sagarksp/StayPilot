@@ -1,12 +1,36 @@
 # StayPilot Project Status
 
-**Last updated:** 2026-10-16
+**Last updated:** 2026-10-20
 
 **Overall status:** In progress
 
 This file tracks completed major project milestones. New major features should be added here as they are completed.
 
 ## Completed milestones
+
+### 2026-10-20 — Finance and collections report
+
+**Status:** Complete
+
+Added a staff finance report with property and date filters, invoice totals, net payment collections, current outstanding balances, security-deposit receipts and refunds, and a detailed financial activity table. PDF and Excel exports use the shared report renderer. Manager queries and downloads remain limited to assigned properties; deposit ledger entries are reported separately from payment transactions to avoid double-counting.
+
+**Key areas:** `src/modules/billing/application/schemas.ts`, `src/modules/billing/application/use-cases.ts`, `src/app/(workspace)/org/[orgId]/(staff)/reports/finance/page.tsx`, `src/app/api/v1/organizations/[orgId]/reports/download/route.ts`, `src/app/(workspace)/org/[orgId]/(staff)/reports/electricity/page.tsx`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-20 — Property occupancy report
+
+**Status:** Complete
+
+Added an as-of-date occupancy report by active property. It counts occupied, reserved, available, operational, and maintenance beds, and calculates weighted occupancy from operational beds. Reservations only count when their bed is not occupied; manager data and exports remain limited to assigned properties. Added PDF and Excel downloads through the shared report export route.
+
+**Key areas:** `src/modules/property/application/schemas.ts`, `src/modules/property/application/repository.ts`, `src/modules/property/application/use-cases.ts`, `src/modules/property/infrastructure/prisma-property-repository.ts`, `src/app/(workspace)/org/[orgId]/(staff)/reports/occupancy/page.tsx`, `src/app/api/v1/organizations/[orgId]/reports/download/route.ts`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-20 — Reservation activity report
+
+**Status:** Complete
+
+Added a reservation report with property, lifecycle status, and overlapping stay-window filters. The report summarizes active, moved-in, cancelled, and expired reservations and advance deposit receipts, with resident, property/bed, stay dates, expected move-in, and status in its table. PDF and Excel exports use the shared renderer; managers remain scoped to assigned properties.
+
+**Key areas:** `src/modules/reservation/application/schemas.ts`, `src/modules/reservation/application/repository.ts`, `src/modules/reservation/application/use-cases.ts`, `src/modules/reservation/infrastructure/prisma-reservation-repository.ts`, `src/app/(workspace)/org/[orgId]/(staff)/reports/reservations/page.tsx`, `src/app/api/v1/organizations/[orgId]/reports/download/route.ts`, `docs/PROJECT_STATUS.md`
 
 ### 2026-10-16 — Payment reversal ledger
 
@@ -206,7 +230,7 @@ Refreshed the manager workspace to follow the Stitch operational dashboard direc
 
 **Key areas:** `src/app/(workspace)/org/[orgId]/(staff)/manager/page.tsx`, `src/app/(workspace)/org/[orgId]/(staff)/manager/manager-dashboard.module.css`, `src/components/workspace/staff-shell.tsx`, `src/components/ui/workspace-icon.tsx`, `docs/PROJECT_STATUS.md`
 
-### 2026-10-13 â€” Manager workspace Stitch design alignment
+### 2026-10-13 — Manager workspace Stitch design alignment
 
 **Status:** Complete
 
@@ -214,7 +238,7 @@ Aligned the manager workspace shell with the Stitch operations dashboard palette
 
 **Key areas:** `src/components/workspace/staff-shell.tsx`, `src/components/workspace/staff-shell.module.css`, `src/app/(workspace)/org/[orgId]/(staff)/layout.tsx`, `docs/PROJECT_STATUS.md`
 
-### 2026-10-13 â€” Password recovery
+### 2026-10-13 — Password recovery
 
 **Status:** Complete
 
@@ -245,3 +269,99 @@ Checkout now lets an owner or manager select full-cycle rent or rent prorated th
 Added per-property meal type configuration and polls for meal dates from the next local day onward. Owners and assigned managers can configure meal types; assigned managers can create polls, set a voting cutoff before the meal date, close polls early, and review aggregate option counts. Residents with an active or notice-period stay can submit or update one vote per stay until the cutoff. Polls and votes are tenant- and property-scoped; owners can configure meal types but cannot view poll results.
 
 **Key areas:** `src/modules/food/`, `src/app/(workspace)/org/[orgId]/(staff)/food/page.tsx`, `src/app/api/v1/organizations/[orgId]/pgs/[pgId]/food/`, `src/app/api/v1/me/food/`, `src/app/(workspace)/org/[orgId]/resident/page.tsx`, `prisma/schema.prisma`, `prisma/migrations/20261015020000_food_polls/migration.sql`
+
+### 2026-10-16 - Resident dashboard Stitch refresh
+
+**Status:** Complete
+
+Finished the resident dashboard around the StayPilot Stitch resident portal design: warm off-white surfaces, a deep teal billing statement, responsive stay and invoice cards, quick links, recent payment and deposit activity, and fixed mobile navigation. Existing resident workflows remain connected for move-out notices, meal voting, invoices, complaint creation, and complaint updates. Dashboard content is based on organization-scoped resident records; no payment collection or unsupported resident services are implied.
+
+**Key areas:** `src/app/(workspace)/org/[orgId]/resident/page.tsx`, `src/app/(workspace)/org/[orgId]/resident/resident-dashboard.module.css`, `src/components/workspace/resident-portal-shell.tsx`, `src/components/workspace/resident-portal-shell.module.css`, `src/components/ui/workspace-icon.tsx`, `src/modules/food/ui/resident-food-polls.tsx`, `src/modules/food/ui/resident-food-polls.module.css`, `src/modules/complaint/ui/resident-complaints.tsx`, `src/modules/complaint/ui/resident-complaints.module.css`
+
+### 2026-10-16 - Email verification
+
+**Status:** Complete
+
+Password sign-in now requires verified email addresses. Registration and invitation signup send one-hour verification links, unverified sign-in attempts send a fresh link, and users can request a resend. Verification returns owners to workspace setup and invitees to the invitation they were accepting. SMTP setup requirements are documented for local and production environments.
+
+**Key areas:** `src/infrastructure/auth/auth.ts`, `src/modules/auth/ui/register-form.tsx`, `src/modules/auth/ui/sign-in-form.tsx`, `src/modules/auth/ui/invitation-acceptance.tsx`, `src/app/(auth)/login/page.tsx`, `README.md`, `src/modules/auth/README.md`, `src/app/(auth)/README.md`
+
+### 2026-10-16 - Platform admin organization overview
+
+**Status:** Complete
+
+Added a separate platform operations console guarded by a server-side allowlist of verified email identities, independent of tenant membership. Platform admins can review cross-tenant organization status, property totals, active membership totals, timezone, and creation date from a read-only directory. Platform-admin users route to this console after sign-in; tenant status changes remain unavailable until an audited workflow is specified.
+
+**Key areas:** `src/infrastructure/auth/platform-admin-access.ts`, `src/modules/platform-admin/application/organization-overview.ts`, `src/infrastructure/platform-admin/prisma-platform-admin-overview.ts`, `src/app/(platform)/platform-admin/`, `src/components/workspace/platform-shell.tsx`, `src/app/(workspace)/workspace/page.tsx`, `.env.example`, `README.md`
+
+### 2026-10-16 - Food poll owner-to-resident handoff
+
+**Status:** Complete
+
+Clarified the end-to-end food workflow for owners, assigned managers, and residents. Meal poll status now displays as closed once its property-local voting cutoff passes, even when its stored status remains open; vote writes were already guarded by the cutoff in the database transaction. Manager pages now explain the handoff and show an empty state before the first poll, while preserving owner privacy for vote totals and resident voting/change-vote access.
+
+**Key areas:** `src/modules/food/application/use-cases.ts`, `src/app/(workspace)/org/[orgId]/(staff)/food/page.tsx`, `src/modules/food/ui/resident-food-polls.tsx`, `src/app/(workspace)/org/[orgId]/resident/page.tsx`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-16 - Food menus and documented voting API completion
+
+**Status:** Complete
+
+Completed the documented food workflow around meal menus and resident voting. Assigned managers can publish and edit property menus with dated meal items until a related poll closes; residents see published menus for their current stay and can vote or update their choice before the cutoff. Added scoped menu read/create/update APIs and the documented manager poll-close endpoint. Menu and item foreign keys preserve organization, property, and meal-type boundaries.
+
+**Key areas:** `src/modules/food/`, `src/app/(workspace)/org/[orgId]/(staff)/food/page.tsx`, `src/app/(workspace)/org/[orgId]/resident/page.tsx`, `src/app/api/v1/organizations/[orgId]/pgs/[pgId]/food/`, `prisma/schema.prisma`, `prisma/migrations/20261016010000_food_menus/migration.sql`
+
+### 2026-10-17 - Owner food and poll controls
+
+**Status:** Complete
+
+Owners can configure meal types, publish and edit menus, create and close polls, and review poll totals directly without a manager profile. Assigned managers retain access only to their assigned properties; owner access remains scoped to the owner's organization.
+
+**Key areas:** `src/modules/food/application/use-cases.ts`, `src/app/(workspace)/org/[orgId]/(staff)/food/page.tsx`, `src/modules/food/ui/actions.ts`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-17 - Resident notice board
+
+**Status:** Complete
+
+Owners can publish notices organization-wide or for one property; assigned managers can publish to their properties. Staff can set an expiry date and withdraw notices, and current residents see active notices for their stay on the resident dashboard. Notice data is organization-scoped, with property-scoped access for managers.
+
+**Key areas:** `src/modules/notice/`, `src/app/(workspace)/org/[orgId]/(staff)/notices/page.tsx`, `src/app/(workspace)/org/[orgId]/resident/page.tsx`, `src/components/workspace/owner-console-shell.tsx`, `src/components/workspace/staff-shell.tsx`, `prisma/schema.prisma`, `prisma/migrations/20261017000000_notice_board/migration.sql`
+
+### 2026-10-17 - Filterable operational report downloads
+
+**Status:** Complete
+
+Expanded the staff reports page with electricity and complaints categories, property/date/status/category filters, and role-scoped PDF and Excel downloads. PDF exports use a paginated landscape table layout with report summaries; Excel exports include the same filter details, summary metrics, and full report rows. Complaint reports query all matching records rather than the shorter operational list.
+
+**Key areas:** `src/app/(workspace)/org/[orgId]/(staff)/reports/electricity/page.tsx`, `src/app/api/v1/organizations/[orgId]/reports/download/route.ts`, `src/infrastructure/reports/report-export.ts`, `src/modules/complaint/application/`, `src/modules/complaint/infrastructure/prisma-complaint-repository.ts`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-19 - Audit trail
+
+**Status:** Complete
+
+Added organization-scoped audit records for invoice payments and reversals, invoice finalization, security deposit receipts and transfers, move-out requests, checkout, manager invitation and acceptance, membership status, and manager property access changes. Events are written in the same database transactions as the actions they describe. Owners can review organization events; managers see events for their assigned properties. The staff audit page shows the latest 100 records with event time, action, property, staff member, and summary.
+
+**Key areas:** `src/modules/audit/`, `src/app/(workspace)/org/[orgId]/(staff)/audit/page.tsx`, `src/modules/billing/application/use-cases.ts`, `src/modules/resident/infrastructure/prisma-resident-repository.ts`, `src/infrastructure/auth/prisma-manager-invitations.ts`, `prisma/schema.prisma`, `prisma/migrations/20261019000000_audit_trail/migration.sql`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-19 - In-app notifications
+
+**Status:** Complete
+
+Added a per-user, organization-scoped notification inbox to resident, owner, and manager workspace headers. New complaints notify the property's owner and assigned managers; published and withdrawn notices notify current residents in the affected scope; a daily authenticated scheduler creates deduplicated reminders two calendar days before an unpaid finalized invoice is due. Added read tracking and a migration; the migration must be applied through the normal deployment process.
+
+**Key areas:** `src/modules/notification/`, `src/components/workspace/notification-bell.tsx`, `src/app/api/v1/organizations/[orgId]/notifications/`, `src/app/api/internal/notifications/reminders/`, `src/modules/complaint/infrastructure/prisma-complaint-repository.ts`, `src/modules/notice/application/use-cases.ts`, `prisma/schema.prisma`, `prisma/migrations/20261019120000_in_app_notifications/migration.sql`, `README.md`
+
+### 2026-10-19 - Resident documents and KYC review
+
+**Status:** Complete
+
+Residents can upload government ID, address proof, profile photo, or other verification documents and see pending, verified, or update-needed status. Owners can review all organization documents; managers can see and review files only for residents and documents linked to their assigned properties. Files use private, encrypted S3 storage with signature-checked uploads and short-lived download links. Upload, review, and staff download events are recorded in the audit log; residents receive an in-app notification after a review. The database migration must be applied through the normal deployment process.
+
+**Key areas:** `src/modules/resident-document/`, `src/app/api/v1/organizations/[orgId]/me/documents/`, `src/app/api/v1/organizations/[orgId]/residents/[residentId]/documents/`, `src/app/(workspace)/org/[orgId]/resident/page.tsx`, `src/app/(workspace)/org/[orgId]/(staff)/residents/[residentId]/page.tsx`, `prisma/schema.prisma`, `prisma/migrations/20261019130000_resident_documents_kyc/migration.sql`, `README.md`
+
+### 2026-10-20 - Security deposit report
+
+**Status:** Complete
+
+Added a staff report for current held and required security deposit balances, plus filtered deposit ledger activity. Owners can report across the organization; managers are restricted to assigned properties. The report supports PDF and Excel downloads and includes deposit activity associated with reservations before a deposit account is created. Archived properties remain available in the report so outstanding liabilities are not hidden.
+
+**Key areas:** `src/modules/billing/application/schemas.ts`, `src/modules/billing/application/use-cases.ts`, `src/app/(workspace)/org/[orgId]/(staff)/reports/deposits/page.tsx`, `src/app/api/v1/organizations/[orgId]/reports/download/route.ts`, `src/app/(workspace)/org/[orgId]/(staff)/reports/electricity/page.tsx`, `docs/PROJECT_STATUS.md`

@@ -1,6 +1,7 @@
 import "server-only";
 import { ManagerInvitationError, createManagerInvitationUseCases, type ManagerInvitationRepository } from "@/modules/auth/application/manager-invitations";
 import { prisma } from "@/infrastructure/db/prisma";
+import { recordAuditEvent } from "@/modules/audit/application/events";
 import { sendEmail } from "@/infrastructure/email/smtp";
 
 const repository: ManagerInvitationRepository = {
@@ -44,14 +45,14 @@ const repository: ManagerInvitationRepository = {
     };
   },
 
-  async updateMembershipStatus(organizationId, membershipId, status) {
+  async updateMembershipStatus(organizationId, membershipId, status, actorId, actorName) {
     return prisma.$transaction(async (tx) => {
       const organizations = await tx.$queryRaw<Array<{ id: bigint }>>`SELECT id FROM organizations WHERE public_id = ${organizationId} AND status = 'ACTIVE' FOR UPDATE`;
       if (!organizations.length) return null;
       const organizationIdNumber = organizations[0].id;
       const membership = await tx.organizationMembership.findFirst({
         where: { organizationId: organizationIdNumber, publicId: membershipId, roles: { some: { roleCode: { in: ["OWNER", "MANAGER"] } } } },
-        select: { id: true, status: true, roles: { select: { roleCode: true } } },
+        select: { id: true, status: true, roles: { select: { roleCode: true } }, user: { select: { name: true } } },
       });
       if (!membership) return null;
 
@@ -64,6 +65,17 @@ const repository: ManagerInvitationRepository = {
       }
 
       await tx.organizationMembership.update({ where: { id: membership.id }, data: { status } });
+      if (membership.status !== status) {
+        await recordAuditEvent(tx, {
+          organizationId: organizationIdNumber,
+          actorUserPublicId: actorId,
+          actorName,
+          actionCode: status === "ACTIVE" ? "MEMBERSHIP_ENABLED" : "MEMBERSHIP_DISABLED",
+          entityType: "ORGANIZATION_MEMBERSHIP",
+          entityPublicId: membershipId,
+          summary: `Changed ${membership.user.name}'s owner or manager membership to ${status.toLowerCase()}.`,
+        });
+      }
       return status;
     });
   },
@@ -76,15 +88,20 @@ const repository: ManagerInvitationRepository = {
     return membership ? membership.pgAssignments.map(({ property }) => property.publicId) : null;
   },
 
-  async replaceManagerProperties({ organizationId, membershipId, propertyIds }) {
+  async replaceManagerProperties({ organizationId, membershipId, propertyIds, actorId, actorName }) {
     return prisma.$transaction(async (tx) => {
       const membership = await tx.organizationMembership.findFirst({
         where: { organization: { publicId: organizationId, status: "ACTIVE" }, publicId: membershipId, status: "ACTIVE", roles: { some: { roleCode: "MANAGER" } } },
-        select: { id: true, organizationId: true },
+        select: {
+          id: true,
+          organizationId: true,
+          user: { select: { name: true } },
+          pgAssignments: { where: { status: "ACTIVE" }, select: { property: { select: { name: true } } } },
+        },
       });
       if (!membership) throw new ManagerInvitationError("INVITATION_UNAVAILABLE");
       const properties = propertyIds.length
-        ? await tx.property.findMany({ where: { organizationId: membership.organizationId, publicId: { in: propertyIds }, status: "ACTIVE" }, select: { id: true, publicId: true } })
+        ? await tx.property.findMany({ where: { organizationId: membership.organizationId, publicId: { in: propertyIds }, status: "ACTIVE" }, select: { id: true, publicId: true, name: true } })
         : [];
       if (properties.length !== propertyIds.length) throw new ManagerInvitationError("PROPERTY_NOT_IN_ORGANIZATION");
 
@@ -99,6 +116,15 @@ const repository: ManagerInvitationRepository = {
           update: { status: "ACTIVE" },
         });
       }
+      await recordAuditEvent(tx, {
+        organizationId: membership.organizationId,
+        actorUserPublicId: actorId,
+        actorName,
+        actionCode: "MANAGER_PROPERTY_ACCESS_UPDATED",
+        entityType: "ORGANIZATION_MEMBERSHIP",
+        entityPublicId: membershipId,
+        summary: `Updated ${membership.user.name}'s property access from ${membership.pgAssignments.map(({ property }) => property.name).join(", ") || "no properties"} to ${properties.map(({ name }) => name).join(", ") || "no properties"}.`,
+      });
       return properties.map(({ publicId }) => publicId);
     });
   },
@@ -106,7 +132,7 @@ const repository: ManagerInvitationRepository = {
   async create({ organizationId, actorId, email, propertyIds, tokenHash, expiresAt, now }) {
     return prisma.$transaction(async (tx) => {
       const organization = await tx.organization.findFirst({ where: { publicId: organizationId, status: "ACTIVE" }, select: { id: true, publicId: true, name: true } });
-      const actor = await tx.user.findUnique({ where: { publicId: actorId }, select: { id: true } });
+      const actor = await tx.user.findUnique({ where: { publicId: actorId }, select: { id: true, name: true } });
       if (!organization || !actor) throw new ManagerInvitationError("OWNER_REQUIRED");
 
       const propertyRecords = propertyIds.length
@@ -135,6 +161,15 @@ const repository: ManagerInvitationRepository = {
         select: { id: true, publicId: true },
       });
       if (propertyRecords.length) await tx.userInvitationProperty.createMany({ data: propertyRecords.map((property) => ({ organizationId: organization.id, invitationId: invitation.id, propertyId: property.id })) });
+      await recordAuditEvent(tx, {
+        organizationId: organization.id,
+        actorUserPublicId: actorId,
+        actorName: actor.name,
+        actionCode: "MANAGER_INVITATION_CREATED",
+        entityType: "USER_INVITATION",
+        entityPublicId: invitation.publicId,
+        summary: `Created a manager invitation for ${email} with access to ${propertyRecords.map(({ name }) => name).join(", ") || "no properties"}.`,
+      });
       return { id: invitation.publicId, email, organizationName: organization.name, propertyNames: propertyRecords.map(({ name }) => name), expiresAt };
     });
   },
@@ -191,14 +226,23 @@ const repository: ManagerInvitationRepository = {
       const claimed = await tx.userInvitation.updateMany({ where: { id: invitation.id, tokenHash, acceptedAt: null, expiresAt: { gt: now } }, data: { acceptedAt: now } });
       if (claimed.count !== 1) throw new ManagerInvitationError("INVITATION_UNAVAILABLE");
 
-      let user = await tx.user.findUnique({ where: { email }, select: { id: true, status: true } });
+      let user = await tx.user.findUnique({ where: { email }, select: { id: true, publicId: true, name: true, status: true } });
       if (user && user.status !== "ACTIVE" && user.status !== "INVITED") throw new ManagerInvitationError("ACCOUNT_UNAVAILABLE");
-      if (!user) user = await tx.user.create({ data: { email, name: name || email, status: "ACTIVE" }, select: { id: true, status: true } });
-      else if (user.status !== "ACTIVE") user = await tx.user.update({ where: { id: user.id }, data: { status: "ACTIVE", name: name || undefined }, select: { id: true, status: true } });
+      if (!user) user = await tx.user.create({ data: { email, name: name || email, status: "ACTIVE" }, select: { id: true, publicId: true, name: true, status: true } });
+      else if (user.status !== "ACTIVE") user = await tx.user.update({ where: { id: user.id }, data: { status: "ACTIVE", name: name || undefined }, select: { id: true, publicId: true, name: true, status: true } });
 
       const membership = await tx.organizationMembership.findFirst({
         where: { organizationId: invitation.organizationId, userId: user.id },
-        select: { id: true, status: true, residentId: true, roles: { select: { roleCode: true } } },
+        select: { id: true, publicId: true, status: true, residentId: true, roles: { select: { roleCode: true } } },
+      });
+      const logAcceptance = (membershipPublicId: string) => recordAuditEvent(tx, {
+        organizationId: invitation.organizationId,
+        actorUserPublicId: user.publicId,
+        actorName: user.name,
+        actionCode: invitation.roleCode === "MANAGER" ? "MANAGER_MEMBERSHIP_CREATED" : "RESIDENT_MEMBERSHIP_CREATED",
+        entityType: "ORGANIZATION_MEMBERSHIP",
+        entityPublicId: membershipPublicId,
+        summary: `Accepted an invitation and joined the organization as a ${invitation.roleCode.toLowerCase()}.`,
       });
       if (invitation.roleCode === "MANAGER") {
         if (membership) throw new ManagerInvitationError("MEMBERSHIP_EXISTS");
@@ -210,9 +254,10 @@ const repository: ManagerInvitationRepository = {
             roles: { create: { roleCode: "MANAGER" } },
             pgAssignments: { create: invitation.properties.map(({ propertyId }) => ({ propertyId, status: "ACTIVE" })) },
           },
-          select: { id: true },
+          select: { id: true, publicId: true },
         });
         if (!created) throw new ManagerInvitationError("INVITATION_UNAVAILABLE");
+        await logAcceptance(created.publicId);
       } else if (membership) {
         if (membership.status !== "ACTIVE" || (membership.residentId !== null && membership.residentId !== invitation.residentId)) {
           throw new ManagerInvitationError("INVITATION_UNAVAILABLE");
@@ -223,8 +268,9 @@ const repository: ManagerInvitationRepository = {
         if (!membership.roles.some(({ roleCode }) => roleCode === "RESIDENT")) {
           await tx.membershipRole.create({ data: { membershipId: membership.id, roleCode: "RESIDENT" } });
         }
+        await logAcceptance(membership.publicId);
       } else {
-        await tx.organizationMembership.create({
+        const createdMembership = await tx.organizationMembership.create({
           data: {
             organizationId: invitation.organizationId,
             userId: user.id,
@@ -232,8 +278,9 @@ const repository: ManagerInvitationRepository = {
             status: "ACTIVE",
             roles: { create: { roleCode: "RESIDENT" } },
           },
-          select: { id: true },
+          select: { publicId: true },
         });
+        await logAcceptance(createdMembership.publicId);
       }
       return { organizationId: invitation.organization.publicId, roleCode: invitation.roleCode as "MANAGER" | "RESIDENT" };
     });

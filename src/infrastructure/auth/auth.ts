@@ -1,5 +1,6 @@
 import "server-only";
 import { betterAuth } from "better-auth";
+import { after } from "next/server";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { prisma } from "@/infrastructure/db/prisma";
 import { sendEmail } from "@/infrastructure/email/smtp";
@@ -57,7 +58,7 @@ export const auth = betterAuth({
   verification: { modelName: "AuthVerification" },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false,
+    requireEmailVerification: true,
     resetPasswordTokenExpiresIn: 60 * 60,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, token }) => {
@@ -73,11 +74,28 @@ export const auth = betterAuth({
       }
     },
   },
+  emailVerification: {
+    expiresIn: 60 * 60,
+    sendOnSignUp: true,
+    sendOnSignIn: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      after(async () => {
+        const delivered = await sendEmail({
+          to: user.email,
+          subject: "Verify your StayPilot email",
+          text: `Hello ${user.name},\n\nVerify your email address to activate your StayPilot account. This link expires in one hour and can only be used once:\n\n${url}\n\nIf you did not create this account, you can ignore this email.`,
+        });
+        if (!delivered) console.error("Gmail SMTP did not deliver an email verification message.");
+      });
+    },
+  },
   rateLimit: {
     enabled: true,
     customRules: {
       "/sign-in/email": { window: 60, max: 8 },
       "/request-password-reset": { window: 60, max: 4 },
+      "/send-verification-email": { window: 60, max: 3 },
     },
   },
 });

@@ -18,8 +18,8 @@ export default async function NewPropertyPage({
   return (
     <section className="mx-auto max-w-3xl space-y-6">
       <div>
-        <Link className="text-sm font-medium text-[#176e61] hover:underline" href={`/org/${orgId}/properties`}>← Properties</Link>
-        <p className="mt-6 text-sm font-semibold text-[#176e61]">Property setup</p>
+        <Link className="text-sm font-medium text-[#2563eb] hover:underline" href={`/org/${orgId}/properties`}>← Properties</Link>
+        <p className="mt-6 text-sm font-semibold text-[#2563eb]">Property setup</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">{actor.propertyCount === 0 ? "Add your first property" : "Add a property"}</h1>
         <p className="muted mt-2 leading-7">Add the location details for this PG. You can set up its floors, rooms, and beds right after saving.</p>
       </div>
@@ -36,9 +36,9 @@ export default async function NewPropertyPage({
         <Field label="Postal code" name="postalCode" required />
         <Field label="Contact phone" name="contactPhone" type="tel" />
         <Field label="Contact email" name="contactEmail" type="email" />
-        <div className="flex flex-wrap justify-end gap-3 border-t border-[#dce4e0] pt-5 sm:col-span-2">
-          <Link className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[#dce4e0] px-4 py-2 text-sm font-semibold" href={`/org/${orgId}/properties`}>Cancel</Link>
-          <button className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#176e61] px-4 py-2 text-sm font-semibold text-white hover:bg-[#10564c]" type="submit">Save and add layout</button>
+        <div className="flex flex-wrap justify-end gap-3 border-t border-[#dce3ed] pt-5 sm:col-span-2">
+          <Link className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[#dce3ed] px-4 py-2 text-sm font-semibold" href={`/org/${orgId}/properties`}>Cancel</Link>
+          <button className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Save and add layout</button>
         </div>
       </form>
     </section>
@@ -54,7 +54,7 @@ function Field({
   return (
     <label className="block space-y-2 text-sm font-medium" htmlFor={name}>
       <span>{label}{required ? <span aria-hidden="true"> *</span> : null}</span>
-      <input className="min-h-11 w-full rounded-lg border border-[#cfdad5] bg-white px-3 outline-none focus:border-[#176e61] focus:ring-2 focus:ring-[#176e61]/15" id={name} name={name} required={required} type={type} />
+      <input className="min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15" id={name} name={name} required={required} type={type} />
     </label>
   );
 }

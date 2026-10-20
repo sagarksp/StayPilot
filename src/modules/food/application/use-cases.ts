@@ -1,6 +1,6 @@
 import { prisma } from "@/infrastructure/db/prisma";
 import { AccessDeniedError, type OrganizationActor } from "@/modules/property/domain/inventory";
-import type { CreatePollInput, MealTypesInput, VoteInput } from "./schemas";
+import type { CreatePollInput, FoodMenuInput, MealTypesInput, UpdateFoodMenuInput, VoteInput } from "./schemas";
 
 const day = (value: string) => new Date(`${value}T00:00:00.000Z`);
 function localToday(timezone: string) {
@@ -13,13 +13,26 @@ function localDateAt(value: Date, timezone: string) {
   const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
   return `${values.year}-${values.month}-${values.day}`;
 }
+function effectivePollStatus(status: string, closesAt: Date, now: Date) {
+  return status === "OPEN" && closesAt <= now ? "CLOSED" : status;
+}
 function assertStaff(actor: OrganizationActor, propertyId?: string) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
   if (actor.roles.includes("MANAGER") && !actor.roles.includes("OWNER") && propertyId && !actor.allowedPgIds.includes(propertyId)) throw new AccessDeniedError();
 }
-function assertManager(actor: OrganizationActor, propertyId?: string) {
-  if (!actor.roles.includes("MANAGER") || actor.roles.includes("OWNER")) throw new AccessDeniedError();
-  if (propertyId && !actor.allowedPgIds.includes(propertyId)) throw new AccessDeniedError();
+function assertFoodControl(actor: OrganizationActor, propertyId?: string) {
+  if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
+  if (actor.roles.includes("MANAGER") && !actor.roles.includes("OWNER") && propertyId && !actor.allowedPgIds.includes(propertyId)) throw new AccessDeniedError();
+}
+
+function validateMenuItems(input: FoodMenuInput) {
+  if (input.items.some((item) => item.date < input.validFrom || item.date > input.validTo)) throw new Error("MENU_ITEM_OUTSIDE_RANGE");
+  const duplicates = new Set<string>();
+  for (const item of input.items) {
+    const key = `${item.date}:${item.mealTypeId}:${item.dishName.trim().toLocaleLowerCase()}`;
+    if (duplicates.has(key)) throw new Error("DUPLICATE_MENU_ITEM");
+    duplicates.add(key);
+  }
 }
 
 export const foodUseCases = {
@@ -41,23 +54,88 @@ export const foodUseCases = {
   },
 
   async listManagerPolls(actor: OrganizationActor, propertyPublicId: string) {
-    assertManager(actor, propertyPublicId);
+    assertFoodControl(actor, propertyPublicId);
     const property = await prisma.property.findFirst({ where: { publicId: propertyPublicId, organization: { publicId: actor.organizationId }, status: "ACTIVE" }, select: { id: true } });
     if (!property) throw new AccessDeniedError();
-    return prisma.foodPoll.findMany({ where: { organization: { publicId: actor.organizationId }, propertyId: property.id }, select: { publicId: true, mealDate: true, opensAt: true, closesAt: true, status: true, mealType: { select: { name: true } }, options: { select: { publicId: true, label: true, displayOrder: true, _count: { select: { votes: true } } }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] } }, orderBy: [{ mealDate: "desc" }, { createdAt: "desc" }] });
+    const polls = await prisma.foodPoll.findMany({ where: { organization: { publicId: actor.organizationId }, propertyId: property.id }, select: { publicId: true, mealDate: true, opensAt: true, closesAt: true, status: true, mealType: { select: { name: true } }, options: { select: { publicId: true, label: true, displayOrder: true, _count: { select: { votes: true } } }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] } }, orderBy: [{ mealDate: "desc" }, { createdAt: "desc" }] });
+    const now = new Date();
+    return polls.map((poll) => ({ ...poll, status: effectivePollStatus(poll.status, poll.closesAt, now) }));
   },
 
   async getStaffPage(actor: OrganizationActor) {
     assertStaff(actor);
     const organization = await prisma.organization.findUniqueOrThrow({ where: { publicId: actor.organizationId }, select: { id: true } });
     const properties = await prisma.property.findMany({ where: { organizationId: organization.id, status: "ACTIVE", ...(actor.roles.includes("OWNER") ? {} : { publicId: { in: [...actor.allowedPgIds] } }) }, select: { id: true, publicId: true, name: true }, orderBy: { name: "asc" } });
-    if (!properties.length) return { properties, mealTypes: [], polls: [], canSeePollResults: false };
+    if (!properties.length) return { properties, mealTypes: [], polls: [], menus: [], canSeePollResults: false };
     const ids = properties.map((property) => property.id);
-    const [mealTypes, polls] = await Promise.all([
+    const [mealTypes, polls, menus] = await Promise.all([
       prisma.foodMealType.findMany({ where: { organizationId: organization.id, propertyId: { in: ids }, status: "ACTIVE" }, select: { publicId: true, propertyId: true, property: { select: { name: true, publicId: true } }, name: true, displayOrder: true }, orderBy: [{ property: { name: "asc" } }, { displayOrder: "asc" }, { id: "asc" }] }),
-      actor.roles.includes("MANAGER") && !actor.roles.includes("OWNER") ? prisma.foodPoll.findMany({ where: { organizationId: organization.id, propertyId: { in: ids } }, select: { publicId: true, propertyId: true, property: { select: { name: true } }, mealDate: true, opensAt: true, closesAt: true, status: true, mealType: { select: { name: true } }, options: { select: { publicId: true, label: true, displayOrder: true, _count: { select: { votes: true } } }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] } }, orderBy: [{ mealDate: "desc" }, { createdAt: "desc" }], take: 60 }) : Promise.resolve([]),
+      actor.roles.includes("MANAGER") || actor.roles.includes("OWNER") ? prisma.foodPoll.findMany({ where: { organizationId: organization.id, propertyId: { in: ids } }, select: { publicId: true, propertyId: true, property: { select: { name: true } }, mealDate: true, opensAt: true, closesAt: true, status: true, mealType: { select: { name: true } }, options: { select: { publicId: true, label: true, displayOrder: true, _count: { select: { votes: true } } }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] } }, orderBy: [{ mealDate: "desc" }, { createdAt: "desc" }], take: 60 }) : Promise.resolve([]),
+      prisma.foodMenu.findMany({ where: { organizationId: organization.id, propertyId: { in: ids }, status: "PUBLISHED" }, select: { publicId: true, propertyId: true, title: true, validFrom: true, validTo: true, items: { select: { id: true, menuDate: true, dishName: true, description: true, mealType: { select: { name: true } } }, orderBy: [{ menuDate: "asc" }, { mealType: { displayOrder: "asc" } }, { id: "asc" }] } }, orderBy: [{ validFrom: "desc" }, { createdAt: "desc" }], take: 60 }),
     ]);
-    return { properties, mealTypes, polls, canSeePollResults: actor.roles.includes("MANAGER") && !actor.roles.includes("OWNER") };
+    const now = new Date();
+    const visiblePolls = polls.map((poll) => ({ ...poll, status: effectivePollStatus(poll.status, poll.closesAt, now) }));
+    return { properties, mealTypes, polls: visiblePolls, menus, canSeePollResults: actor.roles.includes("MANAGER") || actor.roles.includes("OWNER") };
+  },
+
+  async listMenus(actor: OrganizationActor, propertyPublicId: string, from?: string, to?: string) {
+    const property = await prisma.property.findFirst({ where: { publicId: propertyPublicId, organization: { publicId: actor.organizationId }, status: "ACTIVE" }, select: { id: true, organizationId: true } });
+    if (!property) throw new AccessDeniedError();
+    if (actor.roles.includes("RESIDENT")) {
+      const membership = await prisma.organizationMembership.findFirst({ where: { organization: { publicId: actor.organizationId }, user: { publicId: actor.userId }, residentId: { not: null }, status: "ACTIVE", roles: { some: { roleCode: "RESIDENT" } } }, select: { residentId: true } });
+      if (!membership?.residentId) throw new AccessDeniedError();
+      const today = day(localToday(actor.organizationTimezone));
+      const stay = await prisma.residentStay.findFirst({ where: { organizationId: property.organizationId, propertyId: property.id, residentId: membership.residentId, status: { in: ["ACTIVE", "NOTICE_PERIOD"] }, startDate: { lte: today }, OR: [{ endDate: null }, { endDate: { gte: today } }] }, select: { endDate: true } });
+      if (!stay) throw new AccessDeniedError();
+      const start = from ? day(from) : today;
+      const end = to ? day(to) : stay.endDate ?? new Date(`${localDateAt(new Date(Date.now() + 14 * 86400000), actor.organizationTimezone)}T00:00:00.000Z`);
+      return prisma.foodMenu.findMany({ where: { organizationId: property.organizationId, propertyId: property.id, status: "PUBLISHED", validFrom: { lte: end }, validTo: { gte: start } }, select: { publicId: true, title: true, validFrom: true, validTo: true, items: { where: { menuDate: { gte: start, lte: end }, ...(stay.endDate ? { menuDate: { gte: start, lte: stay.endDate < end ? stay.endDate : end } } : {}) }, select: { menuDate: true, dishName: true, description: true, mealType: { select: { name: true, displayOrder: true } } }, orderBy: [{ menuDate: "asc" }, { mealType: { displayOrder: "asc" } }, { id: "asc" }] } }, orderBy: [{ validFrom: "asc" }, { createdAt: "asc" }] });
+    }
+    assertStaff(actor, propertyPublicId);
+    return prisma.foodMenu.findMany({ where: { organizationId: property.organizationId, propertyId: property.id, status: "PUBLISHED", ...(from || to ? { validFrom: { ...(to ? { lte: day(to) } : {}) }, validTo: { ...(from ? { gte: day(from) } : {}) } } : {}) }, select: { publicId: true, title: true, validFrom: true, validTo: true, items: { select: { menuDate: true, dishName: true, description: true, mealType: { select: { name: true, displayOrder: true } } }, orderBy: [{ menuDate: "asc" }, { mealType: { displayOrder: "asc" } }, { id: "asc" }] } }, orderBy: [{ validFrom: "asc" }, { createdAt: "asc" }] });
+  },
+
+  async createMenu(actor: OrganizationActor, input: FoodMenuInput) {
+    assertFoodControl(actor, input.propertyId);
+    validateMenuItems(input);
+    const organization = await prisma.organization.findUniqueOrThrow({ where: { publicId: actor.organizationId }, select: { id: true } });
+    const property = await prisma.property.findFirst({ where: { publicId: input.propertyId, organizationId: organization.id, status: "ACTIVE" }, select: { id: true } });
+    if (!property) throw new AccessDeniedError();
+    const configuredTypes = await prisma.foodMealType.findMany({ where: { organizationId: organization.id, propertyId: property.id, status: "ACTIVE", publicId: { in: [...new Set(input.items.map((item) => item.mealTypeId))] } }, select: { id: true, publicId: true } });
+    if (configuredTypes.length !== new Set(input.items.map((item) => item.mealTypeId)).size) throw new Error("INVALID_MEAL_TYPE");
+    const user = await prisma.user.findUniqueOrThrow({ where: { publicId: actor.userId }, select: { id: true } });
+    return prisma.$transaction(async (tx) => {
+      const menu = await tx.foodMenu.create({ data: { organizationId: organization.id, propertyId: property.id, title: input.title || null, validFrom: day(input.validFrom), validTo: day(input.validTo), status: "PUBLISHED", createdById: user.id, publishedAt: new Date() }, select: { publicId: true, status: true } });
+      const internalMenu = await tx.foodMenu.findUniqueOrThrow({ where: { publicId: menu.publicId }, select: { id: true } });
+      await tx.foodMenuItem.createMany({ data: input.items.map((item) => ({ organizationId: organization.id, propertyId: property.id, menuId: internalMenu.id, menuDate: day(item.date), mealTypeId: configuredTypes.find((type) => type.publicId === item.mealTypeId)!.id, dishName: item.dishName.trim(), description: item.description || null })) });
+      return menu;
+    });
+  },
+
+  async updateMenu(actor: OrganizationActor, input: UpdateFoodMenuInput) {
+    assertFoodControl(actor, input.propertyId);
+    validateMenuItems(input);
+    const organization = await prisma.organization.findUniqueOrThrow({ where: { publicId: actor.organizationId }, select: { id: true } });
+    const property = await prisma.property.findFirst({ where: { publicId: input.propertyId, organizationId: organization.id, status: "ACTIVE" }, select: { id: true } });
+    if (!property) throw new AccessDeniedError();
+    const menu = await prisma.foodMenu.findFirst({ where: { publicId: input.menuId, organizationId: organization.id, propertyId: property.id, status: "PUBLISHED" }, select: { id: true, validFrom: true, validTo: true, items: { select: { menuDate: true, mealTypeId: true } } } });
+    if (!menu) throw new Error("FOOD_MENU_NOT_FOUND");
+    const mealTypeIds = [...new Set(input.items.map((item) => item.mealTypeId))];
+    const configuredTypes = await prisma.foodMealType.findMany({ where: { organizationId: organization.id, propertyId: property.id, status: "ACTIVE", publicId: { in: mealTypeIds } }, select: { id: true, publicId: true } });
+    if (configuredTypes.length !== mealTypeIds.length) throw new Error("INVALID_MEAL_TYPE");
+    const editedPairs = new Map<string, { mealDate: Date; mealTypeId: bigint }>();
+    for (const item of menu.items) editedPairs.set(`${item.menuDate.toISOString().slice(0, 10)}:${item.mealTypeId}`, { mealDate: item.menuDate, mealTypeId: item.mealTypeId });
+    for (const item of input.items) {
+      const mealTypeId = configuredTypes.find((type) => type.publicId === item.mealTypeId)!.id;
+      editedPairs.set(`${item.date}:${mealTypeId}`, { mealDate: day(item.date), mealTypeId });
+    }
+    const closedPoll = await prisma.foodPoll.findFirst({ where: { organizationId: organization.id, propertyId: property.id, OR: [...editedPairs.values()].map((pair) => ({ mealDate: pair.mealDate, mealTypeId: pair.mealTypeId })), AND: [{ OR: [{ status: "CLOSED" }, { closesAt: { lte: new Date() } }] }] }, select: { id: true } });
+    if (closedPoll) throw new Error("FOOD_MENU_LOCKED");
+    return prisma.$transaction(async (tx) => {
+      await tx.foodMenuItem.deleteMany({ where: { organizationId: organization.id, propertyId: property.id, menuId: menu.id } });
+      await tx.foodMenu.update({ where: { id: menu.id }, data: { title: input.title || null, validFrom: day(input.validFrom), validTo: day(input.validTo) } });
+      await tx.foodMenuItem.createMany({ data: input.items.map((item) => ({ organizationId: organization.id, propertyId: property.id, menuId: menu.id, menuDate: day(item.date), mealTypeId: configuredTypes.find((type) => type.publicId === item.mealTypeId)!.id, dishName: item.dishName.trim(), description: item.description || null })) });
+    });
   },
 
   async replaceMealTypes(actor: OrganizationActor, input: MealTypesInput) {
@@ -80,7 +158,7 @@ export const foodUseCases = {
   },
 
   async createPoll(actor: OrganizationActor, input: CreatePollInput) {
-    assertManager(actor, input.propertyId);
+    assertFoodControl(actor, input.propertyId);
     const organization = await prisma.organization.findUniqueOrThrow({ where: { publicId: actor.organizationId }, select: { id: true } });
     const property = await prisma.property.findFirst({ where: { publicId: input.propertyId, organizationId: organization.id, status: "ACTIVE" }, select: { id: true } });
     if (!property) throw new AccessDeniedError();
@@ -101,9 +179,14 @@ export const foodUseCases = {
     }
   },
 
-  async closePoll(actor: OrganizationActor, pollPublicId: string) {
-    assertManager(actor);
-    const poll = await prisma.foodPoll.findFirst({ where: { publicId: pollPublicId, organization: { publicId: actor.organizationId }, property: { publicId: { in: [...actor.allowedPgIds] } }, status: "OPEN" }, select: { id: true } });
+  async closePoll(actor: OrganizationActor, pollPublicId: string, propertyPublicId?: string) {
+    assertFoodControl(actor, propertyPublicId);
+    const propertyScope = propertyPublicId
+      ? { publicId: propertyPublicId }
+      : actor.roles.includes("OWNER")
+        ? undefined
+        : { publicId: { in: [...actor.allowedPgIds] } };
+    const poll = await prisma.foodPoll.findFirst({ where: { publicId: pollPublicId, organization: { publicId: actor.organizationId }, ...(propertyScope ? { property: propertyScope } : {}), status: "OPEN" }, select: { id: true } });
     if (!poll) throw new Error("FOOD_POLL_NOT_OPEN");
     await prisma.foodPoll.updateMany({ where: { id: poll.id, status: "OPEN" }, data: { status: "CLOSED" } });
   },
@@ -117,6 +200,20 @@ export const foodUseCases = {
     if (!stay) return [];
     const polls = await prisma.foodPoll.findMany({ where: { organization: { publicId: actor.organizationId }, propertyId: stay.propertyId, status: "OPEN", mealDate: { gte: today, ...(stay.endDate ? { lte: stay.endDate } : {}) }, closesAt: { gt: new Date() } }, select: { publicId: true, mealDate: true, opensAt: true, closesAt: true, property: { select: { name: true } }, mealType: { select: { name: true } }, options: { select: { publicId: true, label: true, displayOrder: true }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] }, votes: { where: { residentStayId: stay.id }, select: { option: { select: { publicId: true } } } } }, orderBy: [{ mealDate: "asc" }, { mealType: { displayOrder: "asc" } }] });
     return polls.filter((poll) => poll.opensAt <= new Date()).map((poll) => ({ ...poll, selectedOptionId: poll.votes[0]?.option.publicId ?? "" }));
+  },
+
+  async listMenusForResident(actor: OrganizationActor) {
+    if (!actor.roles.includes("RESIDENT") || !actor.userEmail) throw new AccessDeniedError();
+    const membership = await prisma.organizationMembership.findFirst({ where: { organization: { publicId: actor.organizationId }, status: "ACTIVE", user: { publicId: actor.userId }, residentId: { not: null }, roles: { some: { roleCode: "RESIDENT" } } }, select: { residentId: true } });
+    if (!membership?.residentId) return [];
+    const todayString = localToday(actor.organizationTimezone);
+    const today = day(todayString);
+    const stay = await prisma.residentStay.findFirst({ where: { organization: { publicId: actor.organizationId }, residentId: membership.residentId, status: { in: ["ACTIVE", "NOTICE_PERIOD"] }, startDate: { lte: today }, OR: [{ endDate: null }, { endDate: { gte: today } }] }, select: { propertyId: true, endDate: true }, orderBy: { startDate: "desc" } });
+    if (!stay) return [];
+    const fourteenDays = day(todayString);
+    fourteenDays.setUTCDate(fourteenDays.getUTCDate() + 13);
+    const endDate = stay.endDate && stay.endDate < fourteenDays ? stay.endDate : fourteenDays;
+    return prisma.foodMenu.findMany({ where: { organization: { publicId: actor.organizationId }, propertyId: stay.propertyId, status: "PUBLISHED", validFrom: { lte: endDate }, validTo: { gte: today } }, select: { publicId: true, title: true, validFrom: true, validTo: true, items: { where: { menuDate: { gte: today, lte: endDate } }, select: { menuDate: true, dishName: true, description: true, mealType: { select: { name: true } } }, orderBy: [{ menuDate: "asc" }, { mealType: { displayOrder: "asc" } }, { id: "asc" }] } }, orderBy: [{ validFrom: "asc" }, { createdAt: "asc" }] });
   },
 
   async vote(actor: OrganizationActor, input: VoteInput) {

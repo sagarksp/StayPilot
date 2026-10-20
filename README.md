@@ -13,7 +13,8 @@ implemented, including auditable security-deposit transfers within an
 organization. The resident portal supports maintenance requests with private
 photo and PDF attachments; staff can assign, resolve, and close them with a
 recorded status history. Configure `AWS_REGION`, `AWS_S3_BUCKET`,
-`AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` to enable private S3 storage.
+`AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` to enable private S3 storage
+for complaint attachments and resident verification documents.
 The bucket should block public access; complaint downloads require organization
 membership and a complaint-scoped authorization check, and links expire after
 one minute.
@@ -24,6 +25,9 @@ one-hour password reset links, and organization setup use Better Auth with
 server-side sessions. Password reset delivery uses Gmail SMTP when
 `GMAIL_SMTP_USER` and `GMAIL_SMTP_APP_PASSWORD` are configured. Create a Gmail
 app password after enabling 2-Step Verification on the sending account.
+Email verification is required for password sign-in and account activation.
+Configure those Gmail SMTP values so StayPilot can send one-hour verification
+links during registration and invitation acceptance.
 
 ## Architecture boundaries
 
@@ -59,7 +63,17 @@ session.
 
 Complaint attachments accept JPEG, PNG, WebP, and PDF files up to 10 MB each,
 with a maximum of five files per complaint. Limit S3 permissions to the
-configured bucket and the application's complaint attachment object prefix.
+configured bucket and the application's complaint and resident KYC object
+prefixes.
+
+Residents can upload up to ten active government ID, address proof, profile
+photo, or other verification documents in JPEG, PNG, WebP, or PDF format, up to
+10 MB per file. Files are private, encrypted at rest in S3, and only available
+through one-minute download links after resident identity or assigned-property
+access checks. Owners can review organization documents; managers can review
+only documents linked to their assigned properties. Document uploads, staff
+reviews, and staff downloads are recorded in the audit log. Rejected files stay
+in the resident's history, and a new upload can be submitted for review.
 
 Open the exact local URL printed by Next.js. If port 3000 is already in use,
 stop the other development server first so the browser doesn't show a different
@@ -85,6 +99,15 @@ Configure the scheduler to call it daily with `Authorization: Bearer <CRON_SECRE
 the endpoint creates rent drafts five days before their due date. Set a strong
 `CRON_SECRET` in each environment. Owners and assigned managers review drafts
 under Invoices; finalization is always an explicit action.
+
+In-app notifications are available in each workspace header. Complaints notify
+the property's owner and assigned managers, published or withdrawn notices
+notify current residents in their scope, and invoice due reminders are
+deduplicated per resident and invoice. Configure the existing daily scheduler to
+also call `POST /api/internal/notifications/reminders` with the same
+`Authorization: Bearer <CRON_SECRET>` header. The reminder endpoint creates an
+in-app notification two calendar days before an unpaid finalized invoice is due;
+email delivery is not included.
 
 Owners and assigned managers can record full or partial payments against
 finalized invoices from the finance page. They can reverse eligible invoice
@@ -115,10 +138,12 @@ Managers land on their assigned-property operations dashboard after sign-in,
 with occupancy, reservation, and complaint follow-up counts scoped to their
 assigned properties.
 
-Owner accounts can register and create an organization. Email verification is
-not configured yet. The platform-admin route stays
-unavailable until a separate
-platform-admin identity and authorization flow is implemented.
+Owner accounts can register and create an organization after verifying their
+email. Platform operations access is separate from tenant membership and is
+granted only to verified email addresses listed in `PLATFORM_ADMIN_EMAILS`.
+The platform-admin console currently provides a read-only organization
+directory and cross-tenant operational totals; tenant status changes are not
+available there.
 
 ## Scripts
 

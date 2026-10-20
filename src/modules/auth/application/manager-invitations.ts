@@ -40,9 +40,9 @@ export class ManagerInvitationError extends Error {
 
 export interface ManagerInvitationRepository {
   getTeam(organizationId: string, now: Date): Promise<ManagerTeam>;
-  updateMembershipStatus(organizationId: string, membershipId: string, status: "ACTIVE" | "INACTIVE"): Promise<"ACTIVE" | "INACTIVE" | null>;
+  updateMembershipStatus(organizationId: string, membershipId: string, status: "ACTIVE" | "INACTIVE", actorId: string, actorName: string): Promise<"ACTIVE" | "INACTIVE" | null>;
   getManagerProperties(organizationId: string, membershipId: string): Promise<string[] | null>;
-  replaceManagerProperties(input: Readonly<{ organizationId: string; membershipId: string; propertyIds: string[] }>): Promise<string[]>;
+  replaceManagerProperties(input: Readonly<{ organizationId: string; membershipId: string; propertyIds: string[]; actorId: string; actorName: string }>): Promise<string[]>;
   create(input: Readonly<{ organizationId: string; actorId: string; email: string; propertyIds: string[]; tokenHash: string; expiresAt: Date; now: Date }>): Promise<Readonly<{ id: string; email: string; organizationName: string; propertyNames: string[]; expiresAt: Date }>>;
   resend(input: Readonly<{ organizationId: string; invitationId: string; tokenHash: string; expiresAt: Date; now: Date }>): Promise<Readonly<{ email: string; organizationName: string; propertyNames: string[]; expiresAt: Date }> | null>;
   getInvitation(tokenHash: string, now: Date): Promise<InvitationDetails | null>;
@@ -77,7 +77,7 @@ export function createManagerInvitationUseCases(repository: ManagerInvitationRep
     async updateMembershipStatus(actor: OrganizationActor, membershipId: string, input: unknown) {
       assertOwner(actor);
       const parsed = membershipStatusSchema.parse(input);
-      const status = await repository.updateMembershipStatus(actor.organizationId, membershipId, parsed.status);
+      const status = await repository.updateMembershipStatus(actor.organizationId, membershipId, parsed.status, actor.userId, actor.userName);
       if (!status) throw new ManagerInvitationError("MEMBERSHIP_NOT_FOUND");
       return { status };
     },
@@ -85,7 +85,7 @@ export function createManagerInvitationUseCases(repository: ManagerInvitationRep
     async replaceManagerProperties(actor: OrganizationActor, membershipId: string, input: unknown) {
       assertOwner(actor);
       const parsed = managerPropertyScopeSchema.parse(input);
-      return repository.replaceManagerProperties({ organizationId: actor.organizationId, membershipId, propertyIds: parsed.propertyIds });
+      return repository.replaceManagerProperties({ organizationId: actor.organizationId, membershipId, propertyIds: parsed.propertyIds, actorId: actor.userId, actorName: actor.userName });
     },
 
     async getManagerProperties(actor: OrganizationActor, membershipId: string) {

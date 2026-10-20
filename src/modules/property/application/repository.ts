@@ -10,6 +10,7 @@ import type {
   CreateFloorInput,
   CreatePropertyInput,
   CreateRoomInput,
+  OccupancyReportFilters,
   PropertyStayPolicyInput,
 } from "./schemas";
 
@@ -25,6 +26,11 @@ export interface PropertyRepository {
   createRoom(organizationId: string, propertyId: string, input: CreateRoomInput): Promise<RoomSummary>;
   createBed(organizationId: string, propertyId: string, input: CreateBedInput): Promise<BedSummary>;
   listStayPolicies(organizationId: string): Promise<ReadonlyArray<{ propertyId: string; propertyName: string; noticePeriodDays: number; lockInMonths: number }>>;
+  getOccupancyReport(organizationId: string, propertyIds: readonly string[] | undefined, filters: OccupancyReportFilters): Promise<Readonly<{
+    properties: readonly Readonly<{ publicId: string; name: string }>[];
+    rows: readonly Readonly<{ propertyId: string; propertyName: string; operationalBeds: number; occupiedBeds: number; reservedBeds: number; availableBeds: number; maintenanceBeds: number; occupancyPercent: number }>[];
+    totals: Readonly<{ operationalBeds: number; occupiedBeds: number; reservedBeds: number; availableBeds: number; maintenanceBeds: number; occupancyPercent: number }>;
+  }>>;
   updateStayPolicy(organizationId: string, input: PropertyStayPolicyInput): Promise<void>;
 }
 
@@ -41,5 +47,10 @@ export type PropertyUseCases = Readonly<{
   createRoom(actor: OrganizationActor, propertyId: string, input: CreateRoomInput): Promise<RoomSummary>;
   createBed(actor: OrganizationActor, propertyId: string, input: CreateBedInput): Promise<BedSummary>;
   listStayPolicies(actor: OrganizationActor): Promise<ReadonlyArray<{ propertyId: string; propertyName: string; noticePeriodDays: number; lockInMonths: number }>>;
+  getOccupancyReport(actor: OrganizationActor, filters: OccupancyReportFilters): Promise<Readonly<{
+    properties: readonly Readonly<{ publicId: string; name: string }>[];
+    rows: readonly Readonly<{ propertyId: string; propertyName: string; operationalBeds: number; occupiedBeds: number; reservedBeds: number; availableBeds: number; maintenanceBeds: number; occupancyPercent: number }>[];
+    totals: Readonly<{ operationalBeds: number; occupiedBeds: number; reservedBeds: number; availableBeds: number; maintenanceBeds: number; occupancyPercent: number }>;
+  }>>;
   updateStayPolicy(actor: OrganizationActor, input: PropertyStayPolicyInput): Promise<void>;
 }>;

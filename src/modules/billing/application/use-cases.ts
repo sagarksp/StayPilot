@@ -1,7 +1,8 @@
 import { AccessDeniedError, type OrganizationActor } from "@/modules/property/domain/inventory";
 import { createHash } from "node:crypto";
 import { prisma } from "@/infrastructure/db/prisma";
-import type { RecordPayment, ReversePaymentInput } from "./schemas";
+import { formatAuditMoneyPaise, recordAuditEvent } from "@/modules/audit/application/events";
+import type { DepositReportFilters, FinanceReportFilters, RecordPayment, ReversePaymentInput } from "./schemas";
 
 function assertStaff(actor: OrganizationActor) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
@@ -36,6 +37,248 @@ function idempotentReversal(record: { publicId: string; amountPaise: bigint; req
 }
 
 export const billingUseCases = {
+  async getDepositReport(actor: OrganizationActor, filters: DepositReportFilters) {
+    assertStaff(actor);
+    const allowed = propertyScope(actor);
+    if (filters.propertyId && allowed && !allowed.includes(filters.propertyId)) throw new AccessDeniedError();
+    const propertyWhere = {
+      organization: { publicId: actor.organizationId },
+      ...(allowed ? { publicId: { in: [...allowed] } } : {}),
+      ...(filters.propertyId ? { publicId: filters.propertyId } : {}),
+    };
+    const properties = await prisma.property.findMany({
+      where: propertyWhere,
+      select: { publicId: true, name: true },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    });
+    if (filters.propertyId && !properties.some((property) => property.publicId === filters.propertyId)) throw new AccessDeniedError();
+
+    const propertyIds = filters.propertyId ? [filters.propertyId] : allowed ? [...allowed] : undefined;
+    const from = filters.from ? new Date(`${filters.from}T00:00:00.000Z`) : undefined;
+    const toExclusive = filters.to ? new Date(`${filters.to}T00:00:00.000Z`) : undefined;
+    if (toExclusive) toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
+    const dateRange = from || toExclusive ? {
+      ...(from ? { gte: from } : {}),
+      ...(toExclusive ? { lt: toExclusive } : {}),
+    } : undefined;
+    const ledgerWhere = {
+      organization: { publicId: actor.organizationId },
+      ...(propertyIds ? { OR: [
+        { depositAccount: { property: { publicId: { in: propertyIds } } } },
+        { reservation: { property: { publicId: { in: propertyIds } } } },
+      ] } : {}),
+    };
+
+    const [accounts, unassignedTransactions, transactions] = await Promise.all([
+      prisma.securityDepositAccount.findMany({
+        where: {
+          organization: { publicId: actor.organizationId },
+          ...(propertyIds ? { property: { publicId: { in: propertyIds } } } : {}),
+        },
+        select: {
+          status: true,
+          requiredAmountPaise: true,
+          transactions: { select: { amountPaise: true } },
+        },
+      }),
+      prisma.securityDepositTransaction.findMany({
+        where: {
+          ...ledgerWhere,
+          depositAccountId: null,
+          reservationId: { not: null },
+        },
+        select: { amountPaise: true },
+      }),
+      prisma.securityDepositTransaction.findMany({
+        where: {
+          ...ledgerWhere,
+          ...(filters.transactionType ? { transactionType: filters.transactionType } : {}),
+          ...(dateRange ? { createdAt: dateRange } : {}),
+        },
+        select: {
+          publicId: true,
+          transactionType: true,
+          amountPaise: true,
+          description: true,
+          transferReference: true,
+          createdAt: true,
+          payment: { select: { method: true, reference: true } },
+          depositAccount: {
+            select: {
+              property: { select: { name: true } },
+              residentStay: { select: { resident: { select: { name: true } } } },
+            },
+          },
+          reservation: {
+            select: {
+              property: { select: { name: true } },
+              resident: { select: { name: true } },
+            },
+          },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+    ]);
+    const sum = (values: readonly bigint[]) => values.reduce((total, value) => total + value, BigInt(0));
+    const unassignedHeldPaise = sum(unassignedTransactions.map((entry) => entry.amountPaise));
+    const heldPaise = sum(accounts.map((account) => sum(account.transactions.map((entry) => entry.amountPaise)))) + unassignedHeldPaise;
+    const requiredPaise = sum(accounts.filter((account) => account.status === "OPEN").map((account) => account.requiredAmountPaise));
+    return {
+      properties,
+      totals: {
+        heldPaise,
+        requiredPaise,
+        receivedPaise: sum(transactions.filter((entry) => entry.transactionType === "RECEIPT").map((entry) => entry.amountPaise)),
+        refundedPaise: sum(transactions.filter((entry) => entry.transactionType === "REFUND").map((entry) => entry.amountPaise < BigInt(0) ? -entry.amountPaise : entry.amountPaise)),
+        deductedPaise: sum(transactions.filter((entry) => entry.transactionType === "DEDUCTION").map((entry) => entry.amountPaise < BigInt(0) ? -entry.amountPaise : entry.amountPaise)),
+        unassignedReservationPaise: unassignedHeldPaise,
+      },
+      rows: transactions.map((entry) => ({
+        id: entry.publicId,
+        date: entry.createdAt,
+        type: entry.transactionType,
+        propertyName: entry.depositAccount?.property.name ?? entry.reservation?.property.name ?? "—",
+        residentName: entry.depositAccount?.residentStay.resident.name ?? entry.reservation?.resident.name ?? "—",
+        reference: entry.transferReference ?? entry.payment?.reference ?? entry.description ?? "—",
+        method: entry.payment?.method ?? "—",
+        amountPaise: entry.amountPaise,
+      })),
+    };
+  },
+
+  async getFinanceReport(actor: OrganizationActor, filters: FinanceReportFilters) {
+    assertStaff(actor);
+    const allowed = propertyScope(actor);
+    if (filters.propertyId && allowed && !allowed.includes(filters.propertyId)) throw new AccessDeniedError();
+    const propertyWhere = {
+      organization: { publicId: actor.organizationId },
+      status: { not: "ARCHIVED" },
+      ...(allowed ? { publicId: { in: [...allowed] } } : {}),
+      ...(filters.propertyId ? { publicId: filters.propertyId } : {}),
+    };
+    const properties = await prisma.property.findMany({
+      where: propertyWhere,
+      select: { publicId: true, name: true },
+      orderBy: { name: "asc" },
+    });
+    if (filters.propertyId && !properties.some((property) => property.publicId === filters.propertyId)) throw new AccessDeniedError();
+
+    const propertyIds = filters.propertyId ? [filters.propertyId] : allowed ? [...allowed] : undefined;
+    const from = filters.from ? new Date(`${filters.from}T00:00:00.000Z`) : undefined;
+    const toExclusive = filters.to ? new Date(`${filters.to}T00:00:00.000Z`) : undefined;
+    if (toExclusive) toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
+    const dateRange = from || toExclusive ? {
+      ...(from ? { gte: from } : {}),
+      ...(toExclusive ? { lt: toExclusive } : {}),
+    } : undefined;
+    const scopedProperty = propertyIds ? { property: { publicId: { in: propertyIds } } } : {};
+    const organization = { organization: { publicId: actor.organizationId } };
+
+    const [invoices, payments, deposits] = await Promise.all([
+      prisma.invoice.findMany({
+        where: {
+          ...organization,
+          ...scopedProperty,
+          status: { in: ["FINALIZED", "PARTIALLY_PAID", "PAID"] },
+          ...(dateRange ? { issueDate: dateRange } : {}),
+        },
+        select: { totalPaise: true, adjustmentPaise: true, amountPaidPaise: true },
+      }),
+      prisma.payment.findMany({
+        where: {
+          ...organization,
+          ...(propertyIds ? { property: { publicId: { in: propertyIds } } } : {}),
+          ...(dateRange ? { paymentDate: dateRange } : {}),
+          depositTransactions: { none: {} },
+        },
+        select: {
+          publicId: true,
+          paymentDate: true,
+          transactionType: true,
+          purpose: true,
+          amountPaise: true,
+          method: true,
+          reference: true,
+          recordedByName: true,
+          property: { select: { name: true } },
+          resident: { select: { name: true } },
+          invoice: { select: { invoiceNumber: true } },
+        },
+        orderBy: [{ paymentDate: "desc" }, { createdAt: "desc" }],
+      }),
+      prisma.securityDepositTransaction.findMany({
+        where: {
+          organization: { publicId: actor.organizationId },
+          ...(propertyIds ? { OR: [
+            { depositAccount: { property: { publicId: { in: propertyIds } } } },
+            { reservation: { property: { publicId: { in: propertyIds } } } },
+          ] } : {}),
+          ...(dateRange ? { createdAt: dateRange } : {}),
+        },
+        select: {
+          publicId: true,
+          transactionType: true,
+          amountPaise: true,
+          description: true,
+          createdAt: true,
+          payment: { select: { method: true, reference: true } },
+          depositAccount: {
+            select: {
+              property: { select: { name: true } },
+              residentStay: { select: { resident: { select: { name: true } } } },
+            },
+          },
+          reservation: {
+            select: {
+              property: { select: { name: true } },
+              resident: { select: { name: true } },
+            },
+          },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+    ]);
+
+    const sum = (values: readonly bigint[]) => values.reduce((total, value) => total + value, BigInt(0));
+    const billedPaise = sum(invoices.map((invoice) => invoice.totalPaise + invoice.adjustmentPaise));
+    const outstandingPaise = sum(invoices.map((invoice) => {
+      const balance = invoice.totalPaise + invoice.adjustmentPaise - invoice.amountPaidPaise;
+      return balance > BigInt(0) ? balance : BigInt(0);
+    }));
+    return {
+      properties,
+      totals: {
+        billedPaise,
+        collectedPaise: sum(payments.map((payment) => payment.amountPaise)),
+        outstandingPaise,
+        depositReceiptsPaise: sum(deposits.filter((entry) => entry.transactionType === "RECEIPT").map((entry) => entry.amountPaise)),
+        depositRefundsPaise: sum(deposits.filter((entry) => entry.transactionType === "REFUND").map((entry) => entry.amountPaise < BigInt(0) ? -entry.amountPaise : entry.amountPaise)),
+      },
+      rows: [
+        ...payments.map((payment) => ({
+          id: payment.publicId,
+          date: payment.paymentDate,
+          type: `${payment.purpose} ${payment.transactionType}`,
+          propertyName: payment.property.name,
+          residentName: payment.resident.name,
+          reference: payment.invoice?.invoiceNumber ?? payment.reference ?? "—",
+          method: payment.method,
+          amountPaise: payment.amountPaise,
+        })),
+        ...deposits.map((entry) => ({
+          id: entry.publicId,
+          date: entry.createdAt,
+          type: `DEPOSIT ${entry.transactionType}`,
+          propertyName: entry.depositAccount?.property.name ?? entry.reservation?.property.name ?? "—",
+          residentName: entry.depositAccount?.residentStay.resident.name ?? entry.reservation?.resident.name ?? "—",
+          reference: entry.description ?? entry.payment?.reference ?? "—",
+          method: entry.payment?.method ?? "—",
+          amountPaise: entry.amountPaise,
+        })),
+      ].sort((left, right) => right.date.getTime() - left.date.getTime()),
+    };
+  },
+
   async getOverview(actor: OrganizationActor) {
     assertStaff(actor);
     const propertyIds = propertyScope(actor);
@@ -108,7 +351,7 @@ export const billingUseCases = {
       });
       if (updated.count !== 1) throw new Error("INVOICE_CHANGED");
 
-      return tx.payment.create({
+      const recorded = await tx.payment.create({
         data: {
           organizationId: invoice.organizationId,
           propertyId: invoice.propertyId,
@@ -125,6 +368,17 @@ export const billingUseCases = {
         },
         select: { publicId: true, amountPaise: true },
       });
+      await recordAuditEvent(tx, {
+        organizationId: invoice.organizationId,
+        propertyId: invoice.propertyId,
+        actorUserPublicId: actor.userId,
+        actorName: actor.userName,
+        actionCode: "PAYMENT_RECORDED",
+        entityType: "PAYMENT",
+        entityPublicId: recorded.publicId,
+        summary: `Recorded an invoice payment of ${formatAuditMoneyPaise(recorded.amountPaise)}.`,
+      });
+      return recorded;
     });
   },
 
@@ -156,6 +410,7 @@ export const billingUseCases = {
           },
           select: {
             id: true,
+            publicId: true,
             organizationId: true,
             propertyId: true,
             residentId: true,
@@ -223,6 +478,16 @@ export const billingUseCases = {
           },
           select: { publicId: true, amountPaise: true },
         });
+        await recordAuditEvent(tx, {
+          organizationId: original.organizationId,
+          propertyId: original.propertyId,
+          actorUserPublicId: actor.userId,
+          actorName: actor.userName,
+          actionCode: "PAYMENT_REVERSED",
+          entityType: "PAYMENT",
+          entityPublicId: reversal.publicId,
+          summary: `Reversed ${formatAuditMoneyPaise(input.amountPaise)} from payment ${original.publicId}. Reason: ${input.reason}`,
+        });
         return { ...reversal, replayed: false };
       });
     } catch (error) {
@@ -243,7 +508,7 @@ export const billingUseCases = {
     return prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findFirst({
         where: { publicId: invoiceId, organization: { publicId: actor.organizationId }, ...(scope ? { property: { publicId: { in: [...scope] } } } : {}), status: "DRAFT" },
-        select: { id: true, items: { select: { amountPaise: true } } },
+        select: { id: true, publicId: true, organizationId: true, propertyId: true, items: { select: { amountPaise: true } } },
       });
       if (!invoice || !invoice.items.length) throw new Error("INVOICE_NOT_DRAFT");
       const total = invoice.items.reduce((sum, item) => sum + item.amountPaise, BigInt(0));
@@ -252,6 +517,16 @@ export const billingUseCases = {
         data: { subtotalPaise: total, totalPaise: total, status: "FINALIZED", finalizedAt: new Date() },
       });
       if (result.count !== 1) throw new Error("INVOICE_NOT_DRAFT");
+      await recordAuditEvent(tx, {
+        organizationId: invoice.organizationId,
+        propertyId: invoice.propertyId,
+        actorUserPublicId: actor.userId,
+        actorName: actor.userName,
+        actionCode: "INVOICE_FINALIZED",
+        entityType: "INVOICE",
+        entityPublicId: invoice.publicId,
+        summary: "Finalized an invoice for resident review.",
+      });
     });
   },
 

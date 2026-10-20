@@ -1,9 +1,10 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/infrastructure/db/prisma";
+import { AccessDeniedError } from "@/modules/property/domain/inventory";
 import { ReservationWorkflowError, type ReservationOverview, type ReservationSummary } from "../domain/reservation";
 import type { ReservationRepository } from "../application/repository";
-import type { CreateReservationData } from "../application/schemas";
+import type { CreateReservationData, ReservationReportFilters } from "../application/schemas";
 
 const reservationSelect = {
   publicId: true, status: true, reservationDate: true, reservationStartDate: true,
@@ -48,6 +49,74 @@ export const prismaReservationRepository: ReservationRepository = {
   async listReservations(organizationId, propertyIds) {
     const records = await prisma.reservation.findMany({ where: { organization: { publicId: organizationId }, ...managerPropertyFilter(propertyIds) }, select: reservationSelect, orderBy: [{ status: "asc" }, { reservationStartDate: "asc" }, { createdAt: "desc" }] });
     return records.map(mapReservation);
+  },
+  async getReport(organizationId, propertyIds, filters: ReservationReportFilters) {
+    if (filters.propertyId && propertyIds && !propertyIds.includes(filters.propertyId)) throw new AccessDeniedError();
+    const properties = await prisma.property.findMany({
+      where: {
+        organization: { publicId: organizationId },
+        status: "ACTIVE",
+        ...(propertyIds ? { publicId: { in: [...propertyIds] } } : {}),
+        ...(filters.propertyId ? { publicId: filters.propertyId } : {}),
+      },
+      select: { publicId: true, name: true },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    });
+    if (filters.propertyId && !properties.some((property) => property.publicId === filters.propertyId)) throw new AccessDeniedError();
+    const from = filters.from ? dateOnly(filters.from) : undefined;
+    const to = filters.to ? dateOnly(filters.to) : undefined;
+    const records = await prisma.reservation.findMany({
+      where: {
+        organization: { publicId: organizationId },
+        ...(filters.propertyId ? { property: { publicId: filters.propertyId } } : managerPropertyFilter(propertyIds)),
+        ...(filters.status ? { status: filters.status } : {}),
+        ...(from || to ? { AND: [
+          ...(from ? [{ reservationEndDate: { gte: from } }] : []),
+          ...(to ? [{ reservationStartDate: { lte: to } }] : []),
+        ] } : {}),
+      },
+      select: {
+        publicId: true,
+        status: true,
+        reservationDate: true,
+        reservationStartDate: true,
+        reservationEndDate: true,
+        expectedMoveInDate: true,
+        createdAt: true,
+        resident: { select: { name: true } },
+        property: { select: { name: true } },
+        bed: { select: { label: true, room: { select: { number: true } } } },
+        depositTransactions: { where: { transactionType: "RECEIPT" }, select: { amountPaise: true } },
+      },
+      orderBy: [{ reservationStartDate: "asc" }, { createdAt: "desc" }, { id: "desc" }],
+    });
+    const rows = records.map((record) => ({
+      id: record.publicId,
+      status: record.status,
+      residentName: record.resident.name,
+      propertyName: record.property.name,
+      roomNumber: record.bed.room.number,
+      bedLabel: record.bed.label,
+      reservationDate: record.reservationDate,
+      startDate: record.reservationStartDate,
+      endDate: record.reservationEndDate,
+      expectedMoveInDate: record.expectedMoveInDate,
+      createdAt: record.createdAt,
+      prepaidDepositPaise: record.depositTransactions.reduce((sum, entry) => sum + entry.amountPaise, BigInt(0)),
+    }));
+    const countStatus = (status: string) => records.filter((record) => record.status === status).length;
+    return {
+      properties,
+      rows,
+      totals: {
+        total: rows.length,
+        active: countStatus("ACTIVE"),
+        movedIn: countStatus("MOVED_IN"),
+        cancelled: countStatus("CANCELLED"),
+        expired: countStatus("EXPIRED"),
+        prepaidDepositPaise: rows.reduce((sum, row) => sum + row.prepaidDepositPaise, BigInt(0)),
+      },
+    };
   },
   async listCandidates(organizationId, propertyIds) {
     const [residents, beds] = await Promise.all([

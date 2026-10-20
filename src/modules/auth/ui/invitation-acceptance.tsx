@@ -16,6 +16,8 @@ export function InvitationAcceptance({ token, email, organizationName, propertyN
 }>) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [verificationResent, setVerificationResent] = useState(false);
   const callbackURL = `/invite/${encodeURIComponent(token)}`;
   const loginURL = `/login?callbackURL=${encodeURIComponent(callbackURL)}`;
   const roleName = roleCode === "RESIDENT" ? "resident" : "manager";
@@ -60,9 +62,23 @@ export function InvitationAcceptance({ token, email, organizationName, propertyN
         setError("An account may already exist for this email. Sign in with the invited email to accept the invitation.");
         return;
       }
-      await accept();
+      setNeedsVerification(true);
     } catch {
       setError("We couldn't create your account. Check your connection and try again.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function resendVerification() {
+    setPending(true);
+    setError(null);
+    try {
+      const result = await authClient.sendVerificationEmail({ email, callbackURL });
+      if (result.error) setError("We couldn't resend the verification email. Wait a moment and try again.");
+      else setVerificationResent(true);
+    } catch {
+      setError("We couldn't reach StayPilot. Check your connection and try again.");
     } finally {
       setPending(false);
     }
@@ -86,18 +102,19 @@ export function InvitationAcceptance({ token, email, organizationName, propertyN
 
   return <main className="mx-auto flex min-h-screen max-w-lg items-center px-6 py-12">
     <section className="surface-card w-full p-8 md:p-10">
-      <p className="text-sm font-semibold text-[#176e61]">StayPilot · {roleName} invitation</p>
+      <p className="text-sm font-semibold text-[#2563eb]">StayPilot · {roleName} invitation</p>
       <h1 className="mt-4 text-3xl font-semibold">{roleCode === "RESIDENT" ? "Activate your StayPilot account" : `Join ${organizationName}`}</h1>
       <p className="muted mt-3 leading-7">This invitation is for <strong>{email}</strong> as a {roleName}{residentName ? ` for ${residentName}` : ""} at {organizationName}.</p>
       {roleCode === "MANAGER" ? <p className="muted mt-2 text-sm">Property access: {propertyNames.length ? propertyNames.join(", ") : "No properties assigned yet. Ask the owner to assign access."}</p> : <p className="muted mt-2 text-sm">After activation, you can view your stay details, bills, deposit activity, and support requests.</p>}
       {error ? <p className="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">{error} <a className="font-semibold underline" href={loginURL}>Sign in</a></p> : null}
-      {signedInEmail?.toLowerCase() === email.toLowerCase() ? <button className="mt-6 min-h-11 w-full rounded-lg bg-[#176e61] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={pending} onClick={() => void accept()} type="button">{pending ? "Accepting..." : "Accept invitation"}</button>
-        : signedInEmail ? <div className="mt-6 space-y-3"><p className="text-sm text-amber-900">You are signed in as {signedInEmail}. Sign out and continue with the invited address.</p><button className="min-h-11 w-full rounded-lg bg-[#176e61] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={pending} onClick={() => void switchAccount()} type="button">{pending ? "Signing out..." : "Switch account"}</button></div>
+      {needsVerification ? <div className="mt-6 space-y-3"><p className="rounded-lg border border-[#dbeafe] bg-[#eff8f3] p-4 text-sm leading-6 text-[#24594b]" role="status">If this account needs verification, a link has been sent to <strong>{email}</strong>. Verify within one hour; the link returns you here to accept this invitation. Already registered? <a className="font-semibold underline" href={loginURL}>Sign in</a>.</p>{verificationResent ? <p className="text-sm text-slate-600" role="status">If the account still needs verification, a fresh link has been sent.</p> : null}<button className="min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-4 py-2 text-sm font-semibold text-[#2563eb] disabled:opacity-60" disabled={pending} onClick={() => void resendVerification()} type="button">{pending ? "Sending link..." : "Resend verification email"}</button></div>
+        : signedInEmail?.toLowerCase() === email.toLowerCase() ? <button className="mt-6 min-h-11 w-full rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={pending} onClick={() => void accept()} type="button">{pending ? "Accepting..." : "Accept invitation"}</button>
+        : signedInEmail ? <div className="mt-6 space-y-3"><p className="text-sm text-amber-900">You are signed in as {signedInEmail}. Sign out and continue with the invited address.</p><button className="min-h-11 w-full rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={pending} onClick={() => void switchAccount()} type="button">{pending ? "Signing out..." : "Switch account"}</button></div>
           : <form className="mt-6 space-y-4" onSubmit={createAccount}>
             <label className="grid gap-1 text-sm font-medium">Your name<input autoComplete="name" className="min-h-11 rounded-lg border border-slate-300 px-3" maxLength={180} minLength={1} name="name" required /></label>
             <label className="grid gap-1 text-sm font-medium">Create password<input autoComplete="new-password" className="min-h-11 rounded-lg border border-slate-300 px-3" minLength={8} name="password" required type="password" /></label>
-            <button className="min-h-11 w-full rounded-lg bg-[#176e61] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={pending} type="submit">{pending ? "Activating..." : "Create account and accept"}</button>
-            <p className="text-center text-sm text-slate-600">Already have an account? <a className="font-semibold text-[#176e61] underline" href={loginURL}>Sign in</a></p>
+            <button className="min-h-11 w-full rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={pending} type="submit">{pending ? "Activating..." : "Create account and accept"}</button>
+            <p className="text-center text-sm text-slate-600">Already have an account? <a className="font-semibold text-[#2563eb] underline" href={loginURL}>Sign in</a></p>
           </form>}
     </section>
   </main>;

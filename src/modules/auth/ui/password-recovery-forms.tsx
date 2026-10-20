@@ -5,8 +5,8 @@ import Link from "next/link";
 import { createAuthClient } from "better-auth/react";
 
 const authClient = createAuthClient();
-const inputClass = "min-h-11 w-full rounded-lg border border-[#cfdad5] bg-white px-3 text-base outline-none focus:border-[#176e61] focus:ring-2 focus:ring-[#176e61]/15";
-const buttonClass = "inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#176e61] px-4 py-2 text-sm font-semibold text-white hover:bg-[#10564c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#176e61] disabled:cursor-wait disabled:opacity-60";
+const inputClass = "min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 text-base outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15";
+const buttonClass = "inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb] disabled:cursor-wait disabled:opacity-60";
 
 export function PasswordResetRequestForm() {
   const [pending, setPending] = useState(false);
@@ -45,13 +45,13 @@ export function PasswordResetRequestForm() {
   if (sent) {
     return (
       <div className="mt-7 space-y-5">
-        <p className="rounded-lg border border-[#cce9de] bg-[#eff8f3] p-4 text-sm leading-6 text-[#24594b]" role="status">
+        <p className="rounded-lg border border-[#dbeafe] bg-[#eff8f3] p-4 text-sm leading-6 text-[#24594b]" role="status">
           If an account matches that email, a reset request has been recorded. Check your inbox and spam folder. Reset links expire in one hour.
         </p>
-        <button className={`${buttonClass} border border-[#cfdad5] bg-white text-[#176e61] hover:bg-[#f5f8f6]`} onClick={() => setSent(false)} type="button">
+        <button className={`${buttonClass} border border-[#cbd5e1] bg-white text-[#2563eb] hover:bg-[#f5f8f6]`} onClick={() => setSent(false)} type="button">
           Request another link
         </button>
-        <p className="text-center text-sm"><Link className="font-semibold text-[#176e61] hover:underline" href="/login">Back to sign in</Link></p>
+        <p className="text-center text-sm"><Link className="font-semibold text-[#2563eb] hover:underline" href="/login">Back to sign in</Link></p>
       </div>
     );
   }
@@ -66,7 +66,7 @@ export function PasswordResetRequestForm() {
       <button className={buttonClass} disabled={pending} type="submit">
         {pending ? "Sending link..." : "Send reset link"}
       </button>
-      <p className="text-center text-sm"><Link className="font-semibold text-[#176e61] hover:underline" href="/login">Back to sign in</Link></p>
+      <p className="text-center text-sm"><Link className="font-semibold text-[#2563eb] hover:underline" href="/login">Back to sign in</Link></p>
     </form>
   );
 }
@@ -119,7 +119,7 @@ export function PasswordResetForm({ token, invalidLink = false }: Readonly<{ tok
   if (complete) {
     return (
       <div className="mt-7 space-y-5">
-        <p className="rounded-lg border border-[#cce9de] bg-[#eff8f3] p-4 text-sm leading-6 text-[#24594b]" role="status">
+        <p className="rounded-lg border border-[#dbeafe] bg-[#eff8f3] p-4 text-sm leading-6 text-[#24594b]" role="status">
           Your password has been updated. Sign in with your new password to continue.
         </p>
         <Link className={`${buttonClass} no-underline`} href="/login">Continue to sign in</Link>

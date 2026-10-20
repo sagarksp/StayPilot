@@ -1,10 +1,15 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/infrastructure/db/prisma";
-import { ComplaintWorkflowError, type ComplaintSummary } from "../domain/complaint";
+import { ComplaintWorkflowError, type ComplaintReportRow, type ComplaintSummary } from "../domain/complaint";
 import type { ComplaintRepository } from "../application/repository";
-import type { CreateComplaintInput, UpdateComplaintInput } from "../application/schemas";
+import type { complaintReportFilterSchema, CreateComplaintInput, UpdateComplaintInput } from "../application/schemas";
 import type { OrganizationActor } from "@/modules/property/domain/inventory";
+import { AccessDeniedError } from "@/modules/property/domain/inventory";
+import { createNotifications } from "@/modules/notification/application/use-cases";
+import type { z } from "zod";
+
+type ComplaintReportFilters = z.infer<typeof complaintReportFilterSchema>;
 
 const complaintSelect = {
   publicId: true,
@@ -116,6 +121,61 @@ export const prismaComplaintRepository: ComplaintRepository = {
     };
   },
 
+  async getReportForStaff(actor, filters: ComplaintReportFilters) {
+    const scope = propertyScope(actor);
+    const properties = await prisma.property.findMany({
+      where: {
+        organization: { publicId: actor.organizationId },
+        status: { not: "ARCHIVED" },
+        ...(scope ? { publicId: { in: [...scope] } } : {}),
+      },
+      select: { publicId: true, name: true },
+      orderBy: { name: "asc" },
+    });
+    if (filters.propertyId && !properties.some((property) => property.publicId === filters.propertyId)) throw new AccessDeniedError();
+    const propertyIds = filters.propertyId ? [filters.propertyId] : scope ? [...scope] : undefined;
+
+    const toExclusive = filters.to ? new Date(`${filters.to}T00:00:00.000Z`) : undefined;
+    if (toExclusive) toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
+    const records = await prisma.complaint.findMany({
+      where: {
+        organization: { publicId: actor.organizationId },
+        ...(propertyIds ? { property: { publicId: { in: propertyIds } } } : {}),
+        ...(filters.category ? { category: filters.category } : {}),
+        ...(filters.status ? { status: filters.status } : {}),
+        ...(filters.from || toExclusive ? { createdAt: { ...(filters.from ? { gte: new Date(`${filters.from}T00:00:00.000Z`) } : {}), ...(toExclusive ? { lt: toExclusive } : {}) } } : {}),
+      },
+      select: {
+        publicId: true,
+        category: true,
+        title: true,
+        description: true,
+        status: true,
+        createdAt: true,
+        resolvedAt: true,
+        property: { select: { name: true } },
+        residentStay: { select: { resident: { select: { name: true } }, bed: { select: { label: true, room: { select: { number: true } } } } } },
+        assignedTo: { select: { name: true } },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    const rows: ComplaintReportRow[] = records.map((record) => ({
+      id: record.publicId,
+      category: record.category as ComplaintReportRow["category"],
+      title: record.title,
+      description: record.description,
+      status: record.status as ComplaintReportRow["status"],
+      propertyName: record.property.name,
+      residentName: record.residentStay.resident.name,
+      roomNumber: record.residentStay.bed.room.number,
+      bedLabel: record.residentStay.bed.label,
+      assignedToName: record.assignedTo?.name ?? null,
+      createdAt: record.createdAt,
+      resolvedAt: record.resolvedAt,
+    }));
+    return { properties, rows };
+  },
+
   async listForResident(organizationId, residentEmail) {
     const matches = await prisma.resident.findMany({ where: { organization: { publicId: organizationId }, email: residentEmail }, select: { id: true }, take: 2 });
     if (matches.length !== 1) return [];
@@ -152,6 +212,29 @@ export const prismaComplaintRepository: ComplaintRepository = {
         select: { id: true, publicId: true },
       });
       await tx.complaintEvent.create({ data: { complaintId: complaint.id, actorId: actor.id, eventType: "CREATED", toStatus: "OPEN", note: "Complaint submitted" } });
+      const recipients = await tx.organizationMembership.findMany({
+        where: {
+          organizationId: stay.organizationId,
+          status: "ACTIVE",
+          user: { status: "ACTIVE" },
+          OR: [
+            { roles: { some: { roleCode: "OWNER" } } },
+            { roles: { some: { roleCode: "MANAGER" } }, pgAssignments: { some: { propertyId: stay.propertyId, status: "ACTIVE" } } },
+          ],
+        },
+        select: { userId: true },
+      });
+      const recipientIds = [...new Set(recipients.map(({ userId }) => userId))];
+      await createNotifications(tx, recipientIds.map((userId) => ({
+        organizationId: stay.organizationId,
+        propertyId: stay.propertyId,
+        userId,
+        dedupeKey: `complaint-created:${complaint.publicId}`,
+        notificationType: "COMPLAINT_CREATED",
+        title: "New resident complaint",
+        message: `A resident submitted: ${input.title}.`,
+        actionUrl: `/org/${organizationId}/complaints`,
+      })));
       return complaint.publicId;
     });
   },

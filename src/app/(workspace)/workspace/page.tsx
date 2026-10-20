@@ -2,11 +2,13 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/infrastructure/auth/auth";
 import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
+import { isPlatformAdminIdentity } from "@/infrastructure/auth/platform-admin-access";
 import { workspaceAccess } from "@/infrastructure/auth/workspace-access";
 
 export default async function WorkspaceRedirectPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user.email) redirect("/login");
+  if (isPlatformAdminIdentity(session.user)) redirect("/platform-admin");
 
   const destination = await workspaceAccess.getDestination(session.user.email);
   if (!destination) redirect("/setup");

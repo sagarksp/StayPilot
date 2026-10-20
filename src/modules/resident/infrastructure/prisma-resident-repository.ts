@@ -20,6 +20,7 @@ import type {
 } from "../application/schemas";
 import type { RentTerms } from "@/modules/billing/application/schemas";
 import type { RecordSecurityDepositReceipt } from "@/modules/billing/application/schemas";
+import { formatAuditMoneyPaise, recordAuditEvent } from "@/modules/audit/application/events";
 
 function staySelect(asOfDate: string) {
   const currentDate = dateOnly(asOfDate);
@@ -184,6 +185,10 @@ function toReservationSummary(reservation: ActiveReservationRecord) {
 
 function dateOnly(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
+}
+
+function isoDate(value: Date) {
+  return value.toISOString().slice(0, 10);
 }
 
 function addMonths(value: Date, months: number) {
@@ -628,7 +633,7 @@ export const prismaResidentRepository: ResidentRepository = {
     await prisma.$transaction(async (tx) => {
       const [actor, stay] = await Promise.all([
         tx.user.findUnique({ where: { publicId: actorId }, select: { id: true } }),
-        tx.residentStay.findFirst({ where: { organization: { publicId: organizationId }, resident: { publicId: residentId }, publicId: stayId, status: "ACTIVE", ...(propertyIds ? { property: managerPropertyFilter(propertyIds) } : {}) }, select: { id: true, organizationId: true, propertyId: true, residentId: true, securityDepositAccount: { select: { id: true, requiredAmountPaise: true, ledgerVersion: true, transactions: { select: { amountPaise: true } } } } } }),
+        tx.residentStay.findFirst({ where: { organization: { publicId: organizationId }, resident: { publicId: residentId }, publicId: stayId, status: "ACTIVE", ...(propertyIds ? { property: managerPropertyFilter(propertyIds) } : {}) }, select: { id: true, publicId: true, organizationId: true, propertyId: true, residentId: true, securityDepositAccount: { select: { id: true, requiredAmountPaise: true, ledgerVersion: true, transactions: { select: { amountPaise: true } } } } } }),
       ]);
       if (!actor || !stay?.securityDepositAccount) throw new ResidentWorkflowError("STAY_NOT_ACTIVE");
       const account = stay.securityDepositAccount;
@@ -647,12 +652,22 @@ export const prismaResidentRepository: ResidentRepository = {
         transactionType: "RECEIPT", amountPaise: input.amountPaise,
         description: "Security deposit received", createdById: actor.id,
       } });
+      await recordAuditEvent(tx, {
+        organizationId: stay.organizationId,
+        propertyId: stay.propertyId,
+        actorUserPublicId: actorId,
+        actorName,
+        actionCode: "SECURITY_DEPOSIT_RECEIVED",
+        entityType: "RESIDENT_STAY",
+        entityPublicId: stay.publicId,
+        summary: `Recorded a security deposit receipt of ${formatAuditMoneyPaise(input.amountPaise)}.`,
+      });
     });
   },
 
   async transferSecurityDeposit(organizationId, actorId, input, propertyIds) {
     await prisma.$transaction(async (tx) => {
-      const actor = await tx.user.findUnique({ where: { publicId: actorId }, select: { id: true } });
+      const actor = await tx.user.findUnique({ where: { publicId: actorId }, select: { id: true, name: true } });
       if (!actor) throw new ResidentWorkflowError("DEPOSIT_TRANSFER_INVALID");
       const accountScope = (stayId: string) => ({
         organization: { publicId: organizationId },
@@ -712,16 +727,26 @@ export const prismaResidentRepository: ResidentRepository = {
           },
         ],
       });
+      await recordAuditEvent(tx, {
+        organizationId: source.organizationId,
+        propertyId: source.propertyId,
+        actorUserPublicId: actorId,
+        actorName: actor.name,
+        actionCode: "SECURITY_DEPOSIT_TRANSFERRED",
+        entityType: "SECURITY_DEPOSIT_TRANSFER",
+        entityPublicId: reference,
+        summary: `Transferred ${formatAuditMoneyPaise(input.amountPaise)} between resident stays. Reason: ${reason}`,
+      });
     });
   },
 
   async recordMoveOutNotice(organizationId, actorId, stayId, input: MoveOutNoticeInput, noticeDate, propertyIds, residentEmail) {
     await prisma.$transaction(async (tx) => {
       const [actor, stay] = await Promise.all([
-        tx.user.findUnique({ where: { publicId: actorId }, select: { id: true } }),
+        tx.user.findUnique({ where: { publicId: actorId }, select: { id: true, name: true } }),
         tx.residentStay.findFirst({
           where: { organization: { publicId: organizationId }, publicId: stayId, status: "ACTIVE", ...(propertyIds ? { property: managerPropertyFilter(propertyIds) } : {}), ...(residentEmail ? { resident: { email: residentEmail } } : {}) },
-          select: { id: true, organizationId: true, propertyId: true, startDate: true, lockInEndDate: true, property: { select: { settings: { select: { noticePeriodDays: true } } } } },
+        select: { id: true, publicId: true, organizationId: true, propertyId: true, startDate: true, lockInEndDate: true, property: { select: { settings: { select: { noticePeriodDays: true } } } } },
         }),
       ]);
       if (!actor || !stay) throw new ResidentWorkflowError("STAY_NOT_ACTIVE");
@@ -749,6 +774,16 @@ export const prismaResidentRepository: ResidentRepository = {
           lockInOverrideReason: lockInOverride ? input.lockInOverrideReason : null,
           createdById: actor.id,
         },
+      });
+      await recordAuditEvent(tx, {
+        organizationId: stay.organizationId,
+        propertyId: stay.propertyId,
+        actorUserPublicId: actorId,
+        actorName: actor.name,
+        actionCode: "MOVE_OUT_NOTICE_RECORDED",
+        entityType: "RESIDENT_STAY",
+        entityPublicId: stay.publicId,
+        summary: `Recorded a move-out request for ${isoDate(requestedCheckoutDate)}${lockInOverride ? " with a lock-in override" : ""}.`,
       });
     });
   },
@@ -925,6 +960,16 @@ export const prismaResidentRepository: ResidentRepository = {
         },
       });
       if (result.count !== 1) throw new ResidentWorkflowError("STAY_NOT_ACTIVE");
+      await recordAuditEvent(tx, {
+        organizationId: stay.organizationId,
+        propertyId: stay.propertyId,
+        actorUserPublicId: actorId,
+        actorName,
+        actionCode: "RESIDENT_CHECKED_OUT",
+        entityType: "RESIDENT_STAY",
+        entityPublicId: stay.publicId,
+        summary: `Completed resident checkout for ${isoDate(endDate)}.`,
+      });
     });
   },
 };

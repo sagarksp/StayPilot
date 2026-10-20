@@ -215,11 +215,11 @@ export default async function OwnerDashboardPage({
           <span>Operational tracking</span>
         </div>
         <div className={styles.checkpointsGrid}>
-          <CheckpointCard icon="flight_takeoff" label="Move-Outs" note="Resident move-out tracking is not available yet" />
+          <CheckpointCard icon="flight_takeoff" label="Move-Outs" note="Review move-out requests in resident profiles; no dashboard total yet" />
           <CheckpointCard icon="person_add" label="Upcoming Intakes" note="Active reservations across your properties" tone="green" value={numberFormat.format(reservations.activeCount)} />
-          <CheckpointCard icon="pending_actions" label="48-Hr Collection" note="Invoice due dates are not available yet" tone="gold" />
-          <CheckpointCard icon="build" label="Open Tickets" note="Maintenance tickets are not available yet" />
-          <CheckpointCard icon="bolt" label="Sub-meter Billing" note="Utility meter records are not available yet" tone="teal" />
+          <CheckpointCard icon="pending_actions" label="48-Hr Collection" note="48-hour invoice reminders are not tracked yet" tone="gold" />
+          <CheckpointCard icon="build" label="Open Tickets" note="Follow up on resident complaints; no dashboard total yet" />
+          <CheckpointCard icon="bolt" label="Sub-meter Billing" note="Manage meters and bills under Electricity; no dashboard total yet" tone="teal" />
         </div>
       </section>
 

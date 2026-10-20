@@ -5,7 +5,11 @@ group. Better Auth is configured in `src/infrastructure/auth/`; its catch-all
 route lives under `src/app/api/auth/`. Password reset uses Better Auth's
 single-use one-hour token and sends through Gmail SMTP when `GMAIL_SMTP_USER`
 and `GMAIL_SMTP_APP_PASSWORD` are configured. Reset requests return the same response whether an
-account exists or not, and a successful reset revokes active sessions. Manager
+account exists or not, and a successful reset revokes active sessions. Accounts
+must verify their email before password sign-in. Registration
+and invitation signup send one-hour verification links; set `GMAIL_SMTP_USER` and
+`GMAIL_SMTP_APP_PASSWORD` to deliver them. Verification returns invitees to the
+invitation they were accepting. Manager
 invitation acceptance uses a hashed, expiring token
 and requires the signed-in account email to match the invited address. Manager
 and resident invitations share the acceptance page; a resident invitation is

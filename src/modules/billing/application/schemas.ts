@@ -1,5 +1,33 @@
 import { z } from "zod";
 
+const reportDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}, "Choose a valid calendar date.");
+
+export const financeReportFilterSchema = z.object({
+  propertyId: z.string().uuid().optional().or(z.literal("")),
+  from: reportDate.optional().or(z.literal("")),
+  to: reportDate.optional().or(z.literal("")),
+}).refine((value) => !value.from || !value.to || value.from <= value.to, {
+  path: ["to"],
+  message: "The end date must be on or after the start date.",
+});
+
+export type FinanceReportFilters = z.infer<typeof financeReportFilterSchema>;
+
+export const depositReportFilterSchema = z.object({
+  propertyId: z.string().uuid().optional().or(z.literal("")),
+  from: reportDate.optional().or(z.literal("")),
+  to: reportDate.optional().or(z.literal("")),
+  transactionType: z.enum(["RECEIPT", "TRANSFER_IN", "TRANSFER_OUT", "DEDUCTION", "REFUND", "RENT_CREDIT"]).optional().or(z.literal("")),
+}).refine((value) => !value.from || !value.to || value.from <= value.to, {
+  path: ["to"],
+  message: "The end date must be on or after the start date.",
+});
+
+export type DepositReportFilters = z.infer<typeof depositReportFilterSchema>;
+
 export const rentTermsSchema = z.object({
   monthlyRent: z.string().trim().regex(/^\d{1,8}(?:\.\d{1,2})?$/, "Enter a rent amount with up to two decimal places."),
   billingCycleType: z.enum(["MOVE_IN_DAY", "FIXED_DAY"]).default("MOVE_IN_DAY"),

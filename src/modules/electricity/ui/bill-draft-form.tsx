@@ -21,7 +21,7 @@ type ReadingOption = Readonly<{
 
 const field = "min-h-10 w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900";
 const label = "grid min-w-0 gap-1 text-xs font-medium text-slate-600";
-const button = "min-h-10 rounded-lg bg-[#176e61] px-4 py-2 text-sm font-semibold text-white hover:bg-[#10564c]";
+const button = "min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]";
 const dateLabel = (value: string) => new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00.000Z`));
 function meterCoversPeriod(meter: MeterOption, periodStart: string, periodEnd: string) {
   if (periodStart && meter.installedOn && periodStart < meter.installedOn) return false;

@@ -50,7 +50,7 @@
 
 .livePill {
   gap: 0.45rem;
-  color: #0e3a43;
+  color: #1e3a8a;
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.11em;
@@ -83,7 +83,7 @@
   min-height: 2.8rem;
   gap: 0.65rem;
   padding: 0.45rem 0.75rem;
-  border: 1px solid #e8e8e4;
+  border: 1px solid #e2e8f0;
   border-radius: 0.65rem;
   background: #fff;
 }
@@ -120,9 +120,9 @@
   justify-content: center;
   gap: 0.55rem;
   padding: 0.65rem 1rem;
-  border: 1px solid #0e3a43;
+  border: 1px solid #1e3a8a;
   border-radius: 0.65rem;
-  background: #0e3a43;
+  background: #1e3a8a;
   color: #fff;
   font-size: 0.83rem;
   font-weight: 700;
@@ -131,7 +131,7 @@
 
 .primaryButton:hover {
   transform: translateY(-1px);
-  background: #0a2b32;
+  background: #172554;
 }
 
 .primaryButton:focus-visible,
@@ -157,7 +157,7 @@
 .metricCard {
   min-width: 0;
   padding: 0.9rem;
-  border: 1px solid #e8e8e4;
+  border: 1px solid #e2e8f0;
   border-radius: 0.85rem;
   background: #fff;
   box-shadow: 0 1px 2px rgb(15 23 42 / 3%), 0 4px 12px rgb(15 23 42 / 2%);
@@ -181,8 +181,8 @@
 .metricIcon {
   width: 1.65rem;
   height: 1.65rem;
-  background: #f4f4f1;
-  color: #0e3a43;
+  background: #f1f5f9;
+  color: #1e3a8a;
 }
 
 .metricIcon svg {
@@ -228,7 +228,7 @@
 .attentionPanel {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid #e8e8e4;
+  border: 1px solid #e2e8f0;
   border-radius: 0.95rem;
   background: #fff;
   box-shadow: 0 1px 2px rgb(15 23 42 / 3%), 0 4px 12px rgb(15 23 42 / 2%);
@@ -241,7 +241,7 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 1rem 1.1rem;
-  border-bottom: 1px solid #e8e8e4;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .sectionEyebrow {
@@ -275,7 +275,7 @@
   align-items: center;
   gap: 0.35rem;
   padding: 0.35rem 0;
-  color: #0e3a43;
+  color: #1e3a8a;
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -291,7 +291,7 @@
   min-width: 0;
   flex-direction: column;
   padding: 0.9rem;
-  border: 1px solid #e8e8e4;
+  border: 1px solid #e2e8f0;
   border-radius: 0.8rem;
   background: #fff;
   transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
@@ -412,7 +412,7 @@
   gap: 0.35rem;
   margin-top: auto;
   padding-top: 0.35rem;
-  color: #0e3a43;
+  color: #1e3a8a;
   font-size: 0.7rem;
   font-weight: 700;
 }
@@ -433,8 +433,8 @@
   height: 2.75rem;
   place-items: center;
   border-radius: 0.85rem;
-  background: #f4f4f1;
-  color: #0e3a43;
+  background: #f1f5f9;
+  color: #1e3a8a;
 }
 
 .emptyIcon svg {
@@ -471,7 +471,7 @@
   flex: none;
   padding: 0.27rem 0.5rem;
   border-radius: 999px;
-  background: #f4f4f1;
+  background: #f1f5f9;
   color: #475569;
   font-size: 0.62rem;
   font-weight: 700;
@@ -548,7 +548,7 @@
 .capacityCard {
   margin: 0.7rem 1.1rem 0;
   padding: 0.8rem;
-  border: 1px solid #e8e8e4;
+  border: 1px solid #e2e8f0;
   border-radius: 0.7rem;
   background: #fbfbfa;
 }
@@ -566,7 +566,7 @@
 }
 
 .capacityHeader strong {
-  color: #0e3a43;
+  color: #1e3a8a;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
@@ -583,7 +583,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #0e3a43;
+  background: #1e3a8a;
   transition: width 220ms ease;
 }
 
@@ -605,7 +605,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.85rem;
-  border: 1px solid #e8e8e4;
+  border: 1px solid #e2e8f0;
   border-radius: 0.8rem;
   background: #fff;
   box-shadow: 0 1px 2px rgb(15 23 42 / 3%), 0 4px 12px rgb(15 23 42 / 2%);
@@ -620,8 +620,8 @@
 .quickIcon {
   width: 2.2rem;
   height: 2.2rem;
-  background: #f4f4f1;
-  color: #0e3a43;
+  background: #f1f5f9;
+  color: #1e3a8a;
 }
 
 .quickIcon svg {
@@ -660,6 +660,15 @@
   height: 1rem;
   color: #94a3b8;
 }
+
+:global(html[data-theme="dark"]) .headingCopy h1 { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .headingCopy > p,
+:global(html[data-theme="dark"]) .headingMeta { color: #a8b4c7; }
+:global(html[data-theme="dark"]) .livePill { color: #93c5fd; }
+:global(html[data-theme="dark"]) .livePill > span { box-shadow: 0 0 0 3px #12382f; }
+:global(html[data-theme="dark"]) .periodCard { border-color: #3b4a63; background: #172033; }
+:global(html[data-theme="dark"]) .periodCard small { color: #a8b4c7; }
+:global(html[data-theme="dark"]) .periodCard strong { color: #e2e8f0; }
 
 @media (min-width: 640px) {
   .pageHeader {

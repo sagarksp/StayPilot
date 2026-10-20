@@ -49,10 +49,10 @@ export function ResidentInvitationCard({ organizationId, residentId, email }: Re
 
   return (
     <section className="surface-card p-5 sm:p-6" aria-labelledby="resident-invitation-heading">
-      <p className="text-sm font-semibold text-[#176e61]">RESIDENT ACCESS</p>
+      <p className="text-sm font-semibold text-[#2563eb]">RESIDENT ACCESS</p>
       <h2 className="mt-1 text-lg font-semibold" id="resident-invitation-heading">Resident portal invitation</h2>
       <p className="muted mt-2 text-sm">Send an activation link to {email}. Links are single-use and expire after seven days.</p>
-      <button className="mt-4 min-h-10 rounded-lg bg-[#176e61] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={pending} onClick={() => void issue()} type="button">
+      <button className="mt-4 min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={pending} onClick={() => void issue()} type="button">
         {pending ? "Creating invitation…" : "Create or resend activation link"}
       </button>
       {error ? <p className="mt-3 text-sm text-red-700" role="alert">{error}</p> : null}

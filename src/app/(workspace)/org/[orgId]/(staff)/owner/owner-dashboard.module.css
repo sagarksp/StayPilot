@@ -7,7 +7,7 @@
   --muted: #41484a;
   --outline: #71787a;
   --line: #e7ebf2;
-  --teal: #0e3a43;
+  --teal: #1e3a8a;
   --green: #00a875;
   --gold: #c28e38;
   display: grid;
@@ -20,7 +20,7 @@
 .dashboard * { box-sizing: border-box; }
 .dashboard a { color: inherit; text-decoration: none; }
 .dashboard a:focus-visible,
-.dashboard button:focus-visible { outline: 3px solid rgb(14 58 67 / 28%); outline-offset: 2px; }
+.dashboard button:focus-visible { outline: 3px solid rgb(37 99 235 / 28%); outline-offset: 2px; }
 
 .pageHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; padding: 1px 0 2px; }
 .headingCopy { min-width: 0; }
@@ -45,7 +45,7 @@
 .printButton:hover { background: var(--surface-low); }
 .printButton :global(.material-symbols-outlined) { color: var(--muted); font-size: 17px; }
 .primaryButton { background: var(--teal); color: #fff !important; box-shadow: 0 1px 3px rgb(17 28 45 / 12%); }
-.primaryButton:hover { background: #00242b; }
+.primaryButton:hover { background: #172554; }
 .primaryButton :global(.material-symbols-outlined) { font-size: 17px; }
 .secondaryButton { min-height: 33px; background: var(--surface-low); color: var(--ink) !important; }
 .secondaryButton:hover { background: var(--surface-high); }
@@ -230,6 +230,7 @@
 .accelerator small { margin-top: 3px; color: var(--muted); font-size: 8px; line-height: 1.35; }
 .acceleratorFooter { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px solid #edf0f4; color: var(--muted); font-size: 8px; }
 .acceleratorFooter strong { color: var(--green); font: 600 8px "JetBrains Mono", Consolas, monospace; }
+
 
 @media (max-width: 1380px) {
   .metricsGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

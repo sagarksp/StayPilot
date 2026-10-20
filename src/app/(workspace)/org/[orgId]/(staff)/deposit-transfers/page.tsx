@@ -40,7 +40,7 @@ export default async function DepositTransfersPage({
 
   return <section className="space-y-6">
     <header>
-      <p className="text-sm font-semibold text-[#176e61]">FINANCE</p>
+      <p className="text-sm font-semibold text-[#2563eb]">FINANCE</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Security deposit transfers</h1>
       <p className="muted mt-2 max-w-3xl leading-6">Move deposit balance between open stays in this organization. Every transfer creates paired, permanent ledger entries and needs a reason.</p>
     </header>
@@ -56,7 +56,7 @@ export default async function DepositTransfersPage({
         <label className="grid gap-1 text-sm font-medium">Transfer to<select className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm" name="destinationStayId" required defaultValue=""><option disabled value="">Choose a destination account</option>{destinations.map((account) => <option key={account.stayId} value={account.stayId}>{account.residentName} · {account.propertyName} · Room {account.roomNumber}, Bed {account.bedLabel} · Deposit remaining {money(account.requiredAmountPaise - account.balancePaise)}</option>)}</select></label>
         <label className="grid gap-1 text-sm font-medium">Amount (₹)<input className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm" inputMode="decimal" max="90000000" min="0.01" name="amount" placeholder="0.00" required step="0.01" type="number" /></label>
         <label className="grid gap-1 text-sm font-medium sm:col-span-2">Reason<textarea className="rounded-lg border border-slate-300 px-3 py-2 text-sm" maxLength={400} minLength={3} name="reason" placeholder="Explain why this deposit is being moved" required rows={3} /></label>
-        <div className="sm:col-span-2"><button className="min-h-11 rounded-lg bg-[#176e61] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#10564c]" type="submit">Transfer deposit</button></div>
+        <div className="sm:col-span-2"><button className="min-h-11 rounded-lg bg-[#2563eb] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Transfer deposit</button></div>
       </form> : <div className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">A transfer needs an open source account with a positive balance and an active destination account with deposit capacity. No eligible pair is available in your assigned properties.</div>}
     </section>
 

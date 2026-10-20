@@ -18,10 +18,14 @@ const shapes: Record<string, ReactNode> = {
   bolt: <path d="M13 2 4 14h7l-1 8 10-13h-7l1-7Z" />,
   report_problem: <><path d="M10.3 4.3 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4m0 4h.01" /></>,
   campaign: <><path d="M3 11v2a2 2 0 0 0 2 2h2l10 5V4L7 9H5a2 2 0 0 0-2 2Zm4 4 2 6h4l-2-4" /><path d="m20 9 2-2m-2 10 2 2" /></>,
+  notifications: <><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>,
   insights: <><path d="M3 3v18h18M7 14l4-4 3 3 6-7" /><path d="M17 6h3v3" /></>,
   manage_accounts: <><circle cx="9" cy="8" r="3" /><path d="M3 20v-1a6 6 0 0 1 12 0v1m4-12 1 .6v2.8l-1 .6-1.5-.8-1.5.8-1-.6V8.6l1-.6 1.5.8L19 8Z" /></>,
   tune: <><path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M2 14h4m4-6h4m4 8h4" /></>,
   chevron_right: <path d="m9 18 6-6-6-6" />,
+  more_horiz: <><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></>,
+  dark_mode: <><path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z" /><path d="M16.5 3v4m-2-2h4" /></>,
+  light_mode: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></>,
   arrow_drop_down: <path d="m7 10 5 5 5-5" />,
   search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 5 5" /></>,
   add: <path d="M12 5v14m-7-7h14" />,
@@ -39,6 +43,8 @@ const shapes: Record<string, ReactNode> = {
   table_rows: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M3 15h18M9 4v16" /></>,
   location_on: <><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></>,
   person: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
+  restaurant: <><path d="M3 3v7a4 4 0 0 0 8 0V3M7 3v18m10-8v8m0-8c2.2 0 4-1.8 4-4V3c-2.2 0-4 1.8-4 4v6Z" /></>,
+  support_agent: <><path d="M4 13v-2a8 8 0 0 1 16 0v2M4 13v4a2 2 0 0 0 2 2h2v-7H6a2 2 0 0 0-2 1Zm16 0v4a2 2 0 0 1-2 2h-2v-7h2a2 2 0 0 1 2 1ZM14 21h-2" /></>,
 };
 
 export function WorkspaceIcon({

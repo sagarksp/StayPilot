@@ -1,4 +1,4 @@
-const fieldClass = "min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 outline-none focus:border-[#176e61] focus:ring-2 focus:ring-[#176e61]/15";
+const fieldClass = "min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15";
 
 export function RentTermsFields() {
   return <>

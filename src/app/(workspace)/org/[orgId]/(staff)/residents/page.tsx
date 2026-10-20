@@ -59,7 +59,7 @@ export default async function ResidentsPage({
     <section className="space-y-7">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-semibold text-[#176e61]">PEOPLE &amp; OCCUPANCY</p>
+          <p className="text-sm font-semibold text-[#2563eb]">PEOPLE &amp; OCCUPANCY</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Residents</h1>
           <p className="muted mt-2 max-w-2xl leading-6">
             Manage resident contact records, current bed assignments, and stay history for properties you can access.
@@ -72,9 +72,9 @@ export default async function ResidentsPage({
         </div>
       </header>
 
-      <div className="flex flex-col justify-between gap-3 rounded-xl border border-[#c9ded6] bg-[#f1f7f4] p-4 sm:flex-row sm:items-center sm:px-5">
+      <div className="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:px-5">
         <p className="text-sm leading-6 text-slate-700">Expecting someone new? Reserve a bed first; their resident profile is created with the reservation.</p>
-        <Link className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-[#176e61] px-4 py-2 text-sm font-semibold text-white hover:bg-[#10564c]" href={`/org/${orgId}/reservations`}>Create reservation</Link>
+        <Link className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" href={`/org/${orgId}/reservations`}>Create reservation</Link>
       </div>
 
       {message ? <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="alert">{message}</p> : null}
@@ -85,7 +85,7 @@ export default async function ResidentsPage({
             <span className="block text-lg font-semibold">Move in a resident now</span>
             <span className="muted mt-1 block text-sm">Create the resident record and start their stay with an available bed.</span>
           </span>
-          <span aria-hidden="true" className="rounded-lg bg-[#176e61] px-4 py-2.5 text-sm font-semibold text-white">Start a stay</span>
+          <span aria-hidden="true" className="rounded-lg bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white">Start a stay</span>
         </summary>
         <div className="mt-5 border-t border-[#e2e8f0] pt-5">
           {availableBeds.length ? (
@@ -107,16 +107,16 @@ export default async function ResidentsPage({
               <RentTermsFields />
               <SecurityDepositTermsFields />
               <div className="flex items-end sm:col-span-2">
-                <button className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#176e61] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#10564c] sm:w-auto" type="submit">Create resident and start stay</button>
+                <button className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#2563eb] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8] sm:w-auto" type="submit">Create resident and start stay</button>
               </div>
             </form>
           ) : (
-            <div className="rounded-xl bg-[#f5f7f5] p-5">
+            <div className="rounded-xl bg-[#f5f7fb] p-5">
               <h2 className="font-semibold">No available beds</h2>
               <p className="muted mt-1 max-w-2xl text-sm leading-6">
                 Add beds in Property Inventory, then make sure the property, floor, room, and bed are active before assigning a resident.
               </p>
-              <Link className="mt-4 inline-flex rounded-lg border border-[#cbd5e1] bg-white px-4 py-2.5 text-sm font-semibold text-[#176e61]" href={`/org/${orgId}/properties`}>Open properties</Link>
+              <Link className="mt-4 inline-flex rounded-lg border border-[#cbd5e1] bg-white px-4 py-2.5 text-sm font-semibold text-[#2563eb]" href={`/org/${orgId}/properties`}>Open properties</Link>
             </div>
           )}
         </div>
@@ -128,7 +128,7 @@ export default async function ResidentsPage({
             <h2 className="text-lg font-semibold" id="resident-list-heading">Resident records</h2>
             <p className="muted mt-1 text-sm">{residents.length} {residents.length === 1 ? "resident" : "residents"} in your accessible properties</p>
           </div>
-          <span className="rounded-full bg-[#eaf4ef] px-3 py-1 text-xs font-semibold text-[#176e61]">Live records</span>
+          <span className="rounded-full bg-[#eaf4ef] px-3 py-1 text-xs font-semibold text-[#2563eb]">Live records</span>
         </header>
         {residents.length ? (
           <div className="grid gap-3 p-3 sm:p-4">
@@ -137,26 +137,26 @@ export default async function ResidentsPage({
               return (
                 <Link className="group grid gap-3 rounded-xl border border-[#e2e8f0] bg-white px-4 py-4 transition hover:border-[#c9ded6] hover:bg-[#f7faf8] sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center sm:px-5" href={`/org/${orgId}/residents/${resident.id}`} key={resident.id}>
                   <span className="min-w-0">
-                    <strong className="block truncate text-sm font-semibold group-hover:text-[#176e61]">{resident.name}</strong>
+                    <strong className="block truncate text-sm font-semibold group-hover:text-[#2563eb]">{resident.name}</strong>
                     <span className="muted mt-1 block truncate text-xs">{resident.phone}</span>
                   </span>
                   <span className="min-w-0 text-sm">
                     {stay ? <><strong className="block truncate font-medium">{stay.propertyName}</strong><span className="muted mt-1 block truncate text-xs">{stay.floorName} · Room {stay.roomNumber} · {stay.bedLabel}</span></> : <span className="muted">No recorded stay</span>}
                   </span>
                   <span className="text-sm">
-                    {resident.currentStay ? <><span className="inline-flex rounded-full bg-[#eaf5ef] px-2.5 py-1 text-xs font-semibold text-[#256b4c]">Currently staying</span><span className="muted mt-1 block text-xs">Since {formatDate(resident.currentStay.startDate)}</span>{resident.currentStay.rent ? <span className="muted mt-1 block text-xs">Rent {formatCurrency(resident.currentStay.rent.amountPaise)} / month</span> : null}</> : resident.currentReservation ? <><span className="inline-flex rounded-full bg-[#fff4df] px-2.5 py-1 text-xs font-semibold text-[#8a5a00]">Reserved · move-in pending</span><span className="muted mt-1 block text-xs">Bed held at {resident.currentReservation.propertyName}</span></> : <><span className="inline-flex rounded-full bg-[#f1f3f2] px-2.5 py-1 text-xs font-semibold text-[#596661]">Checked out</span><span className="muted mt-1 block text-xs">{stay?.endDate ? `Ended ${formatDate(stay.endDate)}` : "No active bed assignment"}</span></>}
+                    {resident.currentStay ? <><span className="inline-flex rounded-full bg-[#eaf5ef] px-2.5 py-1 text-xs font-semibold text-[#256b4c]">Currently staying</span><span className="muted mt-1 block text-xs">Since {formatDate(resident.currentStay.startDate)}</span>{resident.currentStay.rent ? <span className="muted mt-1 block text-xs">Rent {formatCurrency(resident.currentStay.rent.amountPaise)} / month</span> : null}</> : resident.currentReservation ? <><span className="inline-flex rounded-full bg-[#fff4df] px-2.5 py-1 text-xs font-semibold text-[#8a5a00]">Reserved · move-in pending</span><span className="muted mt-1 block text-xs">Bed held at {resident.currentReservation.propertyName}</span></> : <><span className="inline-flex rounded-full bg-[#f1f3f2] px-2.5 py-1 text-xs font-semibold text-[#53647e]">Checked out</span><span className="muted mt-1 block text-xs">{stay?.endDate ? `Ended ${formatDate(stay.endDate)}` : "No active bed assignment"}</span></>}
                   </span>
-                  <span aria-hidden="true" className="text-sm font-semibold text-[#176e61]">View <span>→</span></span>
+                  <span aria-hidden="true" className="text-sm font-semibold text-[#2563eb]">View <span>→</span></span>
                 </Link>
               );
             })}
           </div>
         ) : (
           <div className="px-5 py-12 text-center sm:px-6">
-            <WorkspaceIcon className="material-symbols-outlined text-4xl text-[#176e61]" name="groups" />
+            <WorkspaceIcon className="material-symbols-outlined text-4xl text-[#2563eb]" name="groups" />
             <h3 className="mt-3 font-semibold">No residents recorded yet</h3>
             <p className="muted mx-auto mt-1 max-w-md text-sm leading-6">Create a reservation for an incoming resident, or start a stay now for someone who has already arrived.</p>
-            <Link className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-[#176e61] px-4 py-2 text-sm font-semibold text-white hover:bg-[#10564c]" href={`/org/${orgId}/reservations`}>Create reservation</Link>
+            <Link className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" href={`/org/${orgId}/reservations`}>Create reservation</Link>
           </div>
         )}
       </section>
@@ -164,7 +164,7 @@ export default async function ResidentsPage({
   );
 }
 
-const inputClass = "min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 outline-none focus:border-[#176e61] focus:ring-2 focus:ring-[#176e61]/15";
+const inputClass = "min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15";
 
 function Field({ label, name, placeholder, required = false, type = "text", defaultValue }: Readonly<{
   label: string;

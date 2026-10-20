@@ -1,7 +1,7 @@
 import { AccessDeniedError, type OrganizationActor } from "@/modules/property/domain/inventory";
 import { z } from "zod";
 import type { ReservationRepository } from "./repository";
-import { createReservationSchema, type CreateReservationForm } from "./schemas";
+import { createReservationSchema, reservationReportFilterSchema, type CreateReservationForm } from "./schemas";
 import { rentTermsSchema, securityDepositTermsSchema, type RentTermsInput, type SecurityDepositTermsInput } from "@/modules/billing/application/schemas";
 import { ReservationWorkflowError } from "../domain/reservation";
 
@@ -17,6 +17,13 @@ function today(timezone: string) {
 export function createReservationUseCases(repository: ReservationRepository) {
   return {
     async listReservations(actor: OrganizationActor) { assertStaff(actor); return repository.listReservations(actor.organizationId, propertyScope(actor)); },
+    async getReport(actor: OrganizationActor, input: unknown) {
+      assertStaff(actor);
+      const filters = reservationReportFilterSchema.parse(input);
+      const report = await repository.getReport(actor.organizationId, propertyScope(actor), filters);
+      if (filters.propertyId && !report.properties.some((property) => property.publicId === filters.propertyId)) throw new AccessDeniedError();
+      return report;
+    },
     async listCandidates(actor: OrganizationActor) { assertStaff(actor); return repository.listCandidates(actor.organizationId, propertyScope(actor)); },
     async getOverview(actor: OrganizationActor) { assertStaff(actor); return repository.getOverview(actor.organizationId, today(actor.organizationTimezone), propertyScope(actor)); },
     async expireReservations(actor: OrganizationActor) { assertStaff(actor); return repository.expireReservations(actor.organizationId, today(actor.organizationTimezone), propertyScope(actor)); },

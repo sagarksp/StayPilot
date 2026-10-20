@@ -3,7 +3,7 @@ import { AccessDeniedError } from "@/modules/property/domain/inventory";
 import { complaintUseCases } from "@/modules/complaint/application";
 import { ComplaintAttachmentError, getComplaintAttachmentDownloadUrl } from "@/modules/complaint/infrastructure/attachments";
 
-export async function GET(_request: Request, { params }: Readonly<{ params: Promise<{ orgId: string; complaintId: string; attachmentId: string }> }>) {
+export async function GET(request: Request, { params }: Readonly<{ params: Promise<{ orgId: string; complaintId: string; attachmentId: string }> }>) {
   const { orgId, complaintId, attachmentId } = await params;
   const actor = await getOrganizationActor(orgId);
   if (!actor) return Response.json({ error: "UNAUTHENTICATED" }, { status: 401 });
@@ -17,7 +17,8 @@ export async function GET(_request: Request, { params }: Readonly<{ params: Prom
     throw error;
   }
   try {
-    const url = await getComplaintAttachmentDownloadUrl(complaintId, attachmentId);
+    const inline = new URL(request.url).searchParams.get("preview") === "1";
+    const url = await getComplaintAttachmentDownloadUrl(complaintId, attachmentId, inline);
     return new Response(null, { status: 302, headers: { Location: url, "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer" } });
   } catch (error) {
     if (error instanceof ComplaintAttachmentError && error.code === "ATTACHMENT_NOT_FOUND") return Response.json({ error: error.code }, { status: 404 });

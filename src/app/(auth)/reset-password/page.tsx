@@ -11,11 +11,11 @@ export default async function ResetPasswordPage({
   return (
     <main className="mx-auto flex min-h-screen max-w-lg items-center px-6 py-12">
       <section className="surface-card w-full p-8 md:p-10">
-        <p className="text-sm font-semibold text-[#176e61]">StayPilot</p>
+        <p className="text-sm font-semibold text-[#2563eb]">StayPilot</p>
         <h1 className="mt-4 text-3xl font-semibold">Choose a new password</h1>
         <p className="muted mt-3 leading-7">Use at least 8 characters. This will sign out your other StayPilot sessions.</p>
         <PasswordResetForm invalidLink={error === "INVALID_TOKEN"} token={token} />
-        <p className="muted mt-6 text-center text-sm">Need a different link? <Link className="font-semibold text-[#176e61] hover:underline" href="/forgot-password">Request a password reset</Link></p>
+        <p className="muted mt-6 text-center text-sm">Need a different link? <Link className="font-semibold text-[#2563eb] hover:underline" href="/forgot-password">Request a password reset</Link></p>
       </section>
     </main>
   );

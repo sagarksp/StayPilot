@@ -42,6 +42,21 @@ export type ComplaintSummary = Readonly<{
   attachments: readonly ComplaintAttachmentSummary[];
 }>;
 
+export type ComplaintReportRow = Readonly<{
+  id: string;
+  category: ComplaintCategory;
+  title: string;
+  description: string;
+  status: ComplaintStatus;
+  propertyName: string;
+  residentName: string;
+  roomNumber: string;
+  bedLabel: string;
+  assignedToName: string | null;
+  createdAt: Date;
+  resolvedAt: Date | null;
+}>;
+
 export class ComplaintWorkflowError extends Error {
   constructor(readonly code: "COMPLAINT_NOT_FOUND" | "STAY_NOT_ACTIVE" | "INVALID_STATUS_TRANSITION" | "ASSIGNEE_NOT_ALLOWED" | "RESOLUTION_NOTE_REQUIRED") {
     super(code);

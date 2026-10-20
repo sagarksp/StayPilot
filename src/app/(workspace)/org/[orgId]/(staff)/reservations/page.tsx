@@ -6,7 +6,7 @@ import { cancelReservationAction, createReservationAction, moveInReservationActi
 import { RentTermsFields } from "@/modules/billing/ui/rent-terms-fields";
 import { SecurityDepositTermsFields } from "@/modules/billing/ui/security-deposit-terms-fields";
 
-const inputClass = "min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 outline-none focus:border-[#176e61] focus:ring-2 focus:ring-[#176e61]/15";
+const inputClass = "min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15";
 const formatDate = (date: Date) => new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
 
 function todayInTimezone(timezone: string) {
@@ -56,7 +56,7 @@ export default async function ReservationsPage({ params, searchParams }: Readonl
     <section className="space-y-7">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-semibold text-[#176e61]">BOOKINGS &amp; OCCUPANCY</p>
+          <p className="text-sm font-semibold text-[#2563eb]">BOOKINGS &amp; OCCUPANCY</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Reservations</h1>
           <p className="muted mt-2 max-w-2xl leading-6">Reserve an available bed for a new or returning resident. A reservation holds the bed; confirming move-in starts the resident stay.</p>
         </div>
@@ -71,7 +71,7 @@ export default async function ReservationsPage({ params, searchParams }: Readonl
       <details className="surface-card p-5 sm:p-6" open={Boolean(alert) || overview.activeCount === 0}>
         <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
           <span><span className="block text-lg font-semibold">Create a reservation</span><span className="muted mt-1 block text-sm">Choose a resident and the dates they need a bed.</span></span>
-          <span className="rounded-lg bg-[#176e61] px-4 py-2.5 text-sm font-semibold text-white">New reservation</span>
+          <span className="rounded-lg bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white">New reservation</span>
         </summary>
         <div className="mt-5 border-t border-[#e2e8f0] pt-5">
           {candidates.beds.length ? (
@@ -89,7 +89,7 @@ export default async function ReservationsPage({ params, searchParams }: Readonl
                   <p className="muted text-sm sm:col-span-2">To add a new resident, leave the selector set to “New resident” and enter their name and phone number.</p>
                 </>
               ) : (
-                <div className="rounded-lg bg-[#f5f7f5] p-4 text-sm sm:col-span-2">
+                <div className="rounded-lg bg-[#f5f7fb] p-4 text-sm sm:col-span-2">
                   <strong className="block">New resident</strong>
                   <span className="muted mt-1 block">A resident profile will be created when you save this reservation.</span>
                 </div>
@@ -116,14 +116,14 @@ export default async function ReservationsPage({ params, searchParams }: Readonl
                 <textarea className={`${inputClass} min-h-24 py-3`} id="notes" name="notes" maxLength={2000} />
               </label>
               <div className="sm:col-span-2">
-              <button className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#176e61] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#10564c]" type="submit">Save reservation</button>
+              <button className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#2563eb] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Save reservation</button>
               </div>
             </form>
           ) : (
-            <div className="rounded-xl bg-[#f5f7f5] p-5">
+            <div className="rounded-xl bg-[#f5f7fb] p-5">
               <h2 className="font-semibold">No beds are available to reserve</h2>
               <p className="muted mt-1 max-w-2xl text-sm leading-6">Add an active bed or check whether a current stay or reservation already uses the beds in your assigned properties.</p>
-              <Link className="mt-4 inline-flex min-h-10 items-center rounded-lg border border-[#cbd5e1] bg-white px-4 py-2 text-sm font-semibold text-[#176e61]" href={`/org/${orgId}/properties`}>Review properties</Link>
+              <Link className="mt-4 inline-flex min-h-10 items-center rounded-lg border border-[#cbd5e1] bg-white px-4 py-2 text-sm font-semibold text-[#2563eb]" href={`/org/${orgId}/properties`}>Review properties</Link>
             </div>
           )}
         </div>
@@ -154,7 +154,7 @@ function ReservationList({ title, items, orgId, today }: Readonly<{ title: strin
             return (
               <article className="grid gap-4 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-6" key={item.id}>
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{item.residentName}</h3><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.status === "ACTIVE" ? "bg-[#eaf4ef] text-[#176e61]" : "bg-slate-100 text-slate-700"}`}>{statusLabel(item.status)}</span></div>
+                  <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{item.residentName}</h3><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.status === "ACTIVE" ? "bg-[#eaf4ef] text-[#2563eb]" : "bg-slate-100 text-slate-700"}`}>{statusLabel(item.status)}</span></div>
                   <p className="muted mt-1 text-sm">{item.residentPhone}{item.residentEmail ? ` · ${item.residentEmail}` : ""}</p>
                   <p className="mt-3 text-sm font-medium">{item.bed.propertyName} · {item.bed.floorName} · Room {item.bed.roomNumber} · {item.bed.label}</p>
                   <p className="muted mt-1 text-sm">{formatDate(item.reservationStartDate)} – {formatDate(item.reservationEndDate)}{item.expectedMoveInDate ? ` · Expected move-in ${formatDate(item.expectedMoveInDate)}` : ""}</p>
@@ -170,7 +170,7 @@ function ReservationList({ title, items, orgId, today }: Readonly<{ title: strin
                         <input className={`${inputClass} min-h-10`} aria-label={`Move-in date for ${item.residentName}`} name="moveInDate" type="date" min={item.reservationStartDate.toISOString().slice(0, 10)} max={today} defaultValue={today} required />
                         <RentTermsFields />
                         <SecurityDepositTermsFields />
-                        <button className="min-h-10 rounded-lg bg-[#176e61] px-3 text-sm font-semibold text-white hover:bg-[#10564c]" type="submit">Confirm move-in</button>
+                        <button className="min-h-10 rounded-lg bg-[#2563eb] px-3 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Confirm move-in</button>
                       </form>
                     ) : <p className="max-w-52 text-sm text-slate-600">Move-in can be recorded from {formatDate(item.reservationStartDate)}.</p>}
                     <details className="text-sm">

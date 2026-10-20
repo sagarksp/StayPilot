@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { WorkspaceIcon } from "@/components/ui/workspace-icon";
 import { SignOutButton } from "@/modules/auth/ui/sign-out-button";
 import type { OrganizationActor } from "@/modules/property/domain/inventory";
 import styles from "./staff-shell.module.css";
+import { NotificationBell } from "./notification-bell";
+import { HeaderTools } from "./header-tools";
 
 const navigation = [
   {
@@ -25,6 +28,7 @@ const navigation = [
     title: "Operations",
     links: [
       { href: "complaints", label: "Complaints", icon: "campaign" },
+      { href: "notices", label: "Notices", icon: "campaign" },
       { href: "food", label: "Food", icon: "restaurant" },
       { href: "electricity", label: "Electricity", icon: "bolt" },
     ],
@@ -36,6 +40,7 @@ const navigation = [
       { href: "payments", label: "Payments", icon: "payments" },
       { href: "deposit-transfers", label: "Deposit transfers", icon: "account_balance_wallet" },
       { href: "reports/electricity", label: "Reports", icon: "insights" },
+      { href: "audit", label: "Audit log", icon: "history" },
     ],
   },
 ] as const;
@@ -49,6 +54,7 @@ export function StaffShell({
   actor,
 }: Readonly<{ children: ReactNode; actor: OrganizationActor }>) {
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const workspaceRoot = `/org/${actor.organizationId}`;
 
   return (
@@ -72,30 +78,39 @@ export function StaffShell({
           </div>
         </div>
 
-        <nav aria-label="Manager workspace" className={styles.navigation}>
-          {navigation.map((section) => (
-            <section className={styles.navigationSection} key={section.title}>
-              <h2>{section.title}</h2>
-              <div className={styles.navigationLinks}>
-                {section.links.map((item) => {
-                  const href = `${workspaceRoot}/${item.href}`;
-                  const selected = item.href === "manager"
-                    ? pathname === href
-                    : pathname === href || pathname.startsWith(`${href}/`);
-                  const className = [styles.navigationLink, selected ? styles.navigationLinkActive : ""]
-                    .filter(Boolean)
-                    .join(" ");
+        <nav aria-label="Manager workspace" className={`${styles.navigation} ${mobileMenuOpen ? styles.navigationOpen : ""}`} id="manager-workspace-menu">
+          <button aria-controls="manager-workspace-menu-list" aria-expanded={mobileMenuOpen} className={styles.mobileMenuToggle} onClick={() => setMobileMenuOpen(true)} type="button">
+            <WorkspaceIcon name="table_rows" />Menu
+          </button>
+          <div className={styles.mobileMenuHeader}>
+            <strong>Manager workspace</strong>
+            <button aria-label="Close manager workspace menu" className={styles.mobileMenuClose} onClick={() => setMobileMenuOpen(false)} type="button">Close</button>
+          </div>
+          <div id="manager-workspace-menu-list">
+            {navigation.map((section) => (
+              <section className={styles.navigationSection} key={section.title}>
+                <h2>{section.title}</h2>
+                <div className={styles.navigationLinks}>
+                  {section.links.map((item) => {
+                    const href = `${workspaceRoot}/${item.href}`;
+                    const selected = item.href === "manager"
+                      ? pathname === href
+                      : pathname === href || pathname.startsWith(`${href}/`);
+                    const className = [styles.navigationLink, selected ? styles.navigationLinkActive : ""]
+                      .filter(Boolean)
+                      .join(" ");
 
-                  return (
-                    <Link aria-current={selected ? "page" : undefined} className={className} href={href} key={item.href}>
-                      <WorkspaceIcon name={item.icon} />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                    return (
+                      <Link aria-current={selected ? "page" : undefined} className={className} href={href} key={item.href} onClick={() => setMobileMenuOpen(false)}>
+                        <WorkspaceIcon name={item.icon} />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
         </nav>
 
         <div className={styles.accountBlock}>
@@ -118,6 +133,8 @@ export function StaffShell({
             <span className={styles.topbarDivider}>/</span>
             <span className={styles.topbarSection}>Operations</span>
           </div>
+          <NotificationBell organizationId={actor.organizationId} />
+          <div className={styles.topbarTools}><HeaderTools /></div>
           <div className={styles.topbarAccount}>
             <span className={styles.topbarGreeting}>Signed in as</span>
             <strong>{actor.userName}</strong>

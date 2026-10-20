@@ -84,7 +84,7 @@ export async function createComplaintAttachment(input: {
   }
 }
 
-export async function getComplaintAttachmentDownloadUrl(complaintId: string, attachmentId: string) {
+export async function getComplaintAttachmentDownloadUrl(complaintId: string, attachmentId: string, inline = false) {
   const { bucket: targetBucket, s3: client } = storage();
   const attachment = await prisma.complaintAttachment.findFirst({
     where: { publicId: attachmentId, complaint: { publicId: complaintId } },
@@ -95,7 +95,7 @@ export async function getComplaintAttachmentDownloadUrl(complaintId: string, att
     Bucket: targetBucket,
     Key: attachment.objectKey,
     ResponseContentType: attachment.contentType,
-    ResponseContentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(attachment.originalName)}`,
+    ResponseContentDisposition: `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(attachment.originalName)}`,
     ResponseCacheControl: "private, no-store",
   });
   return getSignedUrl(client, command, { expiresIn: 60 });

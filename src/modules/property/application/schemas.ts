@@ -37,6 +37,16 @@ export const propertyStayPolicySchema = z.object({
   lockInMonths: z.coerce.number().int().min(0).max(120),
 });
 
+export const occupancyReportFilterSchema = z.object({
+  propertyId: z.string().uuid().optional().or(z.literal("")),
+  asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  }, "Choose a valid report date."),
+});
+
+export type OccupancyReportFilters = z.infer<typeof occupancyReportFilterSchema>;
+
 export type CreatePropertyInput = z.infer<typeof createPropertySchema>;
 export type CreateFloorInput = z.infer<typeof createFloorSchema>;
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;

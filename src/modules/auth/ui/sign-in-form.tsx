@@ -9,6 +9,23 @@ const authClient = createAuthClient();
 export function SignInForm({ callbackURL = "/workspace" }: Readonly<{ callbackURL?: string }>) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
+  const [verificationSent, setVerificationSent] = useState(false);
+
+  async function resendVerification() {
+    if (!verificationEmail) return;
+    setPending(true);
+    setError(null);
+    try {
+      const result = await authClient.sendVerificationEmail({ email: verificationEmail, callbackURL });
+      if (result.error) setError("We couldn't resend the verification email. Wait a moment and try again.");
+      else setVerificationSent(true);
+    } catch {
+      setError("We couldn't reach StayPilot. Check your connection and try again.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,7 +41,10 @@ export function SignInForm({ callbackURL = "/workspace" }: Readonly<{ callbackUR
       });
 
       if (result.error) {
-        if (result.error.code === "INVALID_ORIGIN" || result.error.code === "MISSING_OR_NULL_ORIGIN") {
+        if (result.error.code === "EMAIL_NOT_VERIFIED") {
+          setVerificationEmail(String(form.get("email") ?? "").trim());
+          setError("Verify your email before signing in. We sent a fresh verification link if this account needs one.");
+        } else if (result.error.code === "INVALID_ORIGIN" || result.error.code === "MISSING_OR_NULL_ORIGIN") {
           setError("The sign-in page is using a different address than the app configuration. Open StayPilot using the host configured in APP_URL.");
         } else if (result.error.status === 429) {
           setError("There have been too many sign-in attempts. Wait a minute, then try again.");
@@ -49,7 +69,7 @@ export function SignInForm({ callbackURL = "/workspace" }: Readonly<{ callbackUR
         <span>Email</span>
         <input
           autoComplete="email"
-          className="min-h-11 w-full rounded-lg border border-[#cfdad5] bg-white px-3 text-base outline-none focus:border-[#176e61] focus:ring-2 focus:ring-[#176e61]/15"
+          className="min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 text-base outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15"
           id="email"
           name="email"
           required
@@ -60,7 +80,7 @@ export function SignInForm({ callbackURL = "/workspace" }: Readonly<{ callbackUR
         <span>Password</span>
         <input
           autoComplete="current-password"
-          className="min-h-11 w-full rounded-lg border border-[#cfdad5] bg-white px-3 text-base outline-none focus:border-[#176e61] focus:ring-2 focus:ring-[#176e61]/15"
+          className="min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 text-base outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15"
           id="password"
           name="password"
           required
@@ -68,11 +88,12 @@ export function SignInForm({ callbackURL = "/workspace" }: Readonly<{ callbackUR
         />
       </label>
       <p className="-mt-2 text-right text-sm">
-        <Link className="font-semibold text-[#176e61] hover:underline" href="/forgot-password">Forgot password?</Link>
+        <Link className="font-semibold text-[#2563eb] hover:underline" href="/forgot-password">Forgot password?</Link>
       </p>
       {error ? <p className="text-sm text-red-700" role="alert">{error}</p> : null}
+      {verificationEmail ? <div className="space-y-2"><button className="text-sm font-semibold text-[#2563eb] underline disabled:opacity-60" disabled={pending} onClick={() => void resendVerification()} type="button">{pending ? "Sending link..." : "Resend verification email"}</button>{verificationSent ? <p className="text-sm text-slate-600" role="status">If the account still needs verification, a fresh link has been sent.</p> : null}</div> : null}
       <button
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#176e61] px-4 py-2 text-sm font-semibold text-white hover:bg-[#10564c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#176e61] disabled:cursor-wait disabled:opacity-60"
+        className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb] disabled:cursor-wait disabled:opacity-60"
         disabled={pending}
         type="submit"
       >

@@ -1,0 +1,33 @@
+.page { display: grid; gap: 24px; color: #111827; }
+.heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.eyebrow { margin: 0; color: #8a596f; font-size: 10px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+.heading h1 { margin: 6px 0 0; font: 700 clamp(25px, 3vw, 34px)/1.15 "Plus Jakarta Sans", Inter, sans-serif; letter-spacing: -.035em; }
+.heading > div > p:last-child { margin: 7px 0 0; color: #64748b; font-size: 13px; line-height: 1.5; }
+.readOnly { display: inline-flex; flex: none; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid #e8d8e0; border-radius: 999px; background: #fbf6f8; color: #674454; font-size: 10px; font-weight: 700; }
+.readOnly > span,.status > span { width: 7px; height: 7px; border-radius: 50%; background: #a14a37; }
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.metric,.directory { min-width: 0; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgb(15 23 42 / 3%); }
+.metric { display: grid; gap: 6px; padding: 16px; }
+.metric > span { color: #64748b; font-size: 10px; font-weight: 650; }
+.metric > strong { color: #1f2937; font: 700 26px/1.1 "Plus Jakarta Sans", Inter, sans-serif; font-variant-numeric: tabular-nums; }
+.metric > small { color: #94a3b8; font-size: 9px; line-height: 1.45; }
+.directory { overflow: hidden; }
+.directory > header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 17px 18px; border-bottom: 1px solid #e2e8f0; }
+.directory > header h2 { margin: 4px 0 0; font: 650 17px/1.3 "Plus Jakarta Sans", Inter, sans-serif; }
+.directory > header > span { color: #64748b; font-size: 10px; }
+.tableWrap { overflow-x: auto; }
+.tableWrap table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; }
+.tableWrap th,.tableWrap td { padding: 12px 14px; border-bottom: 1px solid #f0f0ed; color: #475569; font-size: 10px; }
+.tableWrap thead th { background: #fafaf8; color: #64748b; font-size: 9px; font-weight: 700; }
+.tableWrap tbody tr:last-child th,.tableWrap tbody tr:last-child td { border-bottom: 0; }
+.tableWrap tbody th { color: #1e293b; font-weight: 650; }
+.tableWrap tbody th span,.tableWrap tbody th small { display: block; }
+.tableWrap tbody th small { margin-top: 4px; color: #94a3b8; font: 400 8px "JetBrains Mono", monospace; }
+.status { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: 9px; font-weight: 700; }
+.statusActive { background: #ecfdf5; color: #047857; }
+.statusActive > span { background: #059669; }
+.statusOther > span { background: #d97706; }
+.empty { margin: 0; padding: 24px 18px; color: #64748b; font-size: 12px; }
+.note { margin: 0; padding: 12px 18px; border-top: 1px solid #e2e8f0; background: #fafaf8; color: #64748b; font-size: 10px; line-height: 1.5; }
+@media (max-width: 760px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .heading { align-items: flex-start; flex-direction: column; } .metrics { gap: 8px; } .metric { padding: 12px; } .metric > strong { font-size: 22px; } }

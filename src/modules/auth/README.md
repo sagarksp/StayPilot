@@ -12,7 +12,13 @@ or attach the organization's resident membership on acceptance. Configure
 `APP_URL` to match the browser origin; switching between `localhost` and
 `127.0.0.1` loses the host-scoped sign-in cookie. Password reset emails use
 Gmail SMTP when configured; reset tokens expire after one hour and password changes
-revoke existing sessions. Organization owners can enable or disable owner and manager memberships;
+revoke existing sessions.
+Email verification is required before password sign-in. New registrations and
+invitation signups receive a one-hour verification link. Set `GMAIL_SMTP_USER`
+and `GMAIL_SMTP_APP_PASSWORD`; without delivery configured, users cannot finish
+account activation. Verification returns users to workspace setup or the
+invitation they were accepting.
+Organization owners can enable or disable owner and manager memberships;
 the final active owner is protected inside the membership update transaction.
 Resending an invitation replaces its token, so only the most recently issued
 link remains valid. Acceptance distinguishes an unauthenticated request from an

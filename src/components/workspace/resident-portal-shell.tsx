@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { WorkspaceIcon } from "@/components/ui/workspace-icon";
 import type { ReactNode } from "react";
 import { SignOutButton } from "@/modules/auth/ui/sign-out-button";
+import styles from "./resident-portal-shell.module.css";
+import { NotificationBell } from "./notification-bell";
+import { HeaderTools } from "./header-tools";
 
 export function ResidentPortalShell({
   children,
@@ -8,24 +12,26 @@ export function ResidentPortalShell({
   organizationName,
 }: Readonly<{ children: ReactNode; orgId: string; organizationName: string }>) {
   return (
-    <div className="min-h-screen bg-[#f7f9f8]">
-      <header className="border-b border-[#dce4e0] bg-white">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <Link className="text-lg font-bold tracking-tight text-[#176e61]" href="/">
-              StayPilot
-            </Link>
-            <p className="mt-1 text-xs text-[#63716e]">{organizationName} · Resident portal</p>
-          </div>
-          <nav aria-label="Resident portal" className="flex flex-wrap gap-1">
-            <Link className="portal-link bg-[#e9f2ef] text-[#10564c]" href={`/org/${orgId}/resident`}>
-              Home
-            </Link>
-            <SignOutButton className="portal-link cursor-pointer border-0 bg-transparent text-sm disabled:cursor-wait disabled:opacity-60" />
+    <div className={styles.shell}>
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <Link aria-label="StayPilot resident home" className={styles.brandBlock} href={`/org/${orgId}/resident`}>
+            <span className={styles.brandMark}><WorkspaceIcon name="domain" /></span>
+            <span className={styles.brandCopy}><span className={styles.brandName}>StayPilot</span><span className={styles.organization}>{organizationName} · Resident Hub</span></span>
+          </Link>
+          <nav aria-label="Resident portal" className={styles.desktopNav}>
+            <Link className={`${styles.navLink} ${styles.navLinkActive}`} href={`/org/${orgId}/resident`}><WorkspaceIcon name="domain" />Home</Link>
+            <Link className={styles.navLink} href={`/org/${orgId}/resident#invoices-heading`}><WorkspaceIcon name="receipt_long" />Bills</Link>
+            <Link className={styles.navLink} href={`/org/${orgId}/resident#food-heading`}><WorkspaceIcon name="restaurant" />Food</Link>
+            <Link className={styles.navLink} href={`/org/${orgId}/resident#notices-heading`}><WorkspaceIcon name="campaign" />Notices</Link>
+            <Link className={styles.navLink} href={`/org/${orgId}/resident#support-heading`}><WorkspaceIcon name="support_agent" />Support</Link>
           </nav>
+          <NotificationBell organizationId={orgId} />
+          <HeaderTools />
+          <SignOutButton className={styles.signOut} />
         </div>
       </header>
-      <main className="mx-auto w-full max-w-5xl px-5 py-8 md:py-10">{children}</main>
+      <main className={styles.main}>{children}</main>
     </div>
   );
 }

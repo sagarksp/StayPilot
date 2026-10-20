@@ -1,7 +1,7 @@
 import { AccessDeniedError, type OrganizationActor } from "@/modules/property/domain/inventory";
 import { ComplaintWorkflowError } from "../domain/complaint";
 import type { ComplaintRepository } from "./repository";
-import { createComplaintSchema, updateComplaintSchema, type CreateComplaintInput, type UpdateComplaintForm } from "./schemas";
+import { complaintReportFilterSchema, createComplaintSchema, updateComplaintSchema, type CreateComplaintInput, type UpdateComplaintForm } from "./schemas";
 
 function assertStaff(actor: OrganizationActor) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
@@ -22,6 +22,12 @@ export function createComplaintUseCases(repository: ComplaintRepository) {
     async getMetricsForStaff(actor: OrganizationActor) {
       assertStaff(actor);
       return repository.getMetricsForStaff(actor);
+    },
+
+    async getReportForStaff(actor: OrganizationActor, input: unknown) {
+      assertStaff(actor);
+      const filters = complaintReportFilterSchema.parse(input);
+      return repository.getReportForStaff(actor, filters);
     },
 
     async listForResident(actor: OrganizationActor) {
