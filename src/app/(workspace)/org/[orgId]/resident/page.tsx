@@ -5,13 +5,13 @@ import { AccessDeniedError } from "@/modules/property/domain/inventory";
 import { complaintUseCases } from "@/modules/complaint/application";
 import { ResidentComplaints } from "@/modules/complaint/ui/resident-complaints";
 import { foodUseCases } from "@/modules/food/application/use-cases";
-import { ResidentFoodMenu, ResidentFoodPolls } from "@/modules/food/ui/resident-food-polls";
+import { ResidentFoodAvailability, ResidentFoodMenu, ResidentFoodPolls } from "@/modules/food/ui/resident-food-polls";
 import { noticeUseCases } from "@/modules/notice/application/use-cases";
 import { ResidentNoticeBoard } from "@/modules/notice/ui/resident-notice-board";
 import { residentDocumentUseCases } from "@/modules/resident-document/application";
 import { ResidentDocuments } from "@/modules/resident-document/ui/resident-documents";
 import { residentUseCases } from "@/modules/resident/application";
-import { submitResidentMoveOutNoticeAction } from "@/modules/resident/ui/actions";
+import { submitResidentMoveOutNoticeAction, updateResidentSelfProfileAction } from "@/modules/resident/ui/actions";
 import { ResidentMobileNav } from "@/components/workspace/resident-mobile-nav";
 import styles from "./resident-dashboard.module.css";
 
@@ -52,7 +52,7 @@ export default async function ResidentHomePage({
   searchParams,
 }: Readonly<{
   params: Promise<{ orgId: string }>;
-  searchParams: Promise<{ error?: string; "complaint-error"?: string; "complaint-created"?: string; "food-error"?: string; "food-voted"?: string }>;
+  searchParams: Promise<{ error?: string; profile?: string; "profile-error"?: string; "complaint-error"?: string; "complaint-created"?: string; "food-error"?: string; "food-voted"?: string; "food-availability"?: string; "food-availability-error"?: string }>;
 }>) {
   const [{ orgId }, query] = await Promise.all([params, searchParams]);
   const actor = await getOrganizationActor(orgId);
@@ -81,7 +81,7 @@ export default async function ResidentHomePage({
   const invoices = resident.stays.flatMap((stay) => stay.invoices.map((invoice) => ({ ...invoice, stayProperty: stay.propertyName })))
     .filter((invoice) => ["FINALIZED", "PARTIALLY_PAID", "PAID"].includes(invoice.status))
     .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  const [complaints, foodPolls, foodMenus, notices, documents] = await Promise.all([complaintUseCases.listForResident(actor), foodUseCases.listForResident(actor), foodUseCases.listMenusForResident(actor), noticeUseCases.listForResident(actor), residentDocumentUseCases.listForResident(actor)]);
+  const [complaints, foodPolls, foodMenus, foodAvailability, notices, documents] = await Promise.all([complaintUseCases.listForResident(actor), foodUseCases.listForResident(actor), foodUseCases.listMenusForResident(actor), foodUseCases.listAvailabilityForResident(actor), noticeUseCases.listForResident(actor), residentDocumentUseCases.listForResident(actor)]);
   const invoiceBalance = (invoice: typeof invoices[number]) => {
     const balance = invoice.totalPaise + invoice.adjustmentPaise - invoice.amountPaidPaise;
     return balance > BigInt(0) ? balance : BigInt(0);
@@ -101,6 +101,9 @@ export default async function ResidentHomePage({
       <span className={styles.residentBadge}><WorkspaceIcon name="verified_user" />Active Resident</span>
     </header>
 
+    {query.profile === "saved" ? <p className={styles.profileMessage} role="status">Your profile details have been updated.</p> : null}
+    {query["profile-error"] ? <p className={styles.profileError} role="alert">Enter a name of at least 2 characters and a valid phone number.</p> : null}
+
     {error ? <p className={styles.notice} role="alert">{error}</p> : null}
     {nextDueInvoice ? <aside className={styles.dueBanner}>
       <div className={styles.dueCopy}><span className={styles.dueIcon}><WorkspaceIcon name="event_available" /></span><div><strong>{dueMessage}</strong><p>{nextDueInvoice.invoiceNumber} · {nextDueInvoice.stayProperty} · {formatCurrency(invoiceBalance(nextDueInvoice))} outstanding</p></div></div>
@@ -112,6 +115,17 @@ export default async function ResidentHomePage({
       <div className={styles.stayDetails}><div className={styles.detailCell}><span>Move-in date</span><strong>{formatDate(currentStay.startDate)}</strong></div><div className={styles.detailCell}><span>Monthly rent</span><strong>{currentStay.rent ? formatCurrency(currentStay.rent.amountPaise) : "Not set"}</strong></div><div className={styles.detailCell}><span>Deposit balance</span><strong>{formatCurrency(currentStay.securityDeposit?.balancePaise ?? BigInt(0))}</strong></div></div>
       {currentStay.checkoutNotice ? <p className={styles.moveOutStatus}>Move-out requested for <strong>{currentStay.checkoutNotice.requestedCheckoutDate ? formatDate(currentStay.checkoutNotice.requestedCheckoutDate) : "date pending"}</strong>. Contact your property manager if your plans change.</p> : currentStay.status === "ACTIVE" || currentStay.status === "NOTICE_PERIOD" ? <details className={styles.moveOut}><summary>Move-out notice</summary><p>Your property requires {currentStay.noticePeriodDays} days’ notice. The earliest date also respects your lock-in terms.</p><form action={submitResidentMoveOutNoticeAction} className={styles.moveOutForm}><input name="orgId" type="hidden" value={orgId} /><input name="stayId" type="hidden" value={currentStay.id} /><label htmlFor="requestedCheckoutDate">Requested move-out date<input id="requestedCheckoutDate" min={minimumMoveOutDate} name="requestedCheckoutDate" required type="date" /></label><button className={styles.buttonPrimary} type="submit">Submit notice</button></form></details> : null}
     </section> : resident.currentReservation ? <section className={`${styles.card} ${styles.stayCard}`} id="stay-heading"><p className={styles.eyebrow}>Upcoming stay</p><h2>{resident.currentReservation.propertyName}</h2><p>Room {resident.currentReservation.roomNumber} · Bed {resident.currentReservation.bedLabel}</p><p>Move-in window: {formatDate(resident.currentReservation.startDate)} – {formatDate(resident.currentReservation.endDate)}</p></section> : <section className={`${styles.card} ${styles.stayCard}`} id="stay-heading"><p className={styles.eyebrow}>Your stay</p><h2>No current stay</h2><p>Your previous stays and bills remain available below.</p></section>}
+
+    <details className={`${styles.card} ${styles.profileEditor}`}>
+      <summary>Update your profile details</summary>
+      <p>Keep your name and phone number up to date for property communications. Login email and verification details can’t be changed here.</p>
+      <form action={updateResidentSelfProfileAction}>
+        <input name="orgId" type="hidden" value={orgId} />
+        <label htmlFor="resident-profile-name">Full name<input autoComplete="name" defaultValue={resident.name} id="resident-profile-name" maxLength={180} minLength={2} name="name" required /></label>
+        <label htmlFor="resident-profile-phone">Phone number<input autoComplete="tel" defaultValue={resident.phone} id="resident-profile-phone" maxLength={30} minLength={8} name="phone" required type="tel" /></label>
+        <button className={styles.buttonPrimary} type="submit">Save profile</button>
+      </form>
+    </details>
 
     <div className={styles.dashboardColumns}>
       <div className={styles.mainColumn}>
@@ -140,7 +154,7 @@ export default async function ResidentHomePage({
     <div className={styles.services}>
       <div className={styles.bottomNavAnchor}><ResidentDocuments organizationId={orgId} documents={documents} canUpload={Boolean(currentStay)} /></div>
       <div className={styles.bottomNavAnchor}><ResidentNoticeBoard notices={notices}/></div>
-      <div id="food-heading" className={styles.bottomNavAnchor}><div className="grid gap-4"><ResidentFoodMenu menus={foodMenus} /><ResidentFoodPolls orgId={orgId} polls={foodPolls} timezone={actor.organizationTimezone} message={query["food-voted"] ? "Your meal choice has been saved." : query["food-error"] === "poll-closed" ? "Voting has closed for that poll." : query["food-error"] === "invalid-poll-option" ? "That choice is no longer available. Refresh the page and choose again." : query["food-error"] === "invalid-vote" ? "Choose an option before submitting your vote." : query["food-error"] ? "Your vote could not be saved. Refresh and try again." : null} /></div></div>
+      <div id="food-heading" className={styles.bottomNavAnchor}><div className="grid gap-4"><ResidentFoodMenu menus={foodMenus} />{currentStay && ["ACTIVE", "NOTICE_PERIOD"].includes(currentStay.status) ? <ResidentFoodAvailability orgId={orgId} ranges={foodAvailability} today={today} message={query["food-availability"] === "saved" ? "Your away dates have been saved." : query["food-availability"] === "cancelled" ? "Your away dates have been cancelled." : query["food-availability-error"] === "food-availability-overlap" ? "These dates overlap another away period. Edit the existing dates or choose a different range." : query["food-availability-error"] === "food-availability-outside-stay" ? "Away dates must fall within your current stay and start today or later." : query["food-availability-error"] ? "The away dates could not be saved. Check the dates and try again." : null} /> : null}<ResidentFoodPolls orgId={orgId} polls={foodPolls} timezone={actor.organizationTimezone} message={query["food-voted"] ? "Your meal choice has been saved." : query["food-error"] === "poll-closed" ? "Voting has closed for that poll." : query["food-error"] === "invalid-poll-option" ? "That choice is no longer available. Refresh the page and choose again." : query["food-error"] === "invalid-vote" ? "Choose an option before submitting your vote." : query["food-error"] === "food-suggestion-required" ? "Add a meal suggestion when choosing Will Not Eat." : query["food-error"] === "resident-away" ? "You marked yourself away for this meal, so you cannot vote." : query["food-error"] ? "Your vote could not be saved. Refresh and try again." : null} /></div></div>
       <div className={styles.bottomNavAnchor}><ResidentComplaints orgId={orgId} stays={resident.stays} complaints={complaints} errorCode={query["complaint-error"]} created={query["complaint-created"]} /></div>
     </div>
     <ResidentMobileNav orgId={orgId} />

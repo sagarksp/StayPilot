@@ -12,6 +12,15 @@
 .choice input { accent-color: #1e3a8a; }
 .submit { min-height: 42px; justify-self: start; padding: 0 14px; border: 0; border-radius: 7px; background: #1e3a8a; color: white; font-size: 12px; font-weight: 700; cursor: pointer; }
 .submit:hover { background: #172554; }
+.suggestion { display: grid; gap: 6px; color: #475569; font-size: 11px; line-height: 1.5; }
+.suggestion textarea { min-height: 72px; width: 100%; resize: vertical; border: 1px solid #cbd5e1; border-radius: 7px; padding: 9px; color: #1e293b; font: inherit; }
+.availabilityForm { display: grid; gap: 10px; align-items: end; }
+.availabilityForm label { display: grid; gap: 5px; color: #475569; font-size: 11px; font-weight: 600; }
+.availabilityForm input { min-height: 40px; min-width: 0; border: 1px solid #cbd5e1; border-radius: 7px; padding: 0 9px; color: #1e293b; font: inherit; }
+.availabilityList { display: grid; gap: 10px; }
+.availabilityList > li { display: grid; gap: 8px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 9px; }
+.availabilityButtons { display: contents; }
+.cancel { min-height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 7px; background: transparent; color: #475569; font-size: 11px; font-weight: 650; cursor: pointer; }
 .empty { margin: 0; padding: 12px; border-radius: 9px; background: #f7f7f5; color: #64748b; font-size: 11px; }
 .menuList { display: grid; gap: 10px; }
 .menuCard { padding: 13px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
@@ -34,7 +43,12 @@
 :global(html[data-theme="dark"]) .menuCard time { color: #a8b4c7; }
 :global(html[data-theme="dark"]) .choice,
 :global(html[data-theme="dark"]) .empty { border-color: #3b4a63; background: #263247; color: #dbe7e1; }
-@media (min-width: 640px) { .section { padding: 20px; } .pollGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+:global(html[data-theme="dark"]) .suggestion,
+:global(html[data-theme="dark"]) .availabilityForm label { color: #a8b4c7; }
+:global(html[data-theme="dark"]) .suggestion textarea,
+:global(html[data-theme="dark"]) .availabilityForm input { border-color: #3b4a63; background: #263247; color: #e6eeea; }
+:global(html[data-theme="dark"]) .availabilityList > li { border-color: #3b4a63; }
+@media (min-width: 640px) { .section { padding: 20px; } .pollGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .availabilityForm { grid-template-columns: repeat(2, minmax(0, 1fr)); } .availabilityForm > .submit { grid-column: 1 / -1; } .availabilityList > li { grid-template-columns: minmax(0, 1fr) auto; align-items: end; } .availabilityList > li > form:first-child { grid-column: 1 / -1; } }
 
 @media (max-width: 420px) {
   .section { padding: 14px; }

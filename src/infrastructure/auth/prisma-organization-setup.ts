@@ -1,9 +1,10 @@
 import "server-only";
 import type { OrganizationSetupRepository } from "@/modules/auth/application/setup-organization";
 import { prisma } from "@/infrastructure/db/prisma";
+import { acceptPlatformOwnerInvitation } from "@/infrastructure/platform-admin/owner-invitations";
 
 export const prismaOrganizationSetup: OrganizationSetupRepository = {
-  async setupOrganization({ email, ownerName, organizationName }) {
+  async setupOrganization({ email, ownerName, organizationName, ownerInviteToken }) {
     return prisma.$transaction(async (transaction) => {
       const user = await transaction.user.upsert({
         where: { email },
@@ -21,6 +22,8 @@ export const prismaOrganizationSetup: OrganizationSetupRepository = {
         select: { organization: { select: { publicId: true } } },
       });
       if (existingMembership) return existingMembership.organization.publicId;
+
+      if (ownerInviteToken) await acceptPlatformOwnerInvitation({ token: ownerInviteToken, email }, transaction);
 
       const organization = await transaction.organization.create({
         data: {

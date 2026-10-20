@@ -7,6 +7,8 @@ import {
   type AssignResidentForm,
   type CheckOutResidentForm,
   type CreateResidentForm,
+  residentSelfProfileSchema,
+  type ResidentSelfProfileInput,
   moveOutNoticeSchema,
   type MoveOutNoticeForm,
   updateResidentEmailSchema,
@@ -71,6 +73,13 @@ export function createResidentUseCases(repository: ResidentRepository) {
     async getResidentPortal(actor: OrganizationActor) {
       if (!actor.roles.includes("RESIDENT")) throw new AccessDeniedError();
       return repository.getResidentPortal(actor.organizationId, actor.userId, todayInTimezone(actor.organizationTimezone));
+    },
+
+    async updateResidentSelfProfile(actor: OrganizationActor, input: ResidentSelfProfileInput) {
+      if (!actor.roles.includes("RESIDENT") || !actor.userEmail) throw new AccessDeniedError();
+      const parsed = residentSelfProfileSchema.parse(input);
+      const updated = await repository.updateResidentSelfProfile(actor.organizationId, actor.userId, parsed);
+      if (!updated) throw new AccessDeniedError();
     },
 
     async listDepositTransferAccounts(actor: OrganizationActor) {

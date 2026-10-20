@@ -365,3 +365,35 @@ Residents can upload government ID, address proof, profile photo, or other verif
 Added a staff report for current held and required security deposit balances, plus filtered deposit ledger activity. Owners can report across the organization; managers are restricted to assigned properties. The report supports PDF and Excel downloads and includes deposit activity associated with reservations before a deposit account is created. Archived properties remain available in the report so outstanding liabilities are not hidden.
 
 **Key areas:** `src/modules/billing/application/schemas.ts`, `src/modules/billing/application/use-cases.ts`, `src/app/(workspace)/org/[orgId]/(staff)/reports/deposits/page.tsx`, `src/app/api/v1/organizations/[orgId]/reports/download/route.ts`, `src/app/(workspace)/org/[orgId]/(staff)/reports/electricity/page.tsx`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-20 - Audited platform organization controls
+
+**Status:** Complete
+
+Allowlisted platform administrators can suspend or reactivate an organization from the cross-tenant directory. Each change requires an explicit confirmation and a reason, updates the organization and appends an audit event in the same transaction. Unsupported organization states cannot be changed through this workflow; suspending an organization blocks tenant access while preserving its data.
+
+**Key areas:** `src/app/(platform)/platform-admin/`, `src/modules/platform-admin/application/organization-status.ts`, `src/infrastructure/platform-admin/prisma-platform-admin-status.ts`, `src/modules/audit/application/events.ts`, `README.md`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-20 - Resident food availability and meal suggestions
+
+**Status:** Complete
+
+Residents can choose “Will Not Eat” in a meal poll and provide a suggestion for the kitchen. They can schedule, edit, or cancel away date ranges from the resident Food section; active ranges preserve their original past start date when edited. Away dates exclude residents from poll counts and daily kitchen attendance estimates. Residents with an active stay for a meal date receive an in-app notification when its poll opens; residents already marked away for that date are excluded. Managers see anonymous suggestions, poll participation counts for the coming two weeks, and expected resident meal counts. Owners or assigned managers can download a property-scoped 14-day kitchen plan CSV with attendance forecasts and poll results. The resident API supports listing, creating, updating, and cancelling away ranges. Apply the database migration through the normal deployment process.
+
+**Key areas:** `src/modules/food/`, `src/modules/notification/`, `src/app/(workspace)/org/[orgId]/resident/page.tsx`, `src/app/(workspace)/org/[orgId]/(staff)/food/page.tsx`, `src/app/api/v1/me/food/`, `src/app/api/v1/organizations/[orgId]/reports/food-attendance/`, `prisma/schema.prisma`, `prisma/migrations/20261020140000_resident_food_availability/migration.sql`, `README.md`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-20 - Resident self-service profile updates
+
+**Status:** Complete
+
+Residents can update their own name and phone number from the resident portal. The update is scoped through the signed-in resident membership and organization; login email, verification, and financial fields are excluded from the form.
+
+**Key areas:** `src/modules/resident/application/`, `src/modules/resident/infrastructure/prisma-resident-repository.ts`, `src/modules/resident/ui/actions.ts`, `src/app/(workspace)/org/[orgId]/resident/page.tsx`, `src/app/api/v1/me/profile/route.ts`, `README.md`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-20 - Developer owner onboarding and platform billing
+
+**Status:** Implemented; database migrations must be applied before release
+
+Expanded the allowlisted developer console with one-time owner setup invitations, configurable monthly price per active PG and currency, idempotent monthly invoice generation, organization and PG status controls, confirmed revenue totals, and owner payment review. Owners set their own passwords through the existing verified signup flow, see only their organization's platform invoices, and can submit external payment details using UPI, bank transfer, cash, card, or other. Submitted payments remain pending until a developer confirms them; confirmed receipts update invoice status. Organization and PG status changes require a reason and are added to the tenant audit log.
+
+**Key areas:** `src/app/(platform)/platform-admin/`, `src/modules/platform-admin/`, `src/infrastructure/platform-admin/`, `src/app/(workspace)/org/[orgId]/(staff)/subscription/`, `src/app/(auth)/register/`, `src/app/(auth)/setup/`, `src/components/workspace/owner-console-shell.tsx`, `prisma/schema.prisma`, `prisma/migrations/20261020160000_platform_billing/migration.sql`, `prisma/migrations/20261020170000_platform_owner_invitations/migration.sql`, `README.md`

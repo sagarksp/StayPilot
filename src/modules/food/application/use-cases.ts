@@ -1,6 +1,7 @@
 import { prisma } from "@/infrastructure/db/prisma";
+import { createNotifications } from "@/modules/notification/application/use-cases";
 import { AccessDeniedError, type OrganizationActor } from "@/modules/property/domain/inventory";
-import type { CreatePollInput, FoodMenuInput, MealTypesInput, UpdateFoodMenuInput, VoteInput } from "./schemas";
+import { isWillNotEatOption, type CreatePollInput, type FoodMenuInput, type MealTypesInput, type ResidentFoodAvailabilityInput, type UpdateFoodMenuInput, type VoteInput } from "./schemas";
 
 const day = (value: string) => new Date(`${value}T00:00:00.000Z`);
 function localToday(timezone: string) {
@@ -23,6 +24,19 @@ function assertStaff(actor: OrganizationActor, propertyId?: string) {
 function assertFoodControl(actor: OrganizationActor, propertyId?: string) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
   if (actor.roles.includes("MANAGER") && !actor.roles.includes("OWNER") && propertyId && !actor.allowedPgIds.includes(propertyId)) throw new AccessDeniedError();
+}
+
+async function currentResidentFoodStay(actor: OrganizationActor) {
+  if (!actor.roles.includes("RESIDENT") || !actor.userEmail) throw new AccessDeniedError();
+  const membership = await prisma.organizationMembership.findFirst({ where: { organization: { publicId: actor.organizationId }, status: "ACTIVE", user: { publicId: actor.userId }, residentId: { not: null }, roles: { some: { roleCode: "RESIDENT" } } }, select: { residentId: true } });
+  if (!membership?.residentId) return null;
+  const today = day(localToday(actor.organizationTimezone));
+  const stay = await prisma.residentStay.findFirst({
+    where: { organization: { publicId: actor.organizationId }, residentId: membership.residentId, status: { in: ["ACTIVE", "NOTICE_PERIOD"] }, startDate: { lte: today }, OR: [{ endDate: null }, { endDate: { gte: today } }] },
+    select: { id: true, organizationId: true, propertyId: true, startDate: true, endDate: true },
+    orderBy: { startDate: "desc" },
+  });
+  return stay;
 }
 
 function validateMenuItems(input: FoodMenuInput) {
@@ -57,25 +71,66 @@ export const foodUseCases = {
     assertFoodControl(actor, propertyPublicId);
     const property = await prisma.property.findFirst({ where: { publicId: propertyPublicId, organization: { publicId: actor.organizationId }, status: "ACTIVE" }, select: { id: true } });
     if (!property) throw new AccessDeniedError();
-    const polls = await prisma.foodPoll.findMany({ where: { organization: { publicId: actor.organizationId }, propertyId: property.id }, select: { publicId: true, mealDate: true, opensAt: true, closesAt: true, status: true, mealType: { select: { name: true } }, options: { select: { publicId: true, label: true, displayOrder: true, _count: { select: { votes: true } } }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] } }, orderBy: [{ mealDate: "desc" }, { createdAt: "desc" }] });
+    const polls = await prisma.foodPoll.findMany({ where: { organization: { publicId: actor.organizationId }, propertyId: property.id }, select: { publicId: true, propertyId: true, mealDate: true, opensAt: true, closesAt: true, status: true, mealType: { select: { name: true } }, options: { select: { id: true, publicId: true, label: true, displayOrder: true }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] }, votes: { select: { optionId: true, residentStayId: true, suggestion: true } } }, orderBy: [{ mealDate: "desc" }, { createdAt: "desc" }] });
+    const pollDates = polls.map((poll) => poll.mealDate);
+    const today = day(localToday(actor.organizationTimezone));
+    const earliest = pollDates.reduce((start, date) => date < start ? date : start, today);
+    const latest = pollDates.reduce((end, date) => date > end ? date : end, today);
+    const absences = await prisma.residentFoodUnavailability.findMany({ where: { organization: { publicId: actor.organizationId }, propertyId: property.id, cancelledAt: null, startsOn: { lte: latest }, endsOn: { gte: earliest } }, select: { residentStayId: true, startsOn: true, endsOn: true } });
     const now = new Date();
-    return polls.map((poll) => ({ ...poll, status: effectivePollStatus(poll.status, poll.closesAt, now) }));
+    return polls.map((poll) => {
+      const awayStayIds = new Set(absences.filter((absence) => absence.startsOn <= poll.mealDate && absence.endsOn >= poll.mealDate).map((absence) => absence.residentStayId));
+      const eligibleVotes = poll.votes.filter((vote) => !awayStayIds.has(vote.residentStayId));
+      return {
+        ...poll,
+        status: effectivePollStatus(poll.status, poll.closesAt, now),
+        options: poll.options.map(({ id, ...option }) => ({ ...option, _count: { votes: eligibleVotes.filter((vote) => vote.optionId === id).length }, suggestions: eligibleVotes.filter((vote) => vote.optionId === id && vote.suggestion).map((vote) => vote.suggestion!) })),
+      };
+    });
   },
 
   async getStaffPage(actor: OrganizationActor) {
     assertStaff(actor);
     const organization = await prisma.organization.findUniqueOrThrow({ where: { publicId: actor.organizationId }, select: { id: true } });
     const properties = await prisma.property.findMany({ where: { organizationId: organization.id, status: "ACTIVE", ...(actor.roles.includes("OWNER") ? {} : { publicId: { in: [...actor.allowedPgIds] } }) }, select: { id: true, publicId: true, name: true }, orderBy: { name: "asc" } });
-    if (!properties.length) return { properties, mealTypes: [], polls: [], menus: [], canSeePollResults: false };
+    if (!properties.length) return { properties, mealTypes: [], polls: [], menus: [], attendance: [], canSeePollResults: false };
     const ids = properties.map((property) => property.id);
-    const [mealTypes, polls, menus] = await Promise.all([
+    const today = day(localToday(actor.organizationTimezone));
+    const horizon = new Date(today);
+    horizon.setUTCDate(horizon.getUTCDate() + 13);
+    const [mealTypes, polls, menus, stays] = await Promise.all([
       prisma.foodMealType.findMany({ where: { organizationId: organization.id, propertyId: { in: ids }, status: "ACTIVE" }, select: { publicId: true, propertyId: true, property: { select: { name: true, publicId: true } }, name: true, displayOrder: true }, orderBy: [{ property: { name: "asc" } }, { displayOrder: "asc" }, { id: "asc" }] }),
-      actor.roles.includes("MANAGER") || actor.roles.includes("OWNER") ? prisma.foodPoll.findMany({ where: { organizationId: organization.id, propertyId: { in: ids } }, select: { publicId: true, propertyId: true, property: { select: { name: true } }, mealDate: true, opensAt: true, closesAt: true, status: true, mealType: { select: { name: true } }, options: { select: { publicId: true, label: true, displayOrder: true, _count: { select: { votes: true } } }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] } }, orderBy: [{ mealDate: "desc" }, { createdAt: "desc" }], take: 60 }) : Promise.resolve([]),
+      actor.roles.includes("MANAGER") || actor.roles.includes("OWNER") ? prisma.foodPoll.findMany({ where: { organizationId: organization.id, propertyId: { in: ids } }, select: { publicId: true, propertyId: true, property: { select: { name: true } }, mealDate: true, opensAt: true, closesAt: true, status: true, mealType: { select: { name: true } }, options: { select: { id: true, publicId: true, label: true, displayOrder: true }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] }, votes: { select: { optionId: true, residentStayId: true, suggestion: true } } }, orderBy: [{ mealDate: "desc" }, { createdAt: "desc" }], take: 60 }) : Promise.resolve([]),
       prisma.foodMenu.findMany({ where: { organizationId: organization.id, propertyId: { in: ids }, status: "PUBLISHED" }, select: { publicId: true, propertyId: true, title: true, validFrom: true, validTo: true, items: { select: { id: true, menuDate: true, dishName: true, description: true, mealType: { select: { name: true } } }, orderBy: [{ menuDate: "asc" }, { mealType: { displayOrder: "asc" } }, { id: "asc" }] } }, orderBy: [{ validFrom: "desc" }, { createdAt: "desc" }], take: 60 }),
+      prisma.residentStay.findMany({ where: { organizationId: organization.id, propertyId: { in: ids }, status: { in: ["ACTIVE", "NOTICE_PERIOD"] }, startDate: { lte: horizon }, OR: [{ endDate: null }, { endDate: { gte: today } }] }, select: { id: true, propertyId: true, startDate: true, endDate: true } }),
     ]);
+    const pollDates = polls.map((poll) => poll.mealDate);
+    const absenceRangeStart = pollDates.reduce((earliest, date) => date < earliest ? date : earliest, today);
+    const absenceRangeEnd = pollDates.reduce((latest, date) => date > latest ? date : latest, horizon);
+    const absences = await prisma.residentFoodUnavailability.findMany({ where: { organizationId: organization.id, propertyId: { in: ids }, cancelledAt: null, startsOn: { lte: absenceRangeEnd }, endsOn: { gte: absenceRangeStart } }, select: { residentStayId: true, propertyId: true, startsOn: true, endsOn: true } });
+    const attendance = properties.map((property) => ({ propertyId: property.id, propertyName: property.name, days: Array.from({ length: 14 }, (_, offset) => {
+      const date = new Date(today);
+      date.setUTCDate(date.getUTCDate() + offset);
+      const totalResidents = stays.filter((stay) => stay.propertyId === property.id && stay.startDate <= date && (!stay.endDate || stay.endDate >= date)).length;
+      const awayResidents = stays.filter((stay) => stay.propertyId === property.id && stay.startDate <= date && (!stay.endDate || stay.endDate >= date) && absences.some((absence) => absence.residentStayId === stay.id && absence.startsOn <= date && absence.endsOn >= date)).length;
+      return { date, totalResidents, awayResidents, expectedMeals: totalResidents - awayResidents };
+    }) }));
     const now = new Date();
-    const visiblePolls = polls.map((poll) => ({ ...poll, status: effectivePollStatus(poll.status, poll.closesAt, now) }));
-    return { properties, mealTypes, polls: visiblePolls, menus, canSeePollResults: actor.roles.includes("MANAGER") || actor.roles.includes("OWNER") };
+    const visiblePolls = polls.map((poll) => {
+      const awayStayIds = new Set(absences.filter((absence) => absence.propertyId === poll.propertyId && absence.startsOn <= poll.mealDate && absence.endsOn >= poll.mealDate).map((absence) => absence.residentStayId));
+      const eligibleVotes = poll.votes.filter((vote) => !awayStayIds.has(vote.residentStayId));
+      const eligibleStays = poll.mealDate >= today && poll.mealDate <= horizon
+        ? stays.filter((stay) => stay.propertyId === poll.propertyId && stay.startDate <= poll.mealDate && (!stay.endDate || stay.endDate >= poll.mealDate) && !awayStayIds.has(stay.id))
+        : null;
+      return {
+        ...poll,
+        status: effectivePollStatus(poll.status, poll.closesAt, now),
+        votesReceived: eligibleVotes.length,
+        eligibleResidentCount: eligibleStays?.length ?? null,
+        options: poll.options.map(({ id, ...option }) => ({ ...option, _count: { votes: eligibleVotes.filter((vote) => vote.optionId === id).length }, suggestions: eligibleVotes.filter((vote) => vote.optionId === id && vote.suggestion).map((vote) => vote.suggestion!) })),
+      };
+    });
+    return { properties, mealTypes, polls: visiblePolls, menus, attendance, canSeePollResults: actor.roles.includes("MANAGER") || actor.roles.includes("OWNER") };
   },
 
   async listMenus(actor: OrganizationActor, propertyPublicId: string, from?: string, to?: string) {
@@ -171,8 +226,33 @@ export const foodUseCases = {
     const configuredMealType = await prisma.foodMealType.findFirst({ where: { publicId: input.mealTypeId, organizationId: organization.id, propertyId: property.id, status: "ACTIVE" }, select: { id: true } });
     if (!configuredMealType) throw new Error("INVALID_MEAL_TYPE");
     const user = await prisma.user.findUniqueOrThrow({ where: { publicId: actor.userId }, select: { id: true } });
+    const options = input.options.some(isWillNotEatOption) ? input.options : [...input.options, "Will Not Eat"];
+    if (options.length > 12) throw new Error("INVALID_POLL_OPTION");
     try {
-      return await prisma.foodPoll.create({ data: { organizationId: organization.id, propertyId: property.id, mealTypeId: configuredMealType.id, mealDate: day(input.mealDate), opensAt: new Date(), closesAt, createdById: user.id, options: { create: input.options.map((label, displayOrder) => ({ label, displayOrder })) } } });
+      return await prisma.$transaction(async (tx) => {
+        const poll = await tx.foodPoll.create({ data: { organizationId: organization.id, propertyId: property.id, mealTypeId: configuredMealType.id, mealDate: day(input.mealDate), opensAt: new Date(), closesAt, createdById: user.id, options: { create: options.map((label, displayOrder) => ({ label, displayOrder })) } }, select: { publicId: true, status: true, mealDate: true, mealType: { select: { name: true } } } });
+        const stays = await tx.residentStay.findMany({ where: { organizationId: organization.id, propertyId: property.id, status: { in: ["ACTIVE", "NOTICE_PERIOD"] }, startDate: { lte: poll.mealDate }, OR: [{ endDate: null }, { endDate: { gte: poll.mealDate } }] }, select: { id: true, residentId: true } });
+        if (stays.length) {
+          const stayIds = stays.map(({ id }) => id);
+          const awayStays = await tx.residentFoodUnavailability.findMany({ where: { organizationId: organization.id, propertyId: property.id, residentStayId: { in: stayIds }, cancelledAt: null, startsOn: { lte: poll.mealDate }, endsOn: { gte: poll.mealDate } }, select: { residentStayId: true } });
+          const awayStayIds = new Set(awayStays.map(({ residentStayId }) => residentStayId));
+          const residentIds = [...new Set(stays.filter(({ id }) => !awayStayIds.has(id)).map(({ residentId }) => residentId))];
+          if (residentIds.length) {
+            const recipients = await tx.organizationMembership.findMany({ where: { organizationId: organization.id, status: "ACTIVE", residentId: { in: residentIds }, roles: { some: { roleCode: "RESIDENT" } }, user: { status: "ACTIVE" } }, select: { userId: true } });
+            await createNotifications(tx, [...new Set(recipients.map(({ userId }) => userId))].map((userId) => ({
+              organizationId: organization.id,
+              propertyId: property.id,
+              userId,
+              dedupeKey: `food-poll:${poll.publicId}`,
+              notificationType: "FOOD_POLL_OPENED",
+              title: "A new meal poll is open",
+              message: `Vote for ${poll.mealType.name} on ${input.mealDate}.`,
+              actionUrl: `/org/${actor.organizationId}/resident#food-heading`,
+            })));
+          }
+        }
+        return { publicId: poll.publicId, status: poll.status };
+      });
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "P2002") throw new Error("FOOD_POLL_ALREADY_EXISTS");
       throw error;
@@ -192,14 +272,74 @@ export const foodUseCases = {
   },
 
   async listForResident(actor: OrganizationActor) {
-    if (!actor.roles.includes("RESIDENT") || !actor.userEmail) throw new AccessDeniedError();
-    const membership = await prisma.organizationMembership.findFirst({ where: { organization: { publicId: actor.organizationId }, status: "ACTIVE", user: { publicId: actor.userId }, residentId: { not: null }, roles: { some: { roleCode: "RESIDENT" } } }, select: { residentId: true } });
-    if (!membership?.residentId) return [];
-    const today = day(localToday(actor.organizationTimezone));
-    const stay = await prisma.residentStay.findFirst({ where: { organization: { publicId: actor.organizationId }, residentId: membership.residentId, status: { in: ["ACTIVE", "NOTICE_PERIOD"] }, startDate: { lte: today }, OR: [{ endDate: null }, { endDate: { gte: today } }] }, select: { id: true, propertyId: true, startDate: true, endDate: true, property: { select: { name: true } } }, orderBy: { startDate: "desc" } });
+    const stay = await currentResidentFoodStay(actor);
     if (!stay) return [];
-    const polls = await prisma.foodPoll.findMany({ where: { organization: { publicId: actor.organizationId }, propertyId: stay.propertyId, status: "OPEN", mealDate: { gte: today, ...(stay.endDate ? { lte: stay.endDate } : {}) }, closesAt: { gt: new Date() } }, select: { publicId: true, mealDate: true, opensAt: true, closesAt: true, property: { select: { name: true } }, mealType: { select: { name: true } }, options: { select: { publicId: true, label: true, displayOrder: true }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] }, votes: { where: { residentStayId: stay.id }, select: { option: { select: { publicId: true } } } } }, orderBy: [{ mealDate: "asc" }, { mealType: { displayOrder: "asc" } }] });
-    return polls.filter((poll) => poll.opensAt <= new Date()).map((poll) => ({ ...poll, selectedOptionId: poll.votes[0]?.option.publicId ?? "" }));
+    const today = day(localToday(actor.organizationTimezone));
+    const polls = await prisma.foodPoll.findMany({ where: { organization: { publicId: actor.organizationId }, propertyId: stay.propertyId, status: "OPEN", mealDate: { gte: today, ...(stay.endDate ? { lte: stay.endDate } : {}) }, closesAt: { gt: new Date() } }, select: { publicId: true, mealDate: true, opensAt: true, closesAt: true, property: { select: { name: true } }, mealType: { select: { name: true } }, options: { select: { publicId: true, label: true, displayOrder: true }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] }, votes: { where: { residentStayId: stay.id }, select: { suggestion: true, option: { select: { publicId: true } } } } }, orderBy: [{ mealDate: "asc" }, { mealType: { displayOrder: "asc" } }] });
+    const absences = await prisma.residentFoodUnavailability.findMany({ where: { organizationId: stay.organizationId, residentStayId: stay.id, propertyId: stay.propertyId, cancelledAt: null, endsOn: { gte: today } }, select: { startsOn: true, endsOn: true } });
+    return polls.filter((poll) => poll.opensAt <= new Date() && !absences.some((absence) => absence.startsOn <= poll.mealDate && absence.endsOn >= poll.mealDate)).map((poll) => ({ ...poll, selectedOptionId: poll.votes[0]?.option.publicId ?? "", selectedSuggestion: poll.votes[0]?.suggestion ?? "" }));
+  },
+
+  async listAvailabilityForResident(actor: OrganizationActor) {
+    const stay = await currentResidentFoodStay(actor);
+    if (!stay) return [];
+    const today = day(localToday(actor.organizationTimezone));
+    return prisma.residentFoodUnavailability.findMany({
+      where: { organizationId: stay.organizationId, propertyId: stay.propertyId, residentStayId: stay.id, cancelledAt: null, endsOn: { gte: today } },
+      select: { publicId: true, startsOn: true, endsOn: true },
+      orderBy: [{ startsOn: "asc" }, { id: "asc" }],
+    });
+  },
+
+  async saveAvailabilityForResident(actor: OrganizationActor, input: ResidentFoodAvailabilityInput) {
+    const stay = await currentResidentFoodStay(actor);
+    if (!stay) throw new AccessDeniedError();
+    const today = day(localToday(actor.organizationTimezone));
+    const startsOn = day(input.startsOn);
+    const endsOn = day(input.endsOn);
+    if (endsOn < today || (stay.endDate && endsOn > stay.endDate)) throw new Error("FOOD_AVAILABILITY_OUTSIDE_STAY");
+    return prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM resident_stays WHERE organization_id = ${stay.organizationId} AND id = ${stay.id} FOR UPDATE`;
+      let existingStartsOn: Date | null = null;
+      if (input.availabilityId) {
+        const existing = await tx.residentFoodUnavailability.findFirst({ where: { publicId: input.availabilityId, organizationId: stay.organizationId, residentStayId: stay.id, cancelledAt: null }, select: { id: true, startsOn: true } });
+        if (!existing) throw new Error("FOOD_AVAILABILITY_NOT_FOUND");
+        existingStartsOn = existing.startsOn;
+      }
+      const isPastStartDate = startsOn < today;
+      const hasImmutablePastStart = existingStartsOn !== null && existingStartsOn < today;
+      const preservesPastStart = existingStartsOn !== null && existingStartsOn < today && startsOn.getTime() === existingStartsOn.getTime();
+      if ((isPastStartDate && !preservesPastStart) || (hasImmutablePastStart && !preservesPastStart)) throw new Error("FOOD_AVAILABILITY_OUTSIDE_STAY");
+      const overlapping = await tx.residentFoodUnavailability.findFirst({
+        where: {
+          organizationId: stay.organizationId,
+          residentStayId: stay.id,
+          cancelledAt: null,
+          startsOn: { lte: endsOn },
+          endsOn: { gte: startsOn },
+          ...(input.availabilityId ? { publicId: { not: input.availabilityId } } : {}),
+        },
+        select: { id: true },
+      });
+      if (overlapping) throw new Error("FOOD_AVAILABILITY_OVERLAP");
+      if (input.availabilityId) {
+        return tx.residentFoodUnavailability.update({ where: { publicId: input.availabilityId }, data: { startsOn, endsOn }, select: { publicId: true, startsOn: true, endsOn: true } });
+      }
+      return tx.residentFoodUnavailability.create({
+        data: { organizationId: stay.organizationId, propertyId: stay.propertyId, residentStayId: stay.id, startsOn, endsOn },
+        select: { publicId: true, startsOn: true, endsOn: true },
+      });
+    });
+  },
+
+  async cancelAvailabilityForResident(actor: OrganizationActor, availabilityPublicId: string) {
+    const stay = await currentResidentFoodStay(actor);
+    if (!stay) throw new AccessDeniedError();
+    const result = await prisma.residentFoodUnavailability.updateMany({
+      where: { publicId: availabilityPublicId, organizationId: stay.organizationId, propertyId: stay.propertyId, residentStayId: stay.id, cancelledAt: null },
+      data: { cancelledAt: new Date() },
+    });
+    if (result.count !== 1) throw new Error("FOOD_AVAILABILITY_NOT_FOUND");
   },
 
   async listMenusForResident(actor: OrganizationActor) {
@@ -227,9 +367,13 @@ export const foodUseCases = {
     const result = await prisma.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<Array<{ id: bigint }>>`SELECT id FROM food_polls WHERE public_id = ${input.pollId} AND organization_id = ${organization.id} AND status = 'OPEN' AND opens_at <= UTC_TIMESTAMP(3) AND closes_at > UTC_TIMESTAMP(3) FOR UPDATE`;
       if (!locked.length) throw new Error("POLL_CLOSED");
-      const poll = await tx.foodPoll.findFirst({ where: { id: locked[0].id, organizationId: organization.id, propertyId: stay.propertyId, mealDate: { gte: today, ...(stay.endDate ? { lte: stay.endDate } : {}) }, options: { some: { publicId: input.optionId } } }, select: { id: true, options: { where: { publicId: input.optionId }, select: { id: true } } } });
+      const poll = await tx.foodPoll.findFirst({ where: { id: locked[0].id, organizationId: organization.id, propertyId: stay.propertyId, mealDate: { gte: today, ...(stay.endDate ? { lte: stay.endDate } : {}) }, options: { some: { publicId: input.optionId } } }, select: { id: true, mealDate: true, options: { where: { publicId: input.optionId }, select: { id: true, label: true } } } });
       if (!poll || !poll.options.length) throw new Error("INVALID_POLL_OPTION");
-      const updated = await tx.foodVote.upsert({ where: { pollId_residentStayId: { pollId: poll.id, residentStayId: stay.id } }, create: { organizationId: organization.id, pollId: poll.id, residentStayId: stay.id, optionId: poll.options[0].id }, update: { optionId: poll.options[0].id, votedAt: new Date() } });
+      const unavailable = await tx.residentFoodUnavailability.findFirst({ where: { organizationId: organization.id, residentStayId: stay.id, cancelledAt: null, startsOn: { lte: poll.mealDate }, endsOn: { gte: poll.mealDate } }, select: { id: true } });
+      if (unavailable) throw new Error("RESIDENT_AWAY");
+      const isNotEating = isWillNotEatOption(poll.options[0].label);
+      if (isNotEating && !input.suggestion) throw new Error("FOOD_SUGGESTION_REQUIRED");
+      const updated = await tx.foodVote.upsert({ where: { pollId_residentStayId: { pollId: poll.id, residentStayId: stay.id } }, create: { organizationId: organization.id, pollId: poll.id, residentStayId: stay.id, optionId: poll.options[0].id, suggestion: isNotEating ? input.suggestion : null }, update: { optionId: poll.options[0].id, suggestion: isNotEating ? input.suggestion : null, votedAt: new Date() } });
       return updated;
     });
     return result;

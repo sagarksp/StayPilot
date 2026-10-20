@@ -5,7 +5,7 @@ import { createAuthClient } from "better-auth/react";
 
 const authClient = createAuthClient();
 
-export function RegisterForm() {
+export function RegisterForm({ ownerInviteToken, invitedOwner }: Readonly<{ ownerInviteToken?: string; invitedOwner?: { name: string; email: string } }>) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
@@ -16,7 +16,7 @@ export function RegisterForm() {
     setPending(true);
     setError(null);
     try {
-      const result = await authClient.sendVerificationEmail({ email: verificationEmail, callbackURL: "/setup" });
+      const result = await authClient.sendVerificationEmail({ email: verificationEmail, callbackURL: ownerInviteToken ? `/setup?invite=${encodeURIComponent(ownerInviteToken)}` : "/setup" });
       if (result.error) setError("We couldn't resend the verification email. Wait a moment and try again.");
       else setResent(true);
     } catch {
@@ -37,7 +37,7 @@ export function RegisterForm() {
         name: String(form.get("name") ?? "").trim(),
         email: String(form.get("email") ?? "").trim(),
         password: String(form.get("password") ?? ""),
-        callbackURL: "/setup",
+        callbackURL: ownerInviteToken ? `/setup?invite=${encodeURIComponent(ownerInviteToken)}` : "/setup",
       });
 
       if (result.error) {
@@ -63,11 +63,11 @@ export function RegisterForm() {
     <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
       <label className="block space-y-2 text-sm font-medium" htmlFor="name">
         <span>Your name</span>
-        <input autoComplete="name" className="min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 text-base outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15" id="name" name="name" required />
+        <input autoComplete="name" className="min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 text-base outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15" defaultValue={invitedOwner?.name} id="name" name="name" readOnly={Boolean(invitedOwner)} required />
       </label>
       <label className="block space-y-2 text-sm font-medium" htmlFor="email">
         <span>Email</span>
-        <input autoComplete="email" className="min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 text-base outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15" id="email" name="email" required type="email" />
+        <input autoComplete="email" className="min-h-11 w-full rounded-lg border border-[#cbd5e1] bg-white px-3 text-base outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15" defaultValue={invitedOwner?.email} id="email" name="email" readOnly={Boolean(invitedOwner)} required type="email" />
       </label>
       <label className="block space-y-2 text-sm font-medium" htmlFor="password">
         <span>Password</span>

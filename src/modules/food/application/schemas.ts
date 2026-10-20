@@ -20,9 +20,27 @@ export const createPollSchema = z.object({
 }).refine((value) => new Set(value.options.map((option) => option.toLowerCase())).size === value.options.length, {
   path: ["options"],
   message: "Poll options must be unique.",
+}).refine((value) => value.options.filter(isWillNotEatOption).length <= 1, {
+  path: ["options"],
+  message: "Add only one Will Not Eat option.",
 });
 
-export const voteSchema = z.object({ pollId: id, optionId: id });
+export const voteSchema = z.object({
+  pollId: id,
+  optionId: id,
+  suggestion: z.string().trim().max(500).optional().transform((value) => value || null),
+});
+
+export const residentFoodAvailabilitySchema = z.object({
+  availabilityId: id.optional().or(z.literal("")),
+  startsOn: date,
+  endsOn: date,
+}).refine((value) => value.startsOn <= value.endsOn, {
+  path: ["endsOn"],
+  message: "The last away date must be on or after the first date.",
+});
+
+export const cancelResidentFoodAvailabilitySchema = z.object({ availabilityId: id });
 
 const menuItemSchema = z.object({
   date,
@@ -54,5 +72,12 @@ export const foodMenuRangeSchema = z.object({
 export type MealTypesInput = z.infer<typeof mealTypesSchema>;
 export type CreatePollInput = z.infer<typeof createPollSchema>;
 export type VoteInput = z.infer<typeof voteSchema>;
+export type ResidentFoodAvailabilityInput = z.infer<typeof residentFoodAvailabilitySchema>;
+export type CancelResidentFoodAvailabilityInput = z.infer<typeof cancelResidentFoodAvailabilitySchema>;
 export type FoodMenuInput = z.infer<typeof foodMenuSchema>;
 export type UpdateFoodMenuInput = z.infer<typeof updateFoodMenuSchema>;
+
+export function isWillNotEatOption(label: string) {
+  const normalized = label.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+  return ["will not eat", "i will not eat", "won't eat", "i won't eat", "not eating"].includes(normalized);
+}

@@ -31,6 +31,13 @@ const repository: PlatformAdminOverviewRepository = {
       activeMembershipCount: organization._count.memberships,
     }));
   },
+  async listProperties() {
+    const properties = await prisma.property.findMany({
+      select: { publicId: true, name: true, status: true, createdAt: true, organization: { select: { publicId: true, name: true } } },
+      orderBy: [{ organization: { name: "asc" } }, { name: "asc" }],
+    });
+    return properties.map((property) => ({ publicId: property.publicId, organizationId: property.organization.publicId, organizationName: property.organization.name, name: property.name, status: property.status, createdAt: property.createdAt }));
+  },
 };
 
 export const platformAdminOverview = createPlatformAdminOverviewUseCases(repository);

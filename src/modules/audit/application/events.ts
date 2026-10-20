@@ -3,7 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 export type AuditEvent = Readonly<{
   organizationId: bigint;
   propertyId?: bigint | null;
-  actorUserPublicId: string;
+  actorUserPublicId: string | null;
   actorName: string;
   actionCode: string;
   entityType: string;

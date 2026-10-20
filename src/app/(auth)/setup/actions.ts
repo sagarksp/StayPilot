@@ -18,10 +18,12 @@ export async function createOrganizationAction(formData: FormData) {
       email: session.user.email,
       ownerName: session.user.name,
       organizationName: String(formData.get("name") ?? ""),
+      ownerInviteToken: String(formData.get("ownerInviteToken") ?? "") || undefined,
     });
     redirect(`/org/${organizationId}/properties/new`);
   } catch (error) {
     if (error instanceof ZodError) redirect("/setup?error=invalid");
+    if (error instanceof Error && error.message === "OWNER_INVITATION_INVALID") redirect("/setup?error=invite");
     throw error;
   }
 }

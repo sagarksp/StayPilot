@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 import { AccessDeniedError } from "@/modules/property/domain/inventory";
-import { createPollSchema, foodMenuSchema, mealTypesSchema, updateFoodMenuSchema, voteSchema } from "../application/schemas";
+import { cancelResidentFoodAvailabilitySchema, createPollSchema, foodMenuSchema, mealTypesSchema, residentFoodAvailabilitySchema, updateFoodMenuSchema, voteSchema } from "../application/schemas";
 import { foodUseCases } from "../application/use-cases";
 
 const value = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
@@ -27,10 +27,10 @@ async function actorFor(orgId: string) {
   return actor;
 }
 
-function errorRedirect(orgId: string, error: unknown, target = "food"): never {
+function errorRedirect(orgId: string, error: unknown, target = "food", key = "food-error"): never {
   if (error instanceof AccessDeniedError) notFound();
-  const known = ["DUPLICATE_MEAL_TYPE", "INVALID_POLL_TIME", "INVALID_MEAL_TYPE", "FOOD_POLL_ALREADY_EXISTS", "FOOD_POLL_NOT_OPEN", "POLL_CLOSED", "INVALID_POLL_OPTION", "FOOD_MENU_NOT_FOUND", "FOOD_MENU_LOCKED", "MENU_ITEM_OUTSIDE_RANGE", "DUPLICATE_MENU_ITEM"];
-  if (error instanceof Error && known.includes(error.message)) redirect(`/org/${orgId}/${target}?food-error=${error.message.toLowerCase().replaceAll("_", "-")}`);
+  const known = ["DUPLICATE_MEAL_TYPE", "INVALID_POLL_TIME", "INVALID_MEAL_TYPE", "FOOD_POLL_ALREADY_EXISTS", "FOOD_POLL_NOT_OPEN", "POLL_CLOSED", "INVALID_POLL_OPTION", "FOOD_MENU_NOT_FOUND", "FOOD_MENU_LOCKED", "MENU_ITEM_OUTSIDE_RANGE", "DUPLICATE_MENU_ITEM", "INVALID_POLL_OPTION", "FOOD_SUGGESTION_REQUIRED", "RESIDENT_AWAY", "FOOD_AVAILABILITY_OUTSIDE_STAY", "FOOD_AVAILABILITY_NOT_FOUND", "FOOD_AVAILABILITY_OVERLAP"];
+  if (error instanceof Error && known.includes(error.message)) redirect(`/org/${orgId}/${target}?${key}=${error.message.toLowerCase().replaceAll("_", "-")}`);
   throw error;
 }
 
@@ -111,9 +111,29 @@ export async function closeFoodPollAction(form: FormData) {
 
 export async function voteFoodPollAction(form: FormData) {
   const orgId = value(form, "orgId");
-  const parsed = voteSchema.safeParse({ pollId: value(form, "pollId"), optionId: value(form, "optionId") });
+  const parsed = voteSchema.safeParse({ pollId: value(form, "pollId"), optionId: value(form, "optionId"), suggestion: value(form, "suggestion") });
   if (!parsed.success) redirect(`/org/${orgId}/resident?food-error=invalid-vote`);
   try { await foodUseCases.vote(await actorFor(orgId), parsed.data); } catch (error) { errorRedirect(orgId, error, "resident"); }
   revalidatePath(`/org/${orgId}/resident`);
   redirect(`/org/${orgId}/resident?food-voted=1`);
+}
+
+export async function saveResidentFoodAvailabilityAction(form: FormData) {
+  const orgId = value(form, "orgId");
+  const parsed = residentFoodAvailabilitySchema.safeParse({ availabilityId: value(form, "availabilityId") || undefined, startsOn: value(form, "startsOn"), endsOn: value(form, "endsOn") });
+  if (!parsed.success) redirect(`/org/${orgId}/resident?food-availability-error=invalid-dates`);
+  try { await foodUseCases.saveAvailabilityForResident(await actorFor(orgId), parsed.data); } catch (error) { errorRedirect(orgId, error, "resident", "food-availability-error"); }
+  revalidatePath(`/org/${orgId}/resident`);
+  revalidatePath(`/org/${orgId}/food`);
+  redirect(`/org/${orgId}/resident?food-availability=saved`);
+}
+
+export async function cancelResidentFoodAvailabilityAction(form: FormData) {
+  const orgId = value(form, "orgId");
+  const parsed = cancelResidentFoodAvailabilitySchema.safeParse({ availabilityId: value(form, "availabilityId") });
+  if (!parsed.success) redirect(`/org/${orgId}/resident?food-availability-error=not-found`);
+  try { await foodUseCases.cancelAvailabilityForResident(await actorFor(orgId), parsed.data.availabilityId); } catch (error) { errorRedirect(orgId, error, "resident", "food-availability-error"); }
+  revalidatePath(`/org/${orgId}/resident`);
+  revalidatePath(`/org/${orgId}/food`);
+  redirect(`/org/${orgId}/resident?food-availability=cancelled`);
 }

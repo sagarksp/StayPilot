@@ -132,12 +132,80 @@ model Organization {
   foodMenus                   FoodMenu[]
   foodPolls                   FoodPoll[]
   foodVotes                   FoodVote[]
+  foodUnavailability          ResidentFoodUnavailability[]
   notices                     Notice[]
   auditLogs                   AuditLog[]
   notifications               Notification[]
   residentDocuments           ResidentDocument[]
+  platformInvoices            PlatformInvoice[]
 
   @@map("organizations")
+}
+
+model PlatformBillingSettings {
+  id             Int      @id @default(1)
+  currency       String   @default("INR") @db.Char(3)
+  monthlyRate    Decimal  @default(0) @map("monthly_rate") @db.Decimal(12, 2)
+  updatedByEmail String   @map("updated_by_email") @db.VarChar(254)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@map("platform_billing_settings")
+}
+
+model PlatformOwnerInvitation {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String    @unique @default(uuid()) @map("public_id") @db.Char(36)
+  email          String    @db.VarChar(254)
+  ownerName      String    @map("owner_name") @db.VarChar(180)
+  tokenHash      String    @unique @map("token_hash") @db.Char(64)
+  expiresAt      DateTime  @map("expires_at") @db.DateTime(3)
+  acceptedAt     DateTime? @map("accepted_at") @db.DateTime(3)
+  createdByEmail String    @map("created_by_email") @db.VarChar(254)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([email, acceptedAt, expiresAt])
+  @@map("platform_owner_invitations")
+}
+
+model PlatformInvoice {
+  id             BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String            @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt            @map("organization_id") @db.UnsignedBigInt
+  period         String            @db.Char(7)
+  activePgCount  Int               @map("active_pg_count")
+  monthlyRate    Decimal           @map("monthly_rate") @db.Decimal(12, 2)
+  currency       String            @db.Char(3)
+  totalAmount    Decimal           @map("total_amount") @db.Decimal(14, 2)
+  status         String            @default("OPEN") @db.VarChar(20)
+  dueAt          DateTime          @map("due_at") @db.DateTime(3)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  payments       PlatformPayment[]
+
+  @@unique([organizationId, period])
+  @@index([organizationId, status, dueAt])
+  @@index([period, status])
+  @@map("platform_invoices")
+}
+
+model PlatformPayment {
+  id               BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId         String          @unique @default(uuid()) @map("public_id") @db.Char(36)
+  invoiceId        BigInt          @map("invoice_id") @db.UnsignedBigInt
+  amount           Decimal         @db.Decimal(14, 2)
+  method           String          @db.VarChar(30)
+  reference        String?         @db.VarChar(180)
+  paidAt           DateTime        @map("paid_at") @db.DateTime(3)
+  status           String          @default("PENDING") @db.VarChar(20)
+  submittedByEmail String          @map("submitted_by_email") @db.VarChar(254)
+  reviewedByEmail  String?         @map("reviewed_by_email") @db.VarChar(254)
+  reviewedAt       DateTime?       @map("reviewed_at") @db.DateTime(3)
+  note             String?         @db.VarChar(500)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.DateTime(3)
+  invoice          PlatformInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, status, createdAt])
+  @@map("platform_payments")
 }
 
 model OrganizationMembership {
@@ -220,22 +288,22 @@ model UserInvitationProperty {
 }
 
 model Property {
-  id                      BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
-  publicId                String                   @unique @default(uuid()) @map("public_id") @db.Char(36)
-  organizationId          BigInt                   @map("organization_id") @db.UnsignedBigInt
-  name                    String                   @db.VarChar(180)
-  code                    String?                  @db.VarChar(50)
-  addressLine1            String                   @map("address_line1") @db.VarChar(255)
-  addressLine2            String?                  @map("address_line2") @db.VarChar(255)
-  city                    String                   @db.VarChar(100)
-  state                   String                   @db.VarChar(100)
-  postalCode              String                   @map("postal_code") @db.VarChar(20)
-  contactPhone            String?                  @map("contact_phone") @db.VarChar(30)
-  contactEmail            String?                  @map("contact_email") @db.VarChar(254)
-  status                  String                   @default("ACTIVE") @db.VarChar(20)
-  createdAt               DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt               DateTime                 @updatedAt @map("updated_at") @db.DateTime(3)
-  organization            Organization             @relation(fields: [organizationId], references: [id])
+  id                      BigInt                       @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId                String                       @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId          BigInt                       @map("organization_id") @db.UnsignedBigInt
+  name                    String                       @db.VarChar(180)
+  code                    String?                      @db.VarChar(50)
+  addressLine1            String                       @map("address_line1") @db.VarChar(255)
+  addressLine2            String?                      @map("address_line2") @db.VarChar(255)
+  city                    String                       @db.VarChar(100)
+  state                   String                       @db.VarChar(100)
+  postalCode              String                       @map("postal_code") @db.VarChar(20)
+  contactPhone            String?                      @map("contact_phone") @db.VarChar(30)
+  contactEmail            String?                      @map("contact_email") @db.VarChar(254)
+  status                  String                       @default("ACTIVE") @db.VarChar(20)
+  createdAt               DateTime                     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt               DateTime                     @updatedAt @map("updated_at") @db.DateTime(3)
+  organization            Organization                 @relation(fields: [organizationId], references: [id])
   floors                  Floor[]
   rooms                   Room[]
   beds                    Bed[]
@@ -255,6 +323,7 @@ model Property {
   mealTypes               FoodMealType[]
   foodMenus               FoodMenu[]
   foodPolls               FoodPoll[]
+  foodUnavailability      ResidentFoodUnavailability[]
   notices                 Notice[]
   auditLogs               AuditLog[]
   notifications           Notification[]
@@ -387,27 +456,27 @@ model ResidentDocument {
 }
 
 model ResidentStay {
-  id                     BigInt                  @id @default(autoincrement()) @db.UnsignedBigInt
-  publicId               String                  @unique @default(uuid()) @map("public_id") @db.Char(36)
-  organizationId         BigInt                  @map("organization_id") @db.UnsignedBigInt
-  propertyId             BigInt                  @map("pg_id") @db.UnsignedBigInt
-  residentId             BigInt                  @map("resident_id") @db.UnsignedBigInt
-  bedId                  BigInt                  @map("bed_id") @db.UnsignedBigInt
-  reservationId          BigInt?                 @map("reservation_id") @db.UnsignedBigInt
-  startDate              DateTime                @map("start_date") @db.Date
-  endDate                DateTime?               @map("end_date") @db.Date
-  lockInMonths           Int                     @default(0) @map("lock_in_months") @db.UnsignedInt
-  lockInEndDate          DateTime?               @map("lock_in_end_date") @db.Date
-  status                 String                  @default("ACTIVE") @db.VarChar(20)
-  activeBedSlot          Int?                    @map("active_bed_slot") @db.UnsignedInt
-  activeResidentSlot     Int?                    @map("active_resident_slot") @db.UnsignedInt
-  createdAt              DateTime                @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt              DateTime                @updatedAt @map("updated_at") @db.DateTime(3)
-  organization           Organization            @relation(fields: [organizationId], references: [id])
-  property               Property                @relation(fields: [organizationId, propertyId], references: [organizationId, id])
-  resident               Resident                @relation(fields: [organizationId, residentId], references: [organizationId, id])
-  bed                    Bed                     @relation(fields: [organizationId, propertyId, bedId], references: [organizationId, propertyId, id])
-  reservation            Reservation?            @relation(fields: [reservationId], references: [id])
+  id                     BigInt                       @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId               String                       @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId         BigInt                       @map("organization_id") @db.UnsignedBigInt
+  propertyId             BigInt                       @map("pg_id") @db.UnsignedBigInt
+  residentId             BigInt                       @map("resident_id") @db.UnsignedBigInt
+  bedId                  BigInt                       @map("bed_id") @db.UnsignedBigInt
+  reservationId          BigInt?                      @map("reservation_id") @db.UnsignedBigInt
+  startDate              DateTime                     @map("start_date") @db.Date
+  endDate                DateTime?                    @map("end_date") @db.Date
+  lockInMonths           Int                          @default(0) @map("lock_in_months") @db.UnsignedInt
+  lockInEndDate          DateTime?                    @map("lock_in_end_date") @db.Date
+  status                 String                       @default("ACTIVE") @db.VarChar(20)
+  activeBedSlot          Int?                         @map("active_bed_slot") @db.UnsignedInt
+  activeResidentSlot     Int?                         @map("active_resident_slot") @db.UnsignedInt
+  createdAt              DateTime                     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt              DateTime                     @updatedAt @map("updated_at") @db.DateTime(3)
+  organization           Organization                 @relation(fields: [organizationId], references: [id])
+  property               Property                     @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  resident               Resident                     @relation(fields: [organizationId, residentId], references: [organizationId, id])
+  bed                    Bed                          @relation(fields: [organizationId, propertyId, bedId], references: [organizationId, propertyId, id])
+  reservation            Reservation?                 @relation(fields: [reservationId], references: [id])
   rentRates              StayRentRate[]
   invoices               Invoice[]
   payments               Payment[]
@@ -416,6 +485,7 @@ model ResidentStay {
   electricityAllocations ElectricityAllocation[]
   complaints             Complaint[]
   foodVotes              FoodVote[]
+  foodUnavailability     ResidentFoodUnavailability[]
 
   // MySQL allows multiple NULL values in a unique index. Active stays use 1;
   // ended stays set these slots to NULL, retaining history without allowing
@@ -912,6 +982,7 @@ model FoodVote {
   pollId         BigInt         @map("food_poll_id") @db.UnsignedBigInt
   residentStayId BigInt         @map("resident_stay_id") @db.UnsignedBigInt
   optionId       BigInt         @map("option_id") @db.UnsignedBigInt
+  suggestion     String?        @db.VarChar(500)
   votedAt        DateTime       @default(now()) @map("voted_at") @db.DateTime(3)
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.DateTime(3)
   organization   Organization   @relation(fields: [organizationId], references: [id])
@@ -922,6 +993,26 @@ model FoodVote {
   @@unique([pollId, residentStayId])
   @@index([organizationId, residentStayId, votedAt])
   @@map("food_votes")
+}
+
+model ResidentFoodUnavailability {
+  id             BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId       String       @unique @default(uuid()) @map("public_id") @db.Char(36)
+  organizationId BigInt       @map("organization_id") @db.UnsignedBigInt
+  propertyId     BigInt       @map("pg_id") @db.UnsignedBigInt
+  residentStayId BigInt       @map("resident_stay_id") @db.UnsignedBigInt
+  startsOn       DateTime     @map("starts_on") @db.Date
+  endsOn         DateTime     @map("ends_on") @db.Date
+  cancelledAt    DateTime?    @map("cancelled_at") @db.DateTime(3)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  property       Property     @relation(fields: [organizationId, propertyId], references: [organizationId, id])
+  residentStay   ResidentStay @relation(fields: [organizationId, residentStayId], references: [organizationId, id])
+
+  @@index([organizationId, propertyId, startsOn, endsOn, cancelledAt], map: "resident_food_unavailability_property_range_idx")
+  @@index([organizationId, residentStayId, startsOn, endsOn, cancelledAt], map: "resident_food_unavailability_stay_range_idx")
+  @@map("resident_food_unavailability")
 }
 
 model Notice {

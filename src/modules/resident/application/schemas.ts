@@ -26,6 +26,11 @@ export const assignResidentBedSchema = z.object({
 
 export const updateResidentEmailSchema = z.string().trim().email().max(254).transform((email) => email.toLowerCase());
 
+export const residentSelfProfileSchema = z.object({
+  name: z.string().trim().min(2, "Enter your name.").max(180),
+  phone: phoneSchema,
+});
+
 export const checkOutResidentSchema = z.object({
   stayId: z.string().uuid(),
   endDate: z.iso.date(),
@@ -87,5 +92,6 @@ export type CheckOutResidentData = z.infer<typeof checkOutResidentSchema>;
 export type CheckOutResidentForm = z.input<typeof checkOutResidentSchema>;
 export type MoveOutNoticeForm = z.input<typeof moveOutNoticeSchema>;
 export type MoveOutNoticeInput = z.output<typeof moveOutNoticeSchema>;
+export type ResidentSelfProfileInput = z.input<typeof residentSelfProfileSchema>;
 export type SecurityDepositTransferForm = z.input<typeof securityDepositTransferSchema>;
 export type SecurityDepositTransferInput = z.output<typeof securityDepositTransferSchema>;

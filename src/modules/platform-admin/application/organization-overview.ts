@@ -10,6 +10,7 @@ export type PlatformOrganizationRecord = Readonly<{
 
 export type PlatformOrganizationOverview = Readonly<{
   organizations: readonly PlatformOrganizationRecord[];
+  properties: readonly PlatformPropertyRecord[];
   organizationCount: number;
   activeOrganizationCount: number;
   otherOrganizationCount: number;
@@ -17,16 +18,27 @@ export type PlatformOrganizationOverview = Readonly<{
   activeMembershipCount: number;
 }>;
 
+export type PlatformPropertyRecord = Readonly<{
+  publicId: string;
+  organizationId: string;
+  organizationName: string;
+  name: string;
+  status: string;
+  createdAt: Date;
+}>;
+
 export interface PlatformAdminOverviewRepository {
   listOrganizations(): Promise<readonly PlatformOrganizationRecord[]>;
+  listProperties(): Promise<readonly PlatformPropertyRecord[]>;
 }
 
 export function createPlatformAdminOverviewUseCases(repository: PlatformAdminOverviewRepository) {
   return {
     async getOverview(): Promise<PlatformOrganizationOverview> {
-      const organizations = await repository.listOrganizations();
+      const [organizations, properties] = await Promise.all([repository.listOrganizations(), repository.listProperties()]);
       return {
         organizations,
+        properties,
         organizationCount: organizations.length,
         activeOrganizationCount: organizations.filter((organization) => organization.status === "ACTIVE").length,
         otherOrganizationCount: organizations.filter((organization) => organization.status !== "ACTIVE").length,

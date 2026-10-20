@@ -27,6 +27,7 @@ const navigation: ReadonlyArray<Readonly<{ title: string; links: ReadonlyArray<O
     { label: "Reservations", icon: "event_available", route: "reservations", available: true },
   ] },
   { title: "Financials & Billing", links: [
+    { label: "StayPilot subscription", icon: "receipt", route: "subscription", available: true },
     { label: "Invoices", icon: "receipt_long", route: "finance", available: true },
     { label: "Electricity", icon: "bolt", route: "electricity", available: true },
     { label: "Payments", icon: "account_balance_wallet", route: "payments", available: true },

@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: Context) {
     return Response.json({ data: { id: poll.publicId, status: poll.status } }, { status: 201 });
   } catch (error) {
     if (error instanceof AccessDeniedError) return Response.json({ error: "FORBIDDEN" }, { status: 403 });
-    if (error instanceof Error && ["INVALID_POLL_TIME", "INVALID_MEAL_TYPE", "FOOD_POLL_ALREADY_EXISTS"].includes(error.message)) return Response.json({ error: error.message }, { status: 409 });
+    if (error instanceof Error && ["INVALID_POLL_TIME", "INVALID_MEAL_TYPE", "FOOD_POLL_ALREADY_EXISTS", "INVALID_POLL_OPTION"].includes(error.message)) return Response.json({ error: error.message }, { status: 409 });
     throw error;
   }
 }

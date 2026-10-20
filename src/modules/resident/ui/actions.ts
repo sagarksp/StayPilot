@@ -160,6 +160,22 @@ export async function updateResidentEmailAction(formData: FormData) {
   redirect(residentUrl(orgId, residentId));
 }
 
+export async function updateResidentSelfProfileAction(formData: FormData) {
+  const orgId = value(formData, "orgId");
+  const portalUrl = `/org/${orgId}/resident`;
+  const actor = await getOrganizationActor(orgId);
+  if (!actor) redirect("/login");
+  try {
+    await residentUseCases.updateResidentSelfProfile(actor, { name: value(formData, "name"), phone: value(formData, "phone") });
+  } catch (error) {
+    if (error instanceof ZodError) redirect(`${portalUrl}?profile-error=invalid`);
+    if (error instanceof AccessDeniedError) notFound();
+    throw error;
+  }
+  revalidatePath(portalUrl);
+  redirect(`${portalUrl}?profile=saved`);
+}
+
 export async function setResidentRentTermsAction(formData: FormData) {
   const orgId = value(formData, "orgId");
   const residentId = value(formData, "residentId");

@@ -22,6 +22,17 @@
 .buttonSecondary svg { width: 15px; height: 15px; }
 
 .card { min-width: 0; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgb(15 23 42 / 3%), 0 4px 12px rgb(15 23 42 / 2%); }
+.profileMessage,
+.profileError { margin: 0; padding: 11px 13px; border: 1px solid; border-radius: 9px; font-size: 12px; line-height: 1.5; }
+.profileMessage { border-color: #a7f3d0; background: #ecfdf5; color: #047857; }
+.profileError { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+.profileEditor { padding: 15px 18px; }
+.profileEditor summary { width: fit-content; color: #334155; cursor: pointer; font-size: 12px; font-weight: 700; }
+.profileEditor > p { margin: 7px 0 0; color: #64748b; font-size: 11px; line-height: 1.5; }
+.profileEditor form { display: grid; gap: 10px; margin-top: 12px; }
+.profileEditor label { display: grid; gap: 5px; color: #475569; font-size: 10px; font-weight: 650; }
+.profileEditor input { min-height: 40px; width: 100%; border: 1px solid #d1d5db; border-radius: 7px; background: #fff; padding: 0 10px; color: #1e293b; font: inherit; }
+.profileEditor button { justify-self: start; }
 .stayCard { padding: 20px; }
 .stayCard > p { margin: 6px 0 0; color: #64748b; font-size: 11px; line-height: 1.5; }
 .stayTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
@@ -168,6 +179,10 @@
 :global(html[data-theme="dark"]) .activityCard,
 :global(html[data-theme="dark"]) .depositCard,
 :global(html[data-theme="dark"]) .detailCell { border-color: #3b4a63; background: #172033; color: #e6eeea; }
+:global(html[data-theme="dark"]) .profileEditor summary,
+:global(html[data-theme="dark"]) .profileEditor label { color: #dbe7e1; }
+:global(html[data-theme="dark"]) .profileEditor > p { color: #a8b4c7; }
+:global(html[data-theme="dark"]) .profileEditor input { border-color: #3b4a63; background: #263247; color: #e6eeea; }
 :global(html[data-theme="dark"]) .detailCell,
 :global(html[data-theme="dark"]) .moveOutStatus { background: #263247; }
 :global(html[data-theme="dark"]) .welcome h1,

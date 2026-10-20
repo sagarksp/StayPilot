@@ -472,6 +472,19 @@ export const prismaResidentRepository: ResidentRepository = {
     return this.getResident(organizationId, resident.publicId, asOfDate);
   },
 
+  async updateResidentSelfProfile(organizationId, userId, input) {
+    const resident = await prisma.resident.findFirst({
+      where: {
+        organization: { publicId: organizationId },
+        memberships: { some: { status: "ACTIVE", user: { publicId: userId, status: "ACTIVE" }, roles: { some: { roleCode: "RESIDENT" } } } },
+      },
+      select: { id: true },
+    });
+    if (!resident) return false;
+    const updated = await prisma.resident.updateMany({ where: { id: resident.id, organization: { publicId: organizationId } }, data: { name: input.name, phone: input.phone } });
+    return updated.count === 1;
+  },
+
   async updateResidentEmail(organizationId, residentId, email, propertyIds) {
     await prisma.$transaction(async (tx) => {
       const resident = await tx.resident.findFirst({

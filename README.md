@@ -29,6 +29,22 @@ Email verification is required for password sign-in and account activation.
 Configure those Gmail SMTP values so StayPilot can send one-hour verification
 links during registration and invitation acceptance.
 
+Residents can select “Will Not Eat” for a meal poll and leave a suggestion for
+the kitchen. They can also schedule or edit away date ranges from the Food
+section; managers see the resulting expected meal counts and anonymous meal
+suggestions. Active away ranges can be edited without changing their original
+start date. The resident API supports listing, creating, updating, and
+cancelling away ranges under `/api/v1/me/food/availability`. Owners and assigned
+managers can download a property-scoped 14-day kitchen plan CSV with attendance
+forecasts, poll totals, and anonymous suggestions. Residents with an active
+stay for a meal date receive an in-app notification when its poll opens;
+residents already marked away for that date are excluded. Apply the food
+availability migration through the normal deployment process.
+
+Residents can update their name and phone number from their portal. Login email,
+verification, and financial records are not editable through this self-service
+form.
+
 ## Architecture boundaries
 
 - `src/app/` contains route composition, layouts, and transport entry points.
@@ -141,9 +157,21 @@ assigned properties.
 Owner accounts can register and create an organization after verifying their
 email. Platform operations access is separate from tenant membership and is
 granted only to verified email addresses listed in `PLATFORM_ADMIN_EMAILS`.
-The platform-admin console currently provides a read-only organization
-directory and cross-tenant operational totals; tenant status changes are not
-available there.
+The platform-admin console provides a cross-tenant organization directory and
+operational totals. Allowlisted platform administrators can suspend or
+reactivate an organization with a required reason; each change is recorded in
+that organization's audit log. Configure `PLATFORM_ADMIN_EMAILS` with verified
+email addresses only.
+
+Platform administrators can send owners a seven-day setup link, configure the
+monthly subscription price per active PG and its ISO currency, generate monthly
+owner invoices, review external payment submissions, and activate or deactivate
+PG records with an audit reason. Owners choose their own passwords and verify
+their email; credentials are never emailed. Payment methods currently include
+UPI, bank transfer, cash, card, and other. Owners see only their organization's
+platform invoices, and a payment is counted as revenue only after platform
+administrator confirmation. Apply the platform billing migrations with
+`npm run db:migrate:deploy` before using these controls.
 
 ## Scripts
 
