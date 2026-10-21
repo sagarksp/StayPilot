@@ -19,11 +19,11 @@ function effectivePollStatus(status: string, closesAt: Date, now: Date) {
 }
 function assertStaff(actor: OrganizationActor, propertyId?: string) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
-  if (actor.roles.includes("MANAGER") && !actor.roles.includes("OWNER") && propertyId && !actor.allowedPgIds.includes(propertyId)) throw new AccessDeniedError();
+  if (propertyId && !actor.activePgIds.includes(propertyId)) throw new AccessDeniedError();
 }
 function assertFoodControl(actor: OrganizationActor, propertyId?: string) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
-  if (actor.roles.includes("MANAGER") && !actor.roles.includes("OWNER") && propertyId && !actor.allowedPgIds.includes(propertyId)) throw new AccessDeniedError();
+  if (propertyId && !actor.activePgIds.includes(propertyId)) throw new AccessDeniedError();
 }
 
 async function currentResidentFoodStay(actor: OrganizationActor) {
@@ -32,7 +32,7 @@ async function currentResidentFoodStay(actor: OrganizationActor) {
   if (!membership?.residentId) return null;
   const today = day(localToday(actor.organizationTimezone));
   const stay = await prisma.residentStay.findFirst({
-    where: { organization: { publicId: actor.organizationId }, residentId: membership.residentId, status: { in: ["ACTIVE", "NOTICE_PERIOD"] }, startDate: { lte: today }, OR: [{ endDate: null }, { endDate: { gte: today } }] },
+    where: { organization: { publicId: actor.organizationId }, residentId: membership.residentId, property: { status: "ACTIVE" }, status: { in: ["ACTIVE", "NOTICE_PERIOD"] }, startDate: { lte: today }, OR: [{ endDate: null }, { endDate: { gte: today } }] },
     select: { id: true, organizationId: true, propertyId: true, startDate: true, endDate: true },
     orderBy: { startDate: "desc" },
   });
@@ -56,13 +56,13 @@ export const foodUseCases = {
       const membership = await prisma.organizationMembership.findFirst({ where: { organization: { publicId: actor.organizationId }, user: { publicId: actor.userId }, residentId: { not: null }, status: "ACTIVE" }, select: { residentId: true } });
       if (!membership?.residentId) throw new AccessDeniedError();
       const today = day(localToday(actor.organizationTimezone));
-      const stay = await prisma.residentStay.findFirst({ where: { organization: { publicId: actor.organizationId }, residentId: membership.residentId, property: { publicId: propertyPublicId }, status: { in: ["ACTIVE", "NOTICE_PERIOD"] }, startDate: { lte: today }, OR: [{ endDate: null }, { endDate: { gte: today } }] }, select: { propertyId: true } });
+      const stay = await prisma.residentStay.findFirst({ where: { organization: { publicId: actor.organizationId }, residentId: membership.residentId, property: { publicId: propertyPublicId, status: "ACTIVE" }, status: { in: ["ACTIVE", "NOTICE_PERIOD"] }, startDate: { lte: today }, OR: [{ endDate: null }, { endDate: { gte: today } }] }, select: { propertyId: true } });
       if (!stay) throw new AccessDeniedError();
       propertyScopeId = stay.propertyId;
     } else {
       assertStaff(actor, propertyPublicId);
     }
-    const property = await prisma.property.findFirst({ where: { publicId: propertyPublicId, organization: { publicId: actor.organizationId }, ...(propertyScopeId ? { id: propertyScopeId } : {}) }, select: { id: true, organizationId: true } });
+    const property = await prisma.property.findFirst({ where: { publicId: propertyPublicId, organization: { publicId: actor.organizationId }, status: "ACTIVE", ...(propertyScopeId ? { id: propertyScopeId } : {}) }, select: { id: true, organizationId: true } });
     if (!property) throw new AccessDeniedError();
     return prisma.foodMealType.findMany({ where: { organizationId: property.organizationId, propertyId: property.id, status: "ACTIVE" }, select: { publicId: true, name: true, displayOrder: true }, orderBy: [{ displayOrder: "asc" }, { id: "asc" }] });
   },
@@ -92,7 +92,7 @@ export const foodUseCases = {
   async getStaffPage(actor: OrganizationActor) {
     assertStaff(actor);
     const organization = await prisma.organization.findUniqueOrThrow({ where: { publicId: actor.organizationId }, select: { id: true } });
-    const properties = await prisma.property.findMany({ where: { organizationId: organization.id, status: "ACTIVE", ...(actor.roles.includes("OWNER") ? {} : { publicId: { in: [...actor.allowedPgIds] } }) }, select: { id: true, publicId: true, name: true }, orderBy: { name: "asc" } });
+    const properties = await prisma.property.findMany({ where: { organizationId: organization.id, status: "ACTIVE", publicId: { in: [...actor.activePgIds] } }, select: { id: true, publicId: true, name: true }, orderBy: { name: "asc" } });
     if (!properties.length) return { properties, mealTypes: [], polls: [], menus: [], attendance: [], canSeePollResults: false };
     const ids = properties.map((property) => property.id);
     const today = day(localToday(actor.organizationTimezone));
@@ -263,9 +263,7 @@ export const foodUseCases = {
     assertFoodControl(actor, propertyPublicId);
     const propertyScope = propertyPublicId
       ? { publicId: propertyPublicId }
-      : actor.roles.includes("OWNER")
-        ? undefined
-        : { publicId: { in: [...actor.allowedPgIds] } };
+      : { publicId: { in: [...actor.activePgIds] } };
     const poll = await prisma.foodPoll.findFirst({ where: { publicId: pollPublicId, organization: { publicId: actor.organizationId }, ...(propertyScope ? { property: propertyScope } : {}), status: "OPEN" }, select: { id: true } });
     if (!poll) throw new Error("FOOD_POLL_NOT_OPEN");
     await prisma.foodPoll.updateMany({ where: { id: poll.id, status: "OPEN" }, data: { status: "CLOSED" } });

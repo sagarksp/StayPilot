@@ -31,12 +31,8 @@ export default async function PropertiesPage({
 
       {properties.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {properties.map((property) => (
-            <Link
-              className="surface-card block p-5 transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"
-              href={`/org/${orgId}/properties/${property.id}`}
-              key={property.id}
-            >
+          {properties.map((property) => {
+            const content = <>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold">{property.name}</h2>
@@ -53,8 +49,10 @@ export default async function PropertiesPage({
                 <Metric value={property.bedCount} label="Beds" />
               </div>
               <p className="muted mt-4 text-sm">{property.addressLine1}</p>
-            </Link>
-          ))}
+              {property.status !== "ACTIVE" ? <p className="mt-3 text-xs text-amber-800">This PG is inactive. Contact your platform developer to reactivate operations.</p> : null}
+            </>;
+            return property.status === "ACTIVE" ? <Link className="surface-card block p-5 transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]" href={`/org/${orgId}/properties/${property.id}`} key={property.id}>{content}</Link> : <article className="surface-card block p-5 opacity-80" key={property.id}>{content}</article>;
+          })}
         </div>
       ) : (
         <div className="surface-card flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">

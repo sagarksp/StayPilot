@@ -218,7 +218,7 @@ export default function PublicHomePage() {
   return (
     <main className={styles.page}>
       <div className={styles.productNotice} id="product-status">
-        <span className={styles.noticeDot} /> StayPilot is in development. Property setup is available; other workflows are still being built.
+        <span className={styles.noticeDot} /> Sample figures are illustrative. Request a guided demo to explore StayPilot with a developer.
       </div>
 
       <header className={styles.header}>
@@ -229,7 +229,10 @@ export default function PublicHomePage() {
         <nav className={styles.navigation} aria-label="Main navigation">
           {content.navigation.map((item) => <a href={item.href} key={item.href}>{item.label}</a>)}
         </nav>
-        <a className={styles.headerAction} href="/login">Sign in <ArrowIcon /></a>
+        <div className={styles.headerActions}>
+          <a className={styles.headerAction} href="/demo">Request a demo <ArrowIcon /></a>
+          <a href="/login">Sign in</a>
+        </div>
       </header>
 
       <section className={styles.hero} id="top" aria-labelledby="hero-title">
@@ -238,8 +241,8 @@ export default function PublicHomePage() {
           <h1 id="hero-title">{content.hero.title[0]}<br /><em>{content.hero.title[1]}</em></h1>
           <p className={styles.heroDescription}>{content.hero.description}</p>
           <div className={styles.heroActions}>
-            <a className={styles.primaryButton} href="#features">{content.hero.primaryAction}<ArrowIcon /></a>
-            <a className={styles.secondaryButton} href="#onboarding"><span className={styles.playIcon} />{content.hero.secondaryAction}</a>
+            <a className={styles.primaryButton} href="/demo">{content.hero.primaryAction}<ArrowIcon /></a>
+            <a className={styles.secondaryButton} href="#features"><span className={styles.playIcon} />{content.hero.secondaryAction}</a>
           </div>
           <div className={styles.heroNotes}>
             {content.hero.notes.map((note) => (
@@ -253,11 +256,11 @@ export default function PublicHomePage() {
             <div className={styles.dashboardBrowserBar}>
               <div className={styles.browserDots}><i /><i /><i /></div>
               <span className={styles.browserAddress}>StayPilot / {content.hero.previewTitle}</span>
-              <span className={styles.previewBadge}>CONCEPT PREVIEW</span>
+              <span className={styles.previewBadge}>SAMPLE DATA</span>
             </div>
             <div className={styles.dashboardTopbar}>
               <span className={styles.workspaceName}><Icon name="building" />{content.hero.previewTitle}</span>
-              <span className={styles.workspaceSelector}>Property data unavailable <span>⌄</span></span>
+              <span className={styles.workspaceSelector}>Example property <span>⌄</span></span>
             </div>
             <div className={styles.dashboardMetrics}>
               {content.hero.metrics.map((metricValue, index) => (
@@ -267,7 +270,7 @@ export default function PublicHomePage() {
             <div className={styles.dashboardMatrixPanel}>
               <div className={styles.panelHeading}>
                 <div><span className={styles.panelEyebrow}>PROPERTY VIEW</span><h2>{content.hero.matrixTitle}</h2></div>
-                <span className={styles.emptyStatePill}>LIVE DATA NOT CONNECTED</span>
+              <span className={styles.emptyStatePill}>ILLUSTRATIVE INVENTORY</span>
               </div>
               <EmptyMatrix />
               <p className={styles.matrixMessage}>{content.hero.matrixMessage}</p>
@@ -275,7 +278,7 @@ export default function PublicHomePage() {
           </div>
           <div className={`${styles.floatNote} ${styles.floatNotePayment}`}>
             <span className={styles.floatIcon}><Icon name="wallet" /></span>
-            <span><strong>Payment activity</strong><small>Available when live data is connected</small></span>
+            <span><strong>Payment activity</strong><small>Illustrative figures · not live</small></span>
             <b>—</b>
           </div>
           <div className={`${styles.floatNote} ${styles.floatNoteResident}`}>
@@ -371,7 +374,7 @@ export default function PublicHomePage() {
               <span className={styles.propertyIcon}><Icon name="building" /></span>
               <span><strong>{content.occupancy.propertyLabel}</strong><small>{content.occupancy.locationLabel}</small></span>
             </div>
-            <span className={styles.occupancyBadge}>LIVE INVENTORY PENDING</span>
+            <span className={styles.occupancyBadge}>SAMPLE INVENTORY</span>
           </div>
           <div className={styles.occupancySummary}>
             {[content.occupancy.occupancy, content.occupancy.totalBeds, content.occupancy.occupiedBeds, content.occupancy.availableBeds, content.occupancy.reservedBeds].map((item) => (
@@ -388,7 +391,7 @@ export default function PublicHomePage() {
             <EmptyMatrix compact />
             <p>{content.occupancy.matrixMessage}</p>
           </div>
-          <div className={styles.occupancyFooter}><span /> <span>Availability structure preview</span><span>Live data not connected</span></div>
+          <div className={styles.occupancyFooter}><span /> <span>Availability structure preview</span><span>Illustrative sample</span></div>
         </div>
       </section>
 
@@ -405,7 +408,7 @@ export default function PublicHomePage() {
             <div className={styles.invoiceHeading}>
               <span className={styles.invoiceIcon}><Icon name="receipt" /></span>
               <span><strong>{content.finance.invoiceTitle}</strong><small>{content.finance.invoiceState}</small></span>
-              <span className={styles.invoiceStatus}>CONCEPT</span>
+              <span className={styles.invoiceStatus}>SAMPLE</span>
             </div>
             <div className={styles.invoiceMeta}><span>Resident</span><strong>Resident information</strong></div>
             <div className={styles.invoiceMeta}><span>Stay details</span><strong>Connected when available</strong></div>
@@ -560,7 +563,7 @@ export default function PublicHomePage() {
         <h2 id="closing-title">{content.closing.title}</h2>
         <p>{content.closing.description}</p>
         <div className={styles.closingActions}>
-          <a className={styles.closingPrimary} href="#features">{content.closing.primaryAction}<ArrowIcon /></a>
+          <a className={styles.closingPrimary} href="/demo">{content.closing.primaryAction}<ArrowIcon /></a>
           <a className={styles.closingSecondary} href="#faq"><span className={styles.playIcon} />{content.closing.secondaryAction}</a>
         </div>
         <small>{content.closing.note}</small>

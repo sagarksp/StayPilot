@@ -14,10 +14,11 @@ const metric = (
   format: MetricFormat,
   note?: string,
   suffix?: string,
+  value?: number,
 ): LandingMetric => ({
   key: label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""),
   label,
-  value: null,
+  value: value ?? null,
   format,
   note,
   suffix,
@@ -34,22 +35,22 @@ export const landingContent = {
     eyebrow: "ENTERPRISE-GRADE PG & CO-LIVING OPERATIONS",
     title: ["Run your PG.", "Without the chaos."],
     description:
-      "StayPilot is in development as a workspace for property teams. The product direction brings property operations and resident self-service together.",
-    primaryAction: "Explore the platform",
-    secondaryAction: "See how it is taking shape",
+      "StayPilot brings property operations and resident self-service into one workspace. Explore an illustrative dashboard, then request a guided demo.",
+    primaryAction: "Request a demo",
+    secondaryAction: "Explore features",
     notes: ["Multi-property operations", "Role-aware workflows", "Resident-first product direction"],
     previewTitle: "Portfolio overview",
     previewSubtitle: "Illustrative dashboard concept",
     metrics: [
-      metric("Total beds", "count", "Live inventory will appear when connected."),
-      metric("Rent collected", "currency"),
-      metric("Outstanding dues", "currency"),
-      metric("Security deposits", "currency"),
-      metric("Open complaints", "count"),
-      metric("Upcoming move-outs", "count"),
+      metric("Total beds", "count", "Illustrative sample", undefined, 128),
+      metric("Rent collected", "currency", "Illustrative sample", undefined, 864500),
+      metric("Outstanding dues", "currency", "Illustrative sample", undefined, 64500),
+      metric("Security deposits", "currency", "Illustrative sample", undefined, 420000),
+      metric("Open complaints", "count", "Illustrative sample", undefined, 7),
+      metric("Upcoming move-outs", "count", "Illustrative sample", undefined, 4),
     ],
     matrixTitle: "Room and bed overview",
-    matrixMessage: "Live room allocation will appear when property data is connected.",
+    matrixMessage: "Illustrative room and bed sample · your workspace shows your live records.",
   },
   assurance: [
     "Property structure",
@@ -84,7 +85,7 @@ export const landingContent = {
       },
     ],
     systemTitle: "The StayPilot operating system",
-    systemSubtitle: "Planned product areas",
+    systemSubtitle: "Connected StayPilot workflows",
     systemItems: [
       {
         title: "Payment and invoice records",
@@ -112,14 +113,14 @@ export const landingContent = {
     eyebrow: "BUILT FOR PROPERTY OPERATIONS",
     title: "Everything a PG operating workspace needs to bring together.",
     description:
-      "The planned product spans property structure, resident records, financial workflows, and everyday operations.",
+      "Manage property inventory, resident stays, billing, and day-to-day team work in connected workflows.",
     cards: [
       {
         key: "space",
         icon: "building",
         label: "PROPERTY STRUCTURE",
         title: "Manage your space",
-        body: "A property view designed around buildings, floors, rooms, sharing arrangements, and availability.",
+        body: "Build a clear inventory from each PG down to its floors, rooms, beds, and availability.",
         bullets: [
           "Organize properties, floors, and room layouts",
           "Represent different room-sharing arrangements",
@@ -132,7 +133,7 @@ export const landingContent = {
         icon: "person",
         label: "RESIDENT EXPERIENCE",
         title: "Support every stay",
-        body: "A planned resident experience for stay information, onboarding, documents, and handovers.",
+        body: "Manage resident profiles, invitations, stay details, documents, and move-in or move-out handovers.",
         bullets: [
           "Provide a clear path for resident onboarding",
           "Keep stay-related information easy to find",
@@ -145,7 +146,7 @@ export const landingContent = {
         icon: "wallet",
         label: "FINANCIAL WORKFLOWS",
         title: "Bring money into focus",
-        body: "A planned financial workspace for invoices, payment records, deposits, and utility charges.",
+        body: "Track recurring charges, partial payments, deposits, and shared utility costs against each stay.",
         bullets: [
           "Structure recurring rent and other charges",
           "Record partial payments and balances",
@@ -158,7 +159,7 @@ export const landingContent = {
         icon: "clipboard",
         label: "DAY-TO-DAY OPERATIONS",
         title: "Coordinate daily work",
-        body: "A shared structure for resident requests, staff assignments, meal planning, and visitor workflows.",
+        body: "Bring food polls, availability, complaints, notices, reservations, and staff follow-up together.",
         bullets: [
           "Keep resident requests connected to follow-up work",
           "Coordinate recurring property tasks",
@@ -172,74 +173,74 @@ export const landingContent = {
     eyebrow: "ROOM & BED VISIBILITY",
     title: "See property availability in context.",
     description:
-      "Set up properties and organize floors, rooms, and beds. Occupancy and availability views will follow when resident stay workflows are connected.",
+      "Set up properties, organize floors, rooms, and beds, and review current occupancy and availability from one inventory.",
     propertyLabel: "Property overview",
-    locationLabel: "Property location will appear with live data",
-    occupancy: metric("Occupancy", "percent"),
-    totalBeds: metric("Total beds", "count"),
-    occupiedBeds: metric("Occupied", "count"),
-    availableBeds: metric("Available", "count"),
-    reservedBeds: metric("Reserved", "count"),
+    locationLabel: "Example PG · illustrative data",
+    occupancy: metric("Occupancy", "percent", "Illustrative sample", undefined, 82.8),
+    totalBeds: metric("Total beds", "count", "Illustrative sample", undefined, 128),
+    occupiedBeds: metric("Occupied", "count", "Illustrative sample", undefined, 106),
+    availableBeds: metric("Available", "count", "Illustrative sample", undefined, 16),
+    reservedBeds: metric("Reserved", "count", "Illustrative sample", undefined, 6),
     statuses: [
       { label: "Available", color: "available" },
       { label: "Reserved", color: "reserved" },
       { label: "Occupied", color: "occupied" },
       { label: "Maintenance", color: "maintenance" },
     ],
-    matrixMessage: "Bed-level details will appear when live property data is connected.",
+    matrixMessage: "Example inventory only · connect your own PG records after setup.",
   },
   finance: {
     eyebrow: "FINANCIAL WORKFLOWS",
     title: "Make amounts due and paid easier to follow.",
     description:
-      "The planned finance views bring invoices, payment records, shared charges, and deposit settlements into a clear review flow.",
+      "Follow invoices, payment records, shared charges, and deposit settlements in one review flow. Amounts shown are sample values.",
     invoiceTitle: "Invoice preview",
-    invoiceState: "Live invoice data not connected",
+    invoiceState: "Sample invoice · illustrative values",
     invoiceRows: [
-      { label: "Base stay charge", metric: metric("Base stay charge", "currency") },
-      { label: "Utility charges", metric: metric("Utility charges", "currency") },
-      { label: "Property services", metric: metric("Property services", "currency") },
+      { label: "Base stay charge", metric: metric("Base stay charge", "currency", undefined, undefined, 18000) },
+      { label: "Utility charges", metric: metric("Utility charges", "currency", undefined, undefined, 500) },
+      { label: "Property services", metric: metric("Property services", "currency", undefined, undefined, 1200) },
     ],
-    invoiceTotal: metric("Total due", "currency"),
-    invoicePaid: metric("Paid", "currency"),
-    invoiceBalance: metric("Balance", "currency"),
+    invoiceTotal: metric("Total due", "currency", undefined, undefined, 19700),
+    invoicePaid: metric("Paid", "currency", undefined, undefined, 12000),
+    invoiceBalance: metric("Balance", "currency", undefined, undefined, 7700),
     depositTitle: "Deposit settlement concept",
     depositDescription:
-      "A planned review of recorded deposits, property charges, and settlement details.",
+      "Review recorded deposits, property charges, and settlement details during move-out.",
     depositRows: [
-      { label: "Deposit held", metric: metric("Deposit held", "currency") },
-      { label: "Property charges", metric: metric("Property charges", "currency") },
-      { label: "Resident balance", metric: metric("Resident balance", "currency") },
+      { label: "Deposit held", metric: metric("Deposit held", "currency", undefined, undefined, 25000) },
+      { label: "Property charges", metric: metric("Property charges", "currency", undefined, undefined, 1200) },
+      { label: "Resident balance", metric: metric("Resident balance", "currency", undefined, undefined, 23800) },
     ],
-    paymentNote: "Payment and settlement details will appear when financial data is connected.",
+    paymentNote: "Illustrative example · your workspace uses its own payment records.",
   },
   residents: {
     eyebrow: "RESIDENT EXPERIENCE",
     title: "A simpler experience for residents too.",
     description:
-      "StayPilot is being designed around a lightweight resident experience for stay information, payment records, requests, and everyday updates.",
+      "Residents can check stay information, review payment records, respond to food polls, update availability, and follow requests.",
     benefits: [
       {
         icon: "receipt",
         title: "Stay and payment information",
-        body: "A planned view for resident documents, invoices, and recorded payments.",
+        body: "Give residents access to their stay details, invoices, payment records, and uploaded documents.",
       },
       {
         icon: "meal",
         title: "Everyday preferences",
-        body: "A planned place for residents to share common preferences and responses.",
+        body: "Residents can vote on meals, suggest alternatives, and tell the cook when they will be away.",
       },
       {
         icon: "support",
         title: "Requests and follow-up",
-        body: "A clearer path for resident requests and the property team response.",
+        body: "Residents can submit a complaint and follow updates from the property team.",
       },
     ],
     phoneTitle: "Resident portal concept",
-    phoneStatus: "Resident data not connected",
+    phoneStatus: "Illustrative resident view",
     phoneMetrics: [
-      metric("Current balance", "currency"),
-      metric("Request status", "count", undefined, "open"),
+      metric("Current balance", "currency", "Sample", undefined, 7700),
+      metric("Request status", "count", "Sample", "open", 2),
     ],
     phoneActions: ["Stay details", "Payment records", "Support request", "Property updates"],
   },
@@ -249,9 +250,9 @@ export const landingContent = {
     description:
       "The planned portfolio overview will help multi-property teams review property activity and compare live operating information.",
     metrics: [
-      metric("Portfolio beds", "count"),
-      metric("Collected revenue", "currency"),
-      metric("Occupancy", "percent"),
+      metric("Portfolio beds", "count", "Illustrative sample", undefined, 380),
+      metric("Collected revenue", "currency", "Illustrative sample", undefined, 2315000),
+      metric("Occupancy", "percent", "Illustrative sample", undefined, 84.2),
     ],
     propertyEmptyState: "Property comparisons will appear when live portfolio data is connected.",
   },
@@ -259,7 +260,7 @@ export const landingContent = {
     eyebrow: "A CLEARER SETUP PATH",
     title: "A structured path from setup to daily operations.",
     description:
-      "The planned onboarding flow is organized around the work teams need to complete before day-to-day operations begin.",
+      "Start with your property structure, add residents and stays, then use the operational workflows your team needs.",
     steps: [
       {
         index: "01",
@@ -343,7 +344,7 @@ export const landingContent = {
       {
         question: "Can I book a live demo?",
         answer:
-          "Demo scheduling is not available yet. This page will be updated when a working demo is ready.",
+          "Submit a demo request. A StayPilot developer will review it and, if approved, email a secure time-limited setup link.",
       },
     ],
   },
@@ -352,9 +353,9 @@ export const landingContent = {
     title: "A clearer operating picture starts with connected work.",
     description:
       "StayPilot is taking shape around the people, properties, and day-to-day work behind every stay.",
-    primaryAction: "Explore product areas",
+    primaryAction: "Request a demo",
     secondaryAction: "Read common questions",
-    note: "Property setup is available in the workspace. Resident, finance, and reporting workflows are still in development.",
+    note: "Dashboard figures on this page are sample data. Request a demo to see the product workflow and discuss your PG setup.",
   },
   footer: {
     description:

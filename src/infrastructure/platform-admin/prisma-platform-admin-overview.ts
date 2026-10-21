@@ -10,6 +10,7 @@ const repository: PlatformAdminOverviewRepository = {
         name: true,
         status: true,
         timezone: true,
+        demoExpiresAt: true,
         createdAt: true,
         _count: {
           select: {
@@ -26,6 +27,7 @@ const repository: PlatformAdminOverviewRepository = {
       name: organization.name,
       status: organization.status,
       timezone: organization.timezone,
+      demoExpiresAt: organization.demoExpiresAt,
       createdAt: organization.createdAt,
       propertyCount: organization._count.properties,
       activeMembershipCount: organization._count.memberships,

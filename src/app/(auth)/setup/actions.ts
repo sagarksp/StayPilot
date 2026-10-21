@@ -12,13 +12,15 @@ const setupOrganization = createOrganizationSetup(prismaOrganizationSetup);
 export async function createOrganizationAction(formData: FormData) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user.email) redirect("/login");
+  const ownerInviteToken = String(formData.get("ownerInviteToken") ?? "");
+  if (!ownerInviteToken) redirect("/setup?error=invite");
 
   try {
     const organizationId = await setupOrganization({
       email: session.user.email,
       ownerName: session.user.name,
       organizationName: String(formData.get("name") ?? ""),
-      ownerInviteToken: String(formData.get("ownerInviteToken") ?? "") || undefined,
+      ownerInviteToken,
     });
     redirect(`/org/${organizationId}/properties/new`);
   } catch (error) {

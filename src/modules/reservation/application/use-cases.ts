@@ -8,7 +8,7 @@ import { ReservationWorkflowError } from "../domain/reservation";
 function assertStaff(actor: OrganizationActor) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
 }
-function propertyScope(actor: OrganizationActor) { return actor.roles.includes("OWNER") ? undefined : actor.allowedPgIds; }
+function propertyScope(actor: OrganizationActor) { return actor.activePgIds; }
 function today(timezone: string) {
   const values = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()).map(({ type, value }) => [type, value]));
   return `${values.year}-${values.month}-${values.day}`;

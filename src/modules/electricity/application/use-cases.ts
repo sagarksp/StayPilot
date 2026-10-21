@@ -20,13 +20,13 @@ function staff(actor: OrganizationActor) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
 }
 function propertyScope(actor: OrganizationActor) {
-  return actor.roles.includes("OWNER") ? undefined : [...actor.allowedPgIds];
+  return [...actor.activePgIds];
 }
 async function scopedProperty(actor: OrganizationActor, publicId: string) {
   staff(actor);
   const allowed = propertyScope(actor);
-  if (allowed && !allowed.includes(publicId)) throw new AccessDeniedError();
-  const property = await prisma.property.findFirst({ where: { publicId, organization: { publicId: actor.organizationId } }, select: { id: true, publicId: true } });
+  if (!allowed.includes(publicId)) throw new AccessDeniedError();
+  const property = await prisma.property.findFirst({ where: { publicId, organization: { publicId: actor.organizationId }, status: "ACTIVE" }, select: { id: true, publicId: true } });
   if (!property) throw new AccessDeniedError();
   return property;
 }

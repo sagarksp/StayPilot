@@ -8,7 +8,7 @@ function assertStaff(actor: OrganizationActor) {
 }
 
 function propertyScope(actor: OrganizationActor) {
-  return actor.roles.includes("OWNER") ? {} : { publicId: { in: [...actor.allowedPgIds] } };
+  return { publicId: { in: [...actor.activePgIds] } };
 }
 
 function todayInTimezone(timezone: string) {
@@ -72,6 +72,7 @@ export const noticeUseCases = {
       const stays = await tx.residentStay.findMany({
         where: {
           organizationId: organization.id,
+          property: { status: "ACTIVE" },
           status: { in: ["ACTIVE", "NOTICE_PERIOD"] },
           startDate: { lte: today },
           OR: [{ endDate: null }, { endDate: { gte: today } }],
@@ -113,7 +114,9 @@ export const noticeUseCases = {
       where: {
         publicId: parsed.noticeId,
         organization: { publicId: actor.organizationId },
-        ...(actor.roles.includes("OWNER") ? {} : { property: { publicId: { in: [...actor.allowedPgIds] } } }),
+        ...(actor.roles.includes("OWNER")
+          ? { OR: [{ propertyId: null }, { property: { publicId: { in: [...actor.activePgIds] } } }] }
+          : { property: { publicId: { in: [...actor.activePgIds] } } }),
         archivedAt: null,
       },
       select: { id: true, publicId: true, organizationId: true, propertyId: true },
@@ -126,6 +129,7 @@ export const noticeUseCases = {
       const stays = await tx.residentStay.findMany({
         where: {
           organizationId: notice.organizationId,
+          property: { status: "ACTIVE" },
           status: { in: ["ACTIVE", "NOTICE_PERIOD"] },
           startDate: { lte: today },
           OR: [{ endDate: null }, { endDate: { gte: today } }],
@@ -171,6 +175,7 @@ export const noticeUseCases = {
       where: {
         organization: { publicId: actor.organizationId },
         residentId: membership.residentId,
+        property: { status: "ACTIVE" },
         status: { in: ["ACTIVE", "NOTICE_PERIOD"] },
         startDate: { lte: today },
         OR: [{ endDate: null }, { endDate: { gte: today } }],

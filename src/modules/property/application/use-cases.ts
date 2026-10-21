@@ -26,7 +26,7 @@ function assertOwner(actor: OrganizationActor) {
 export function createPropertyUseCases(repository: PropertyRepository): PropertyUseCases {
   return {
     async listProperties(actor: OrganizationActor) {
-      const scope = actor.roles.includes("OWNER") ? undefined : actor.allowedPgIds;
+      const scope = actor.roles.includes("OWNER") ? undefined : actor.activePgIds;
       return repository.listProperties(actor.organizationId, scope);
     },
 
@@ -69,7 +69,7 @@ export function createPropertyUseCases(repository: PropertyRepository): Property
 
     async getOccupancyReport(actor: OrganizationActor, filters: OccupancyReportFilters) {
       if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
-      const allowed = actor.roles.includes("OWNER") ? undefined : actor.allowedPgIds;
+      const allowed = actor.activePgIds;
       if (filters.propertyId && allowed && !allowed.includes(filters.propertyId)) throw new AccessDeniedError();
       const report = await repository.getOccupancyReport(actor.organizationId, allowed, filters);
       if (filters.propertyId && !report.properties.some((property) => property.publicId === filters.propertyId)) throw new AccessDeniedError();
@@ -78,7 +78,9 @@ export function createPropertyUseCases(repository: PropertyRepository): Property
 
     async updateStayPolicy(actor, input: PropertyStayPolicyInput) {
       assertOwner(actor);
-      await repository.updateStayPolicy(actor.organizationId, propertyStayPolicySchema.parse(input));
+      const parsed = propertyStayPolicySchema.parse(input);
+      assertCanManageInventory(actor, parsed.propertyId);
+      await repository.updateStayPolicy(actor.organizationId, parsed);
     },
   };
 }

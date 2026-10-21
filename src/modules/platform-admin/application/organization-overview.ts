@@ -3,6 +3,7 @@ export type PlatformOrganizationRecord = Readonly<{
   name: string;
   status: string;
   timezone: string;
+  demoExpiresAt: Date | null;
   createdAt: Date;
   propertyCount: number;
   activeMembershipCount: number;

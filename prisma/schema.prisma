@@ -105,6 +105,7 @@ model Organization {
   name                        String                       @db.VarChar(200)
   timezone                    String                       @default("Asia/Kolkata") @db.VarChar(64)
   status                      String                       @default("ACTIVE") @db.VarChar(20)
+  demoExpiresAt               DateTime?                    @map("demo_expires_at") @db.DateTime(3)
   createdAt                   DateTime                     @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt                   DateTime                     @updatedAt @map("updated_at") @db.DateTime(3)
   memberships                 OrganizationMembership[]
@@ -162,15 +163,38 @@ model PlatformOwnerInvitation {
   acceptedAt     DateTime? @map("accepted_at") @db.DateTime(3)
   createdByEmail String    @map("created_by_email") @db.VarChar(254)
   createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  demoDurationHours Int?   @map("demo_duration_hours")
+  demoRequest    DemoRequest?
 
   @@index([email, acceptedAt, expiresAt])
   @@map("platform_owner_invitations")
+}
+
+model DemoRequest {
+  id                 BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  publicId           String                 @unique @default(uuid()) @map("public_id") @db.Char(36)
+  name               String                 @db.VarChar(180)
+  email              String                 @db.VarChar(254)
+  phoneCountryCode   String                 @map("phone_country_code") @db.VarChar(8)
+  phoneNumber        String                 @map("phone_number") @db.VarChar(30)
+  address            String                 @db.VarChar(500)
+  status             String                 @default("PENDING") @db.VarChar(20)
+  invitationId       BigInt?                @unique @map("invitation_id") @db.UnsignedBigInt
+  reviewedByEmail    String?                @map("reviewed_by_email") @db.VarChar(254)
+  reviewedAt         DateTime?              @map("reviewed_at") @db.DateTime(3)
+  createdAt          DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  invitation         PlatformOwnerInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([email, createdAt])
+  @@map("demo_requests")
 }
 
 model PlatformInvoice {
   id             BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
   publicId       String            @unique @default(uuid()) @map("public_id") @db.Char(36)
   organizationId BigInt            @map("organization_id") @db.UnsignedBigInt
+  propertyId     BigInt?           @map("property_id") @db.UnsignedBigInt
   period         String            @db.Char(7)
   activePgCount  Int               @map("active_pg_count")
   monthlyRate    Decimal           @map("monthly_rate") @db.Decimal(12, 2)
@@ -180,9 +204,11 @@ model PlatformInvoice {
   dueAt          DateTime          @map("due_at") @db.DateTime(3)
   createdAt      DateTime          @default(now()) @map("created_at") @db.DateTime(3)
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  property       Property?         @relation(fields: [propertyId], references: [id], onDelete: Restrict)
   payments       PlatformPayment[]
 
-  @@unique([organizationId, period])
+  @@unique([organizationId, propertyId, period])
+  @@index([propertyId])
   @@index([organizationId, status, dueAt])
   @@index([period, status])
   @@map("platform_invoices")
@@ -328,6 +354,7 @@ model Property {
   auditLogs               AuditLog[]
   notifications           Notification[]
   residentDocuments       ResidentDocument[]
+  platformInvoices        PlatformInvoice[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, code])

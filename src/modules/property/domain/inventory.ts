@@ -11,6 +11,8 @@ export type OrganizationActor = Readonly<{
   roles: readonly StaffRole[];
   /** An empty list means no assigned PGs for a manager. */
   allowedPgIds: readonly string[];
+  /** Staff access is limited to active PGs (and manager assignments). */
+  activePgIds: readonly string[];
 }>;
 
 export type PropertySummary = Readonly<{
@@ -61,8 +63,8 @@ export class AccessDeniedError extends Error {
 }
 
 export function canReadProperty(actor: OrganizationActor, propertyId: string) {
-  if (actor.roles.includes("OWNER")) return true;
-  return actor.roles.includes("MANAGER") && actor.allowedPgIds.includes(propertyId);
+  if (actor.roles.includes("OWNER")) return actor.activePgIds.includes(propertyId);
+  return actor.roles.includes("MANAGER") && actor.activePgIds.includes(propertyId);
 }
 
 export function assertCanReadProperty(actor: OrganizationActor, propertyId: string) {
@@ -70,11 +72,11 @@ export function assertCanReadProperty(actor: OrganizationActor, propertyId: stri
 }
 
 export function assertCanManageInventory(actor: OrganizationActor, propertyId?: string) {
-  if (actor.roles.includes("OWNER")) return;
+  if (actor.roles.includes("OWNER") && (!propertyId || actor.activePgIds.includes(propertyId))) return;
   if (
     propertyId &&
     actor.roles.includes("MANAGER") &&
-    actor.allowedPgIds.includes(propertyId)
+    actor.activePgIds.includes(propertyId)
   ) {
     return;
   }

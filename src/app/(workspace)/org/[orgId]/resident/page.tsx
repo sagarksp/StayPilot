@@ -69,7 +69,7 @@ export default async function ResidentHomePage({
   if (!resident) return <section className={`${styles.dashboard} ${styles.unlinked}`}>
     <p className={styles.eyebrow}>Resident portal</p>
     <h1>Your account is not linked yet</h1>
-    <p>Accept the resident activation invitation sent by your property manager using this account. If you do not have an invitation, ask the manager to resend it from your resident profile.</p>
+    <p>This account has no current stay in an active PG. If your PG was deactivated, contact your organization owner or platform developer. Otherwise, ask your property manager to send a resident activation invitation to this email.</p>
     <div className={styles.unlinkedEmail}><strong>SIGNED-IN EMAIL</strong><span>{actor.userEmail}</span></div>
   </section>;
 

@@ -114,6 +114,7 @@
 }
 
 .headerAction:hover,.primaryButton:hover,.closingPrimary:hover { transform: translateY(-1px); background: var(--brand-dark); }
+.headerActions { display: flex; flex: none; align-items: center; gap: 14px; color: #506071; font-size: 10px; font-weight: 600; }
 .arrowIcon { width: 15px; height: 15px; flex: none; }
 
 .hero {

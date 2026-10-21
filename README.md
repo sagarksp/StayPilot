@@ -69,8 +69,10 @@ Prerequisites: Node.js 22.12 or newer, npm, and a local MySQL database.
 3. Generate the Prisma client with `npm run db:generate`.
 4. Apply the checked-in local schema with `npm run db:migrate:deploy`.
 5. From the `C:\StayPilot` project root, start the development server with
-   `npm run dev -- --hostname localhost --port 3000`, then register an owner
-   account at `/register` and create the first organization.
+   `npm run dev -- --hostname localhost --port 3000`. Sign in with the verified
+   platform-admin account configured in `PLATFORM_ADMIN_EMAILS`, invite the
+   first owner from `/platform-admin`, and have the owner finish setup from the
+   emailed invitation.
 
 Set `APP_URL` to the exact origin used in the browser. For the command above,
 use `http://localhost:3000`; `localhost` and `127.0.0.1` use separate browser
@@ -116,6 +118,19 @@ the endpoint creates rent drafts five days before their due date. Set a strong
 `CRON_SECRET` in each environment. Owners and assigned managers review drafts
 under Invoices; finalization is always an explicit action.
 
+Platform subscription invoices are generated idempotently per PG by
+`POST /api/internal/platform-billing/generate-invoices`. Configure the same
+daily scheduler with `Authorization: Bearer <CRON_SECRET>`; it creates the
+current UTC month invoice for every active PG in active organizations, using
+the current developer-configured rate and currency. Each invoice identifies one
+PG, and owners see the PG name and can submit payment against its invoice. The
+developer dashboard can create invoices for selected PGs or backfill a month.
+Existing invoices are not changed, so later pricing changes apply to invoices
+created afterward. Existing organization-wide invoices remain visible as legacy
+invoices and prevent duplicate per-PG billing for that organization and month.
+The endpoint returns `409 PRICING_NOT_CONFIGURED` until a positive monthly rate
+has been saved.
+
 In-app notifications are available in each workspace header. Complaints notify
 the property's owner and assigned managers, published or withdrawn notices
 notify current residents in their scope, and invoice due reminders are
@@ -154,8 +169,11 @@ Managers land on their assigned-property operations dashboard after sign-in,
 with occupancy, reservation, and complaint follow-up counts scoped to their
 assigned properties.
 
-Owner accounts can register and create an organization after verifying their
-email. Platform operations access is separate from tenant membership and is
+Owner account creation requires a developer-issued setup invitation. The
+`/register` route redirects visitors without an invitation to sign-in, and
+`/setup` only shows organization creation for the invited, signed-in email. Invited owners
+verify their email and create the organization from their one-time link.
+Platform operations access is separate from tenant membership and is
 granted only to verified email addresses listed in `PLATFORM_ADMIN_EMAILS`.
 The platform-admin console provides a cross-tenant organization directory and
 operational totals. Allowlisted platform administrators can suspend or
@@ -172,6 +190,17 @@ UPI, bank transfer, cash, card, and other. Owners see only their organization's
 platform invoices, and a payment is counted as revenue only after platform
 administrator confirmation. Apply the platform billing migrations with
 `npm run db:migrate:deploy` before using these controls.
+
+The public landing page shows clearly marked illustrative dashboard figures.
+Prospects can submit a demo request at `/demo`; developers review requests in
+the platform dashboard and can email a one-time owner setup link with up to 720
+hours of demo access. The timer starts when the invited owner creates a
+workspace, and the organization becomes inaccessible when the demo expires.
+Apply the demo access migration with `npm run db:migrate:deploy` before using
+the demo request and review flow.
+Deactivated PGs disappear from tenant staff operation scopes, cannot be opened
+from the property inventory, and no longer expose resident operations; their
+stored history remains available again if the developer reactivates the PG.
 
 ## Scripts
 

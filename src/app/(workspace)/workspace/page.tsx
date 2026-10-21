@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/infrastructure/auth/auth";
-import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
+import { getOrganizationActor, hasExpiredDemoAccess } from "@/infrastructure/auth/actor-context";
 import { isPlatformAdminIdentity } from "@/infrastructure/auth/platform-admin-access";
 import { workspaceAccess } from "@/infrastructure/auth/workspace-access";
 
@@ -18,7 +18,7 @@ export default async function WorkspaceRedirectPage() {
   }
 
   const actor = await getOrganizationActor(destination.organizationId);
-  if (!actor) redirect("/login");
+  if (!actor) redirect(await hasExpiredDemoAccess(destination.organizationId) ? "/demo-expired" : "/login");
   const landingPage = actor.roles.includes("OWNER")
     ? "owner"
     : actor.roles.includes("MANAGER")

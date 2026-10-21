@@ -25,7 +25,7 @@ function assertStaff(actor: OrganizationActor) {
 }
 
 function propertyScope(actor: OrganizationActor) {
-  return actor.roles.includes("OWNER") ? undefined : actor.allowedPgIds;
+  return actor.activePgIds;
 }
 
 function todayInTimezone(timezone: string) {

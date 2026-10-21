@@ -81,7 +81,7 @@ function toResidentSummary(record: ComplaintRecord): ComplaintSummary {
 }
 
 function propertyScope(actor: OrganizationActor) {
-  return actor.roles.includes("OWNER") ? undefined : actor.allowedPgIds;
+  return actor.activePgIds;
 }
 
 async function findComplaint(where: Prisma.ComplaintWhereInput) {
@@ -202,7 +202,7 @@ export const prismaComplaintRepository: ComplaintRepository = {
       const [actor, stay] = await Promise.all([
         tx.user.findUnique({ where: { publicId: actorId }, select: { id: true } }),
         tx.residentStay.findFirst({
-          where: { organization: { publicId: organizationId }, publicId: input.stayId, residentId: matches[0].id, status: { in: ["ACTIVE", "NOTICE_PERIOD"] } },
+          where: { organization: { publicId: organizationId }, publicId: input.stayId, residentId: matches[0].id, property: { status: "ACTIVE" }, status: { in: ["ACTIVE", "NOTICE_PERIOD"] } },
           select: { id: true, organizationId: true, propertyId: true },
         }),
       ]);

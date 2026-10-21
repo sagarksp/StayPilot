@@ -397,3 +397,43 @@ Residents can update their own name and phone number from the resident portal. T
 Expanded the allowlisted developer console with one-time owner setup invitations, configurable monthly price per active PG and currency, idempotent monthly invoice generation, organization and PG status controls, confirmed revenue totals, and owner payment review. Owners set their own passwords through the existing verified signup flow, see only their organization's platform invoices, and can submit external payment details using UPI, bank transfer, cash, card, or other. Submitted payments remain pending until a developer confirms them; confirmed receipts update invoice status. Organization and PG status changes require a reason and are added to the tenant audit log.
 
 **Key areas:** `src/app/(platform)/platform-admin/`, `src/modules/platform-admin/`, `src/infrastructure/platform-admin/`, `src/app/(workspace)/org/[orgId]/(staff)/subscription/`, `src/app/(auth)/register/`, `src/app/(auth)/setup/`, `src/components/workspace/owner-console-shell.tsx`, `prisma/schema.prisma`, `prisma/migrations/20261020160000_platform_billing/migration.sql`, `prisma/migrations/20261020170000_platform_owner_invitations/migration.sql`, `README.md`
+
+### 2026-10-20 - Inactive PG operational access enforcement
+
+**Status:** Complete
+
+Owner and manager operation scopes now include only active PGs. Inactive PGs are excluded from property-specific staff workflows, resident operational access, food, notices, complaints, documents, electricity, reservations, billing operations, and reports. Property detail routes reject inactive PGs, while the owner property directory and platform directory retain their status visibility. Reactivating a PG restores access to its preserved records and the manager assignments remain intact.
+
+**Key areas:** `src/infrastructure/auth/actor-context.ts`, `src/modules/property/domain/inventory.ts`, `src/modules/{property,resident,reservation,billing,electricity,food,notice,complaint,resident-document}/`, `src/app/(workspace)/org/[orgId]/(staff)/properties/`, `README.md`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-21 - Automatic platform subscription invoices
+
+**Status:** Complete
+
+Added an authenticated, idempotent daily scheduler endpoint that generates the current month's platform invoice for active organizations with active PGs. Invoice pricing, currency, and PG count are captured when generated; later pricing or inventory changes do not rewrite existing bills. The developer dashboard retains manual generation for backfills.
+
+**Key areas:** `src/app/api/internal/platform-billing/generate-invoices/route.ts`, `src/infrastructure/platform-admin/prisma-platform-billing.ts`, `src/app/(platform)/platform-admin/page.tsx`, `README.md`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-21 - Developer dashboard and PG-specific billing
+
+**Status:** Complete; local migration applied
+
+Refined the platform console with collapsible work areas, a six-month confirmed-revenue chart grouped by currency, and summary cards for tenants, active PGs, pending receipts, revenue, and open balances. Developers can select active PGs and create one monthly invoice per PG; scheduled billing also creates individual PG invoices. Owners see the PG covered by each invoice. Existing organization-wide invoices remain readable and are protected from duplicate billing for the same organization and month.
+
+**Key areas:** `src/app/(platform)/platform-admin/`, `src/app/(workspace)/org/[orgId]/(staff)/subscription/page.tsx`, `src/infrastructure/platform-admin/prisma-platform-billing.ts`, `prisma/schema.prisma`, `prisma/migrations/20261021000000_platform_invoice_per_pg/migration.sql`, `README.md`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-21 - Invitation-only owner workspace setup
+
+**Status:** Complete
+
+Removed the public self-service owner registration path. The registration page only presents account creation for a valid developer-issued owner invitation, and workspace setup only presents organization creation when the invitation is valid and matches the signed-in email. The server action and organization setup use case also require the invitation token, preventing a direct form submission from creating an uninvited workspace.
+
+**Key areas:** `src/app/(auth)/register/page.tsx`, `src/app/(auth)/setup/`, `src/modules/auth/application/setup-organization.ts`, `src/infrastructure/auth/prisma-organization-setup.ts`, `README.md`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-21 - Public demo requests and time-limited access
+
+**Status:** Complete; local migration applied
+
+Added an illustrative public landing dashboard and a demo request form with international calling-code selection. Demo requests appear in the developer dashboard, where the developer can close them or email a secure owner setup link with a 1-to-720-hour access window. The timer starts when the invited owner creates their workspace; tenant access is blocked after expiry and the owner sees an expiration page.
+
+**Key areas:** `src/app/(public)/page.tsx`, `src/app/(public)/landing-content.ts`, `src/app/(public)/demo/`, `src/app/(public)/demo-expired/`, `src/app/(platform)/platform-admin/`, `src/infrastructure/demo-requests/`, `src/infrastructure/auth/actor-context.ts`, `src/infrastructure/auth/prisma-organization-setup.ts`, `prisma/schema.prisma`, `prisma/migrations/20261021120000_demo_requests_and_access/migration.sql`, `docs/PROJECT_STATUS.md`

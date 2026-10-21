@@ -5,6 +5,7 @@ import { acceptPlatformOwnerInvitation } from "@/infrastructure/platform-admin/o
 
 export const prismaOrganizationSetup: OrganizationSetupRepository = {
   async setupOrganization({ email, ownerName, organizationName, ownerInviteToken }) {
+    if (!ownerInviteToken) throw new Error("OWNER_INVITATION_INVALID");
     return prisma.$transaction(async (transaction) => {
       const user = await transaction.user.upsert({
         where: { email },
@@ -23,11 +24,12 @@ export const prismaOrganizationSetup: OrganizationSetupRepository = {
       });
       if (existingMembership) return existingMembership.organization.publicId;
 
-      if (ownerInviteToken) await acceptPlatformOwnerInvitation({ token: ownerInviteToken, email }, transaction);
+      const demoDurationHours = await acceptPlatformOwnerInvitation({ token: ownerInviteToken, email }, transaction);
 
       const organization = await transaction.organization.create({
         data: {
           name: organizationName,
+          demoExpiresAt: demoDurationHours ? new Date(Date.now() + demoDurationHours * 60 * 60 * 1000) : null,
           memberships: {
             create: {
               userId: user.id,

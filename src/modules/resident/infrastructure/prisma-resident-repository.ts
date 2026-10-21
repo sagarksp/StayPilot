@@ -465,11 +465,12 @@ export const prismaResidentRepository: ResidentRepository = {
             roles: { some: { roleCode: "RESIDENT" } },
           },
         },
+        stays: { some: { property: { status: "ACTIVE" }, status: { in: ["ACTIVE", "NOTICE_PERIOD", "CHECKOUT_PROCESSING"] } } },
       },
-      select: { publicId: true },
+      select: { publicId: true, organization: { select: { properties: { where: { status: "ACTIVE" }, select: { publicId: true } } } } },
     });
     if (!resident) return null;
-    return this.getResident(organizationId, resident.publicId, asOfDate);
+    return this.getResident(organizationId, resident.publicId, asOfDate, resident.organization.properties.map(({ publicId }) => publicId));
   },
 
   async updateResidentSelfProfile(organizationId, userId, input) {

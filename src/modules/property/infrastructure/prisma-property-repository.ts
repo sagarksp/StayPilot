@@ -138,7 +138,7 @@ export const prismaPropertyRepository: PropertyRepository = {
 
   async listStayPolicies(organizationId) {
     const properties = await prisma.property.findMany({
-      where: { organization: { publicId: organizationId }, status: { not: "ARCHIVED" } },
+      where: { organization: { publicId: organizationId }, status: "ACTIVE" },
       select: { publicId: true, name: true, settings: { select: { noticePeriodDays: true, lockInMonths: true } } },
       orderBy: [{ name: "asc" }, { id: "asc" }],
     });
@@ -152,7 +152,7 @@ export const prismaPropertyRepository: PropertyRepository = {
 
   async updateStayPolicy(organizationId, input) {
     const property = await prisma.property.findFirst({
-      where: { organization: { publicId: organizationId }, publicId: input.propertyId },
+      where: { organization: { publicId: organizationId }, publicId: input.propertyId, status: "ACTIVE" },
       select: { id: true },
     });
     if (!property) throw new Error("PROPERTY_NOT_FOUND");
@@ -179,7 +179,7 @@ export const prismaPropertyRepository: PropertyRepository = {
 
   async getProperty(organizationId, propertyId) {
     const row = await prisma.property.findFirst({
-      where: { organization: { publicId: organizationId }, publicId: propertyId },
+      where: { organization: { publicId: organizationId }, publicId: propertyId, status: "ACTIVE" },
       select: propertySelect,
     });
     return row ? toPropertySummary(row) : null;
@@ -246,7 +246,7 @@ export const prismaPropertyRepository: PropertyRepository = {
 
   async createFloor(organizationId, propertyId, input: CreateFloorInput) {
     const property = await prisma.property.findFirstOrThrow({
-      where: { organization: { publicId: organizationId }, publicId: propertyId },
+      where: { organization: { publicId: organizationId }, publicId: propertyId, status: "ACTIVE" },
       select: { id: true, organizationId: true },
     });
     const floor = await prisma.floor.create({
@@ -262,7 +262,7 @@ export const prismaPropertyRepository: PropertyRepository = {
 
   async createRoom(organizationId, propertyId, input: CreateRoomInput) {
     const property = await prisma.property.findFirstOrThrow({
-      where: { organization: { publicId: organizationId }, publicId: propertyId },
+      where: { organization: { publicId: organizationId }, publicId: propertyId, status: "ACTIVE" },
       select: { id: true, organizationId: true },
     });
     const floor = await prisma.floor.findFirstOrThrow({
@@ -282,7 +282,7 @@ export const prismaPropertyRepository: PropertyRepository = {
 
   async createBed(organizationId, propertyId, input: CreateBedInput) {
     const property = await prisma.property.findFirstOrThrow({
-      where: { organization: { publicId: organizationId }, publicId: propertyId },
+      where: { organization: { publicId: organizationId }, publicId: propertyId, status: "ACTIVE" },
       select: { id: true, organizationId: true },
     });
     const room = await prisma.room.findFirstOrThrow({

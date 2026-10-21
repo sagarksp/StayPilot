@@ -8,7 +8,7 @@ function assertStaff(actor: OrganizationActor) {
   if (!actor.roles.includes("OWNER") && !actor.roles.includes("MANAGER")) throw new AccessDeniedError();
 }
 function propertyScope(actor: OrganizationActor) {
-  return actor.roles.includes("OWNER") ? undefined : actor.allowedPgIds;
+  return actor.activePgIds;
 }
 function dateOnly(date: Date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));

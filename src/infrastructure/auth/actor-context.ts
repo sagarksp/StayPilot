@@ -13,7 +13,7 @@ export async function getOrganizationActor(
   const membership = await prisma.organizationMembership.findFirst({
     where: {
       status: "ACTIVE",
-      organization: { publicId: organizationPublicId, status: "ACTIVE" },
+      organization: { publicId: organizationPublicId, status: "ACTIVE", OR: [{ demoExpiresAt: null }, { demoExpiresAt: { gt: new Date() } }] },
       user: { email: session.user.email, status: "ACTIVE" },
     },
     select: {
@@ -26,6 +26,7 @@ export async function getOrganizationActor(
           _count: {
             select: { properties: { where: { status: { not: "ARCHIVED" } } } },
           },
+          properties: { where: { status: "ACTIVE" }, select: { publicId: true } },
         },
       },
       roles: { select: { roleCode: true } },
@@ -43,6 +44,7 @@ export async function getOrganizationActor(
       role === "OWNER" || role === "MANAGER" || role === "RESIDENT",
     );
   if (!roles.length) return null;
+  const allowedPgIds = membership.pgAssignments.map(({ property }) => property.publicId);
 
   return {
     userId: membership.user.publicId,
@@ -53,6 +55,21 @@ export async function getOrganizationActor(
     organizationTimezone: membership.organization.timezone,
     propertyCount: membership.organization._count.properties,
     roles,
-    allowedPgIds: membership.pgAssignments.map(({ property }) => property.publicId),
+    allowedPgIds,
+    activePgIds: roles.includes("OWNER") ? membership.organization.properties.map(({ publicId }) => publicId) : allowedPgIds,
   };
+}
+
+export async function hasExpiredDemoAccess(organizationPublicId: string): Promise<boolean> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user.email) return false;
+  const membership = await prisma.organizationMembership.findFirst({
+    where: {
+      status: "ACTIVE",
+      organization: { publicId: organizationPublicId, status: "ACTIVE", demoExpiresAt: { lte: new Date() } },
+      user: { email: session.user.email, status: "ACTIVE" },
+    },
+    select: { id: true },
+  });
+  return membership !== null;
 }

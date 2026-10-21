@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
+import { getOrganizationActor, hasExpiredDemoAccess } from "@/infrastructure/auth/actor-context";
 
 /**
  * Scaffold-only organization boundary. Add the session and membership guard
@@ -12,7 +12,7 @@ export default async function OrganizationLayout({
 }: Readonly<{ children: ReactNode; params: Promise<{ orgId: string }> }>) {
   const { orgId } = await params;
   const actor = await getOrganizationActor(orgId);
-  if (!actor) redirect("/login");
+  if (!actor) redirect(await hasExpiredDemoAccess(orgId) ? "/demo-expired" : "/login");
 
   return children;
 }

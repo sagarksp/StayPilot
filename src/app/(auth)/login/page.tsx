@@ -1,5 +1,4 @@
 import { SignInForm } from "@/modules/auth/ui/sign-in-form";
-import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/infrastructure/auth/auth";
@@ -25,7 +24,6 @@ export default async function SignInPage({ searchParams }: Readonly<{ searchPara
         <p className="muted mt-3 leading-7">Sign in to your StayPilot workspace.</p>
         {query.verified === "1" ? <p className="mt-5 rounded-lg border border-[#dbeafe] bg-[#eff8f3] p-3 text-sm text-[#24594b]" role="status">Your email is verified. Sign in to continue.</p> : null}
         <SignInForm callbackURL={callbackURL} />
-        <p className="muted mt-6 text-center text-sm">New to StayPilot? <Link className="font-semibold text-[#2563eb] hover:underline" href="/register">Create a workspace</Link></p>
       </section>
     </main>
   );

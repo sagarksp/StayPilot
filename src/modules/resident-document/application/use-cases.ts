@@ -12,7 +12,7 @@ function assertStaff(actor: OrganizationActor) {
 }
 
 function managerPropertyFilter(actor: OrganizationActor) {
-  return actor.roles.includes("OWNER") ? undefined : [...actor.allowedPgIds];
+  return [...actor.activePgIds];
 }
 
 function todayInTimezone(timezone: string) {
@@ -63,7 +63,7 @@ async function findSelfResident(actor: OrganizationActor) {
     select: {
       organization: { select: { id: true, publicId: true } },
       user: { select: { id: true } },
-      resident: { select: { id: true, publicId: true, stays: { where: { status: { in: ["ACTIVE", "NOTICE_PERIOD", "CHECKOUT_PROCESSING"] }, startDate: { lte: today }, OR: [{ endDate: null }, { endDate: { gte: today } }] }, orderBy: { startDate: "desc" }, take: 1, select: { propertyId: true } } } },
+      resident: { select: { id: true, publicId: true, stays: { where: { property: { status: "ACTIVE" }, status: { in: ["ACTIVE", "NOTICE_PERIOD", "CHECKOUT_PROCESSING"] }, startDate: { lte: today }, OR: [{ endDate: null }, { endDate: { gte: today } }] }, orderBy: { startDate: "desc" }, take: 1, select: { propertyId: true } } } },
     },
   });
   if (!membership?.resident) throw new AccessDeniedError();

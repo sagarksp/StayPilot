@@ -9,6 +9,7 @@ import { platformOrganizationStatus } from "@/infrastructure/platform-admin/pris
 import { generatePlatformInvoices, reviewPlatformPayment, updatePlatformPricing } from "@/infrastructure/platform-admin/prisma-platform-billing";
 import { createPlatformOwnerInvitation } from "@/infrastructure/platform-admin/owner-invitations";
 import { platformPropertyStatus } from "@/infrastructure/platform-admin/prisma-platform-property-status";
+import { attachDemoInvitation, claimDemoRequest, closeDemoRequest, releaseDemoRequest } from "@/infrastructure/demo-requests/prisma-demo-requests";
 import { PlatformPropertyStatusError, platformPropertyStatusSchema } from "@/modules/platform-admin/application/property-status";
 import { PlatformOrganizationStatusError, platformOrganizationStatusSchema } from "@/modules/platform-admin/application/organization-status";
 
@@ -63,12 +64,15 @@ export async function createPlatformInvoices(formData: FormData) {
   if (!isPlatformAdminIdentity(session.user)) notFound();
   const period = String(formData.get("period") ?? "");
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) redirect("/platform-admin?billing-error=invalid-period");
+  const propertyIds = formData.getAll("propertyIds").map((value) => String(value));
+  if (!propertyIds.length || propertyIds.length > 200 || propertyIds.some((id) => !/^[0-9a-f-]{36}$/i.test(id))) redirect("/platform-admin?billing-error=select-pgs");
   try {
-    const count = await generatePlatformInvoices(period);
+    const count = await generatePlatformInvoices(period, propertyIds);
     revalidatePath("/platform-admin");
     redirect(`/platform-admin?billing-created=${count}`);
   } catch (error) {
     if (error instanceof Error && error.message === "PRICING_NOT_CONFIGURED") redirect("/platform-admin?billing-error=pricing-required");
+    if (error instanceof Error && error.message === "PROPERTY_UNAVAILABLE") redirect("/platform-admin?billing-error=pg-unavailable");
     throw error;
   }
 }
@@ -124,4 +128,39 @@ export async function updatePlatformPropertyStatus(formData: FormData) {
   }
   revalidatePath("/platform-admin");
   redirect(`/platform-admin?property-updated=${parsed.data.status.toLowerCase()}`);
+}
+
+export async function reviewDemoRequest(formData: FormData) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) redirect("/login?callbackURL=%2Fplatform-admin");
+  if (!isPlatformAdminIdentity(session.user)) notFound();
+  const requestId = String(formData.get("requestId") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(requestId) || !["GRANT", "CLOSE"].includes(decision)) redirect("/platform-admin?demo-error=invalid");
+  if (decision === "CLOSE") {
+    const closed = await closeDemoRequest(requestId, session.user.email);
+    if (!closed) redirect("/platform-admin?demo-error=unavailable");
+    revalidatePath("/platform-admin");
+    redirect("/platform-admin?demo-updated=closed");
+  }
+
+  const durationHours = Number(formData.get("durationHours"));
+  if (!Number.isInteger(durationHours) || durationHours < 1 || durationHours > 720) redirect("/platform-admin?demo-error=duration");
+  const request = await claimDemoRequest(requestId, session.user.email);
+  if (!request) redirect("/platform-admin?demo-error=unavailable");
+  try {
+    const invitationId = await createPlatformOwnerInvitation({
+      email: request.email,
+      ownerName: request.name,
+      createdByEmail: session.user.email,
+      demoDurationHours: durationHours,
+    });
+    await attachDemoInvitation(request.id, invitationId);
+  } catch (error) {
+    await releaseDemoRequest(request.id);
+    if (error instanceof Error && error.message === "EMAIL_DELIVERY_FAILED") redirect("/platform-admin?demo-error=email");
+    throw error;
+  }
+  revalidatePath("/platform-admin");
+  redirect("/platform-admin?demo-updated=invited");
 }

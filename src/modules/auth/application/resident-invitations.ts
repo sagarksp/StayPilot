@@ -51,7 +51,7 @@ export function createResidentInvitationUseCases(
         organizationId: actor.organizationId,
         residentId,
         actorId: actor.userId,
-        propertyIds: actor.roles.includes("OWNER") ? undefined : actor.allowedPgIds,
+        propertyIds: actor.activePgIds,
         tokenHash: tokenHash(token),
         expiresAt,
       });
