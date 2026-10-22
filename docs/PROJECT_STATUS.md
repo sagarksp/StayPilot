@@ -172,11 +172,11 @@ Expanded the resident portal with current stay details, finalized rent and elect
 
 **Key areas:** `src/app/(workspace)/org/[orgId]/resident/`, `src/components/workspace/resident-portal-shell.tsx`, `src/modules/resident/application/`, `src/modules/resident/infrastructure/prisma-resident-repository.ts`, `src/modules/resident/ui/actions.ts`, `README.md`
 
-### 2026-10-12 — Same-organization security-deposit transfers
+### 2026-10-12 — Same-resident security-deposit transfers
 
 **Status:** Complete
 
-Owners and assigned managers can transfer deposit balances between eligible open stays inside their organization. Transfers validate both property scopes, source balance, and destination deposit capacity, then write paired `TRANSFER_OUT` and `TRANSFER_IN` ledger entries with a shared reference and reason in one transaction. Account ledger versions prevent concurrent receipts, transfers, and checkout settlements from spending the same balance. The finance page shows recent entries and respects manager property scope.
+Owners and assigned managers can transfer deposit balances only between eligible open stays belonging to the same resident inside their organization. Transfers validate resident ownership, both property scopes, source balance, and destination deposit capacity, then write paired `TRANSFER_OUT` and `TRANSFER_IN` ledger entries with a shared reference and reason in one transaction. Account ledger versions prevent concurrent receipts, transfers, and checkout settlements from spending the same balance. The finance page shows recent entries and respects manager property scope.
 
 **Key areas:** `src/modules/resident/`, `src/app/(workspace)/org/[orgId]/(staff)/deposit-transfers/page.tsx`, `src/app/api/v1/organizations/[orgId]/stays/[stayId]/security-deposit/transfer/route.ts`, `src/components/workspace/owner-console-shell.tsx`, `src/components/workspace/staff-shell.tsx`, `prisma/schema.prisma`, `prisma/migrations/20261012000000_security_deposit_transfers/migration.sql`
 

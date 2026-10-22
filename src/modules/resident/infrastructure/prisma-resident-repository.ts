@@ -369,7 +369,7 @@ export const prismaResidentRepository: ResidentRepository = {
           select: {
             publicId: true,
             status: true,
-            resident: { select: { name: true } },
+            resident: { select: { publicId: true, name: true } },
             property: { select: { name: true } },
             bed: { select: { label: true, room: { select: { number: true } } } },
           },
@@ -379,6 +379,7 @@ export const prismaResidentRepository: ResidentRepository = {
     });
     return accounts.map((account) => ({
       stayId: account.residentStay.publicId,
+      residentId: account.residentStay.resident.publicId,
       residentName: account.residentStay.resident.name,
       propertyName: account.residentStay.property.name,
       roomNumber: account.residentStay.bed.room.number,
@@ -700,6 +701,7 @@ export const prismaResidentRepository: ResidentRepository = {
         }),
       ]);
       if (!source || !destination || source.id === destination.id) throw new ResidentWorkflowError("DEPOSIT_TRANSFER_INVALID");
+      if (source.residentStay.residentId !== destination.residentStay.residentId) throw new ResidentWorkflowError("DEPOSIT_TRANSFER_DIFFERENT_RESIDENT");
       const sourceBalance = source.transactions.reduce((sum, transaction) => sum + transaction.amountPaise, BigInt(0));
       const destinationBalance = destination.transactions.reduce((sum, transaction) => sum + transaction.amountPaise, BigInt(0));
       if (input.amountPaise > sourceBalance) throw new ResidentWorkflowError("DEPOSIT_TRANSFER_EXCEEDS_BALANCE");
@@ -749,7 +751,7 @@ export const prismaResidentRepository: ResidentRepository = {
         actionCode: "SECURITY_DEPOSIT_TRANSFERRED",
         entityType: "SECURITY_DEPOSIT_TRANSFER",
         entityPublicId: reference,
-        summary: `Transferred ${formatAuditMoneyPaise(input.amountPaise)} between resident stays. Reason: ${reason}`,
+        summary: `Transferred ${formatAuditMoneyPaise(input.amountPaise)} between two stays for the same resident. Reason: ${reason}`,
       });
     });
   },

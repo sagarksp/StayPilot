@@ -93,7 +93,7 @@ export function OwnerConsoleShell({
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <div className={styles.brandBlock}>
-          <Link className={styles.brand} href="/">
+          <Link aria-label="StayPilot owner dashboard" className={styles.brand} href={ownerPath}>
             <span className={styles.brandIcon}><WorkspaceIcon name="domain" /></span>
             <span>
               <strong>StayPilot</strong>

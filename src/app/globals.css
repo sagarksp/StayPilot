@@ -188,6 +188,23 @@ textarea:disabled {
   color: var(--muted);
 }
 
+.deposit-transfer-form label {
+  min-width: 0;
+}
+
+.deposit-transfer-form select,
+.deposit-transfer-form input,
+.deposit-transfer-form textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.deposit-transfer-history li,
+.deposit-transfer-history li > div {
+  overflow-wrap: anywhere;
+}
+
 [data-global-feedback-captured="true"] {
   display: none !important;
 }

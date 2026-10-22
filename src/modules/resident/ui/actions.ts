@@ -52,6 +52,7 @@ function workflowErrorCode(error: ResidentWorkflowError) {
     case "CHECKOUT_BEFORE_NOTICE_DATE": return "before-scheduled-date";
     case "NOTICE_ALREADY_EXISTS": return "notice-exists";
     case "DEPOSIT_TRANSFER_INVALID": return "transfer-account";
+    case "DEPOSIT_TRANSFER_DIFFERENT_RESIDENT": return "transfer-person";
     case "DEPOSIT_TRANSFER_EXCEEDS_BALANCE": return "transfer-balance";
     case "DEPOSIT_TRANSFER_EXCEEDS_REQUIRED": return "transfer-limit";
     case "DEPOSIT_ACCOUNT_CHANGED": return "transfer-conflict";

@@ -82,6 +82,50 @@
 .unavailable { color: #94a3b8; font-size: 9px; white-space: normal; }
 .empty { margin: 0; padding: 18px; color: #64748b; font-size: 11px; line-height: 1.5; }
 .note { margin: 0; padding: 11px 18px; border-top: 1px solid #edf0f4; background: #f8fafc; color: #64748b; font-size: 10px; line-height: 1.55; }
+:global(html[data-theme="dark"]) .page { color: #e6eeea; }
+:global(html[data-theme="dark"]) .heading h1,
+:global(html[data-theme="dark"]) .metric > strong,
+:global(html[data-theme="dark"]) .sectionTitle,
+:global(html[data-theme="dark"]) .chartHeading h3,
+:global(html[data-theme="dark"]) .tableWrap tbody th,
+:global(html[data-theme="dark"]) .pgOption b { color: #e6eeea; }
+:global(html[data-theme="dark"]) .heading > div > p:last-child,
+:global(html[data-theme="dark"]) .metric > span,
+:global(html[data-theme="dark"]) .sectionDetail,
+:global(html[data-theme="dark"]) .metric > small,
+:global(html[data-theme="dark"]) .chartAmount,
+:global(html[data-theme="dark"]) .chartMonth,
+:global(html[data-theme="dark"]) .formGrid label,
+:global(html[data-theme="dark"]) .tableWrap th,
+:global(html[data-theme="dark"]) .tableWrap td,
+:global(html[data-theme="dark"]) .paymentRecord > span,
+:global(html[data-theme="dark"]) .statusForm > label:first-of-type,
+:global(html[data-theme="dark"]) .confirm,
+:global(html[data-theme="dark"]) .empty,
+:global(html[data-theme="dark"]) .note { color: #b8c4d4; }
+:global(html[data-theme="dark"]) .metric,
+:global(html[data-theme="dark"]) .directory { border-color: #3b4a63; background: #172033; }
+:global(html[data-theme="dark"]) .sectionHeader:hover { background: #1e293b; }
+:global(html[data-theme="dark"]) .sectionContent,
+:global(html[data-theme="dark"]) .invoiceForm,
+:global(html[data-theme="dark"]) .tableWrap th,
+:global(html[data-theme="dark"]) .tableWrap td { border-color: #3b4a63; }
+:global(html[data-theme="dark"]) .chartCard,
+:global(html[data-theme="dark"]) .pgOption,
+:global(html[data-theme="dark"]) .paymentRecord,
+:global(html[data-theme="dark"]) .note { border-color: #3b4a63; background: #1e293b; }
+:global(html[data-theme="dark"]) .pgOption:has(input:checked) { border-color: #5575aa; background: #263a59; }
+:global(html[data-theme="dark"]) .chartHeading > span { background: #263247; color: #bfdbfe; }
+:global(html[data-theme="dark"]) .pgOption small,
+:global(html[data-theme="dark"]) .tableWrap tbody th small,
+:global(html[data-theme="dark"]) .paymentRecord > small,
+:global(html[data-theme="dark"]) .secondaryLine,
+:global(html[data-theme="dark"]) .unavailable { color: #a8b4c7; }
+:global(html[data-theme="dark"]) .status { background: #263247; color: #d2ddd7; }
+:global(html[data-theme="dark"]) .statusActive { background: #12382f; color: #86efac; }
+:global(html[data-theme="dark"]) .statusOther { background: #49391e; color: #fcd38d; }
+:global(html[data-theme="dark"]) .success { border-color: #1d6248; background: #12382f; color: #bbf7d0; }
+:global(html[data-theme="dark"]) .error { border-color: #703c48; background: #30202b; color: #fecaca; }
 @media (max-width: 1080px) { .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .chartGrid { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .heading { align-items: flex-start; flex-direction: column; } .sectionHeader { align-items: flex-start; padding: 14px; } .sectionDetail { max-width: 48%; font-size: 9px; } .metric { padding: 12px; } .metric > strong { font-size: 22px; } .chartCard { padding: 12px; } .formGrid { padding: 14px; } }

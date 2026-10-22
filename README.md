@@ -9,8 +9,9 @@ The public landing page, owner dashboard, Stitch-aligned manager operations
 dashboard, property inventory, resident occupancy, reservation management,
 rent and electricity billing,
 payment recording, checkout settlement, and resident billing self-service are
-implemented, including auditable security-deposit transfers within an
-organization. The resident portal supports maintenance requests with private
+implemented, including auditable security-deposit transfers between stays of
+the same resident. Deposits cannot be transferred to another person. The
+resident portal supports maintenance requests with private
 photo and PDF attachments; staff can assign, resolve, and close them with a
 recorded status history. Configure `AWS_REGION`, `AWS_S3_BUCKET`,
 `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` to enable private S3 storage

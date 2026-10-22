@@ -80,7 +80,7 @@ export function StaffShell({
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <div className={styles.brandBlock}>
-          <Link className={styles.brand} href="/">
+          <Link aria-label="StayPilot manager dashboard" className={styles.brand} href={`${workspaceRoot}/manager`}>
             <span className={styles.brandIcon}><WorkspaceIcon name="domain" /></span>
             <span className={styles.brandCopy}>
               <strong>StayPilot</strong>

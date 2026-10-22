@@ -11,7 +11,7 @@ export function PlatformShell({ children, adminEmail }: Readonly<{ children: Rea
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <div className={styles.brandRow}>
-          <Link className={styles.brand} href="/">
+          <Link aria-label="StayPilot platform admin dashboard" className={styles.brand} href="/platform-admin">
             <strong>StayPilot</strong>
             <span>Platform admin</span>
           </Link>

@@ -99,6 +99,7 @@ export type OccupancyTotals = Readonly<{
 
 export type DepositTransferAccountOption = Readonly<{
   stayId: string;
+  residentId: string;
   residentName: string;
   propertyName: string;
   roomNumber: string;
@@ -152,6 +153,7 @@ export type ResidentWorkflowErrorCode =
   | "CHECKOUT_BEFORE_NOTICE_DATE"
   | "NOTICE_ALREADY_EXISTS"
   | "DEPOSIT_TRANSFER_INVALID"
+  | "DEPOSIT_TRANSFER_DIFFERENT_RESIDENT"
   | "DEPOSIT_TRANSFER_EXCEEDS_BALANCE"
   | "DEPOSIT_TRANSFER_EXCEEDS_REQUIRED"
   | "DEPOSIT_ACCOUNT_CHANGED";
