@@ -7,7 +7,13 @@ function internalCallback(value?: string | string[]) {
   const candidate = Array.isArray(value) ? value[0] : value;
   if (!candidate?.startsWith("/") || candidate.startsWith("//") || candidate.includes("\\")) return "/workspace";
   const target = new URL(candidate, "https://staypilot.invalid");
-  return target.origin === "https://staypilot.invalid" ? `${target.pathname}${target.search}${target.hash}` : "/workspace";
+  if (target.origin !== "https://staypilot.invalid") return "/workspace";
+
+  // Setup without an invitation is not a valid destination after an ordinary
+  // sign-in. Old login links can retain this callback from a previous setup visit.
+  if (target.pathname === "/setup" && !target.searchParams.has("invite")) return "/workspace";
+
+  return `${target.pathname}${target.search}${target.hash}`;
 }
 
 export default async function SignInPage({ searchParams }: Readonly<{ searchParams: Promise<{ callbackURL?: string | string[]; verified?: string }> }>) {
