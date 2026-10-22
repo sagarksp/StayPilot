@@ -11,3 +11,6 @@ export async function POST(request: Request) {
   const generated = await billingUseCases.generateDueDrafts();
   return Response.json({ data: { generatedDrafts: generated } });
 }
+
+// Vercel Cron invokes route handlers with GET requests.
+export const GET = POST;

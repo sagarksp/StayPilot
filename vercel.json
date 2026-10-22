@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/internal/billing/generate-drafts",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/internal/notifications/reminders",
+      "schedule": "10 2 * * *"
+    },
+    {
+      "path": "/api/internal/platform-billing/generate-invoices",
+      "schedule": "20 2 * * *"
+    }
+  ]
+}

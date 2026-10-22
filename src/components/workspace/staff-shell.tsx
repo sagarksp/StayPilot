@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 import type { ReactNode } from "react";
 import { WorkspaceIcon } from "@/components/ui/workspace-icon";
 import { SignOutButton } from "@/modules/auth/ui/sign-out-button";
@@ -10,6 +9,7 @@ import type { OrganizationActor } from "@/modules/property/domain/inventory";
 import styles from "./staff-shell.module.css";
 import { NotificationBell } from "./notification-bell";
 import { HeaderTools } from "./header-tools";
+import { MobileNavigationDrawer } from "./mobile-navigation-drawer";
 
 const navigation = [
   {
@@ -54,8 +54,27 @@ export function StaffShell({
   actor,
 }: Readonly<{ children: ReactNode; actor: OrganizationActor }>) {
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const workspaceRoot = `/org/${actor.organizationId}`;
+  const navigationContent = navigation.map((section) => (
+    <section className={styles.navigationSection} key={section.title}>
+      <h2>{section.title}</h2>
+      <div className={styles.navigationLinks}>
+        {section.links.map((item) => {
+          const href = `${workspaceRoot}/${item.href}`;
+          const selected = item.href === "manager"
+            ? pathname === href
+            : pathname === href || pathname.startsWith(`${href}/`);
+          const className = [styles.navigationLink, selected ? styles.navigationLinkActive : ""].filter(Boolean).join(" ").trim();
+          return (
+            <Link aria-current={selected ? "page" : undefined} className={className} href={href} key={item.href}>
+              <WorkspaceIcon name={item.icon} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  ));
 
   return (
     <div className={styles.shell}>
@@ -78,40 +97,15 @@ export function StaffShell({
           </div>
         </div>
 
-        <nav aria-label="Manager workspace" className={`${styles.navigation} ${mobileMenuOpen ? styles.navigationOpen : ""}`} id="manager-workspace-menu">
-          <button aria-controls="manager-workspace-menu-list" aria-expanded={mobileMenuOpen} className={styles.mobileMenuToggle} onClick={() => setMobileMenuOpen(true)} type="button">
-            <WorkspaceIcon name="table_rows" />Menu
-          </button>
-          <div className={styles.mobileMenuHeader}>
-            <strong>Manager workspace</strong>
-            <button aria-label="Close manager workspace menu" className={styles.mobileMenuClose} onClick={() => setMobileMenuOpen(false)} type="button">Close</button>
-          </div>
-          <div id="manager-workspace-menu-list">
-            {navigation.map((section) => (
-              <section className={styles.navigationSection} key={section.title}>
-                <h2>{section.title}</h2>
-                <div className={styles.navigationLinks}>
-                  {section.links.map((item) => {
-                    const href = `${workspaceRoot}/${item.href}`;
-                    const selected = item.href === "manager"
-                      ? pathname === href
-                      : pathname === href || pathname.startsWith(`${href}/`);
-                    const className = [styles.navigationLink, selected ? styles.navigationLinkActive : ""]
-                      .filter(Boolean)
-                      .join(" ");
-
-                    return (
-                      <Link aria-current={selected ? "page" : undefined} className={className} href={href} key={item.href} onClick={() => setMobileMenuOpen(false)}>
-                        <WorkspaceIcon name={item.icon} />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-          </div>
+        <nav aria-label="Manager workspace" className={styles.navigation}>
+          {navigationContent}
         </nav>
+        <MobileNavigationDrawer title="Manager workspace" leadingActions={<><NotificationBell organizationId={actor.organizationId} visibility="mobile" mobileHeader /><HeaderTools compact /></>}>
+          <div className={styles.mobileNavigationContent}>
+            {navigationContent}
+            <div className={styles.mobileSignOut}><SignOutButton className={styles.mobileSignOutButton} /></div>
+          </div>
+        </MobileNavigationDrawer>
 
         <div className={styles.accountBlock}>
           <div className={styles.accountCard}>
@@ -133,7 +127,7 @@ export function StaffShell({
             <span className={styles.topbarDivider}>/</span>
             <span className={styles.topbarSection}>Operations</span>
           </div>
-          <NotificationBell organizationId={actor.organizationId} />
+          <NotificationBell organizationId={actor.organizationId} visibility="desktop" />
           <div className={styles.topbarTools}><HeaderTools /></div>
           <div className={styles.topbarAccount}>
             <span className={styles.topbarGreeting}>Signed in as</span>

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { WorkspaceIcon } from "@/components/ui/workspace-icon";
 import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 import { complaintUseCases } from "@/modules/complaint/application";
 import { updateComplaintAction } from "@/modules/complaint/ui/actions";
@@ -45,8 +46,12 @@ export default async function ComplaintsPage({
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[#e2e8f0] px-5 py-4 sm:px-6"><div><h2 className="text-lg font-semibold">Resident requests</h2><p className="muted mt-1 text-sm">Showing the latest {complaints.length} complaints you can access.</p></div><div className="flex gap-2 text-xs"><span className="rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-800">{complaints.filter((item) => item.status === "OPEN").length} open</span><span className="rounded-full bg-sky-50 px-2.5 py-1 font-semibold text-sky-800">{complaints.filter((item) => item.status === "IN_PROGRESS").length} in progress</span></div></header>
       {complaints.length ? <div className="divide-y divide-[#e2e8f0]">{complaints.map((complaint) => {
         const nextStatuses: ComplaintStatus[] = complaint.status === "OPEN" ? ["OPEN", "IN_PROGRESS"] : complaint.status === "IN_PROGRESS" ? ["IN_PROGRESS", "RESOLVED"] : complaint.status === "RESOLVED" ? ["RESOLVED", "CLOSED"] : ["CLOSED"];
-        return <article className="space-y-4 px-5 py-5 sm:px-6" key={complaint.id}>
+        return <details className="group" key={complaint.id}>
+          <summary className="complaint-accordion-summary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50 sm:px-6 [&::-webkit-details-marker]:hidden">
           <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold">{complaint.title}</h3><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{label(complaint.status)}</span></div><p className="muted mt-1 text-sm">{label(complaint.category)} · {complaint.propertyName} · Room {complaint.roomNumber} · Bed {complaint.bedLabel}</p><p className="muted mt-1 text-sm">{complaint.residentName} · Submitted {date(complaint.createdAt)}</p></div></div>
+            <WorkspaceIcon className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" name="arrow_drop_down" />
+          </summary>
+          <div className="complaint-accordion-content space-y-4 border-t border-[#e2e8f0] bg-slate-50/50 px-5 py-5 sm:px-6">
           <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{complaint.description}</p>
           <ComplaintAttachments attachments={complaint.attachments} complaintId={complaint.id} orgId={orgId} />
           {complaint.status !== "CLOSED" ? <form action={updateComplaintAction} className="grid gap-3 rounded-lg border border-[#e2e8f0] bg-[#fbfcfb] p-4 sm:grid-cols-2">
@@ -57,7 +62,8 @@ export default async function ComplaintsPage({
             <div className="sm:col-span-2"><button className="min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Save update</button></div>
           </form> : <p className="text-sm font-medium text-emerald-800">This complaint is closed.</p>}
           {complaint.events.length ? <details><summary className="cursor-pointer text-sm font-medium text-[#2563eb]">Activity ({complaint.events.length})</summary><ul className="mt-3 space-y-2 border-l-2 border-slate-200 pl-4">{complaint.events.map((event) => <li className="text-sm" key={event.id}><strong>{event.toStatus ? label(event.toStatus) : label(event.type)}</strong>{event.note ? <span> · {event.note}</span> : null}<p className="muted mt-0.5 text-xs">{date(event.createdAt)} · {event.actorName}</p></li>)}</ul></details> : null}
-        </article>;
+          </div>
+        </details>;
       })}</div> : <div className="px-5 py-12 text-center"><h2 className="font-semibold">No complaints yet</h2><p className="muted mt-2 text-sm">Resident requests will appear here.</p></div>}
     </div>
   </section>;

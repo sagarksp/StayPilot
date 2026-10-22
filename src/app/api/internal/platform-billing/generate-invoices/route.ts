@@ -21,3 +21,6 @@ export async function POST(request: Request) {
     throw error;
   }
 }
+
+// Vercel Cron invokes route handlers with GET requests.
+export const GET = POST;

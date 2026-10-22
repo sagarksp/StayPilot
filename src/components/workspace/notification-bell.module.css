@@ -4,6 +4,7 @@
 .trigger:hover { background: #f2f7f6; }
 .badge { position: absolute; top: -5px; right: -5px; display: grid; min-width: 18px; height: 18px; place-items: center; padding: 0 4px; border: 2px solid #fff; border-radius: 99px; background: #b42318; color: #fff; font: 700 9px Inter, Arial, sans-serif; }
 .panel { position: absolute; z-index: 80; top: calc(100% + 10px); right: 0; width: min(360px, calc(100vw - 24px)); overflow: hidden; border: 1px solid #e0e6e8; border-radius: 14px; background: #fff; box-shadow: 0 14px 40px rgb(16 35 42 / 18%); color: #17252b; }
+.mobileHeaderPanel { position: fixed; top: 72px; right: 12px; }
 .panelHeader { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #edf0f1; font: 700 14px Inter, Arial, sans-serif; }
 .close { width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: #5d6b70; cursor: pointer; font-size: 23px; line-height: 1; }
 .close:hover { background: #f2f5f5; }

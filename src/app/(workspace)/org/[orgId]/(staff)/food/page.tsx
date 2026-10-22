@@ -3,6 +3,7 @@ import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 import { foodUseCases } from "@/modules/food/application/use-cases";
 import { closeFoodPollAction, createFoodPollAction, replaceFoodMealTypesAction } from "@/modules/food/ui/actions";
 import { FoodMenuForm } from "@/modules/food/ui/food-menu-form";
+import { WorkspaceIcon } from "@/components/ui/workspace-icon";
 
 const input = "min-h-10 w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900";
 const label = "grid min-w-0 gap-1 text-xs font-medium text-slate-600";
@@ -56,40 +57,60 @@ export default async function FoodPage({ params, searchParams }: Readonly<{ para
     {notice ? <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm" role="status">{notice}</p> : null}
     {data.properties.length ? <div className="grid min-w-0 gap-5">{data.properties.map((property) => {
       const types = data.mealTypes.filter((mealType) => mealType.property.publicId === property.publicId);
-      return <article className="surface-card min-w-0 space-y-5 p-5 sm:p-6" key={property.publicId}>
-        <header><h2 className="text-xl font-semibold">{property.name}</h2><p className="muted mt-1 text-sm">Set meal types, publish menus, and create polls for residents at this property.</p></header>
-        <section aria-label="Expected resident meals" className="space-y-3 rounded-lg border border-slate-200 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-lg font-semibold">Expected meals</h3><p className="muted mt-1 text-sm">Current residents minus those who marked themselves away. Use this as a daily kitchen planning estimate.</p></div><a className="min-h-9 rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50" href={`/api/v1/organizations/${encodeURIComponent(orgId)}/reports/food-attendance?propertyId=${encodeURIComponent(property.publicId)}`}>Download 14-day kitchen plan</a></div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{(data.attendance.find((entry) => entry.propertyId === property.id)?.days ?? []).slice(0, 7).map((day) => <div className="rounded-md bg-slate-50 p-3 text-sm" key={day.date.toISOString()}><strong>{dateLabel(day.date)}</strong><p className="muted mt-1">{day.expectedMeals} expected · {day.awayResidents} away of {day.totalResidents}</p></div>)}</div>
-        </section>
-        <form action={replaceFoodMealTypesAction} className="grid min-w-0 gap-3 rounded-lg border border-slate-200 p-4 sm:grid-cols-2">
+      const menus = data.menus.filter((menu) => menu.propertyId === property.id);
+      const polls = data.polls.filter((poll) => poll.propertyId === property.id);
+      const openPollCount = polls.filter((poll) => poll.status === "OPEN").length;
+      const expectedDays = (data.attendance.find((entry) => entry.propertyId === property.id)?.days ?? []).slice(0, 7);
+      return <details className="surface-card group/property min-w-0 overflow-hidden" key={property.publicId} open={data.properties.length === 1}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 sm:px-6 [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0"><span className="block text-xs font-semibold uppercase tracking-wide text-[#2563eb]">Property food plan</span><h2 className="mt-1 truncate text-xl font-semibold">{property.name}</h2><span className="muted mt-1 block text-sm">{types.length} meal types · {menus.length} menus · {polls.length} polls · {openPollCount} open</span></span>
+          <WorkspaceIcon className="h-5 w-5 shrink-0 transition-transform group-open/property:rotate-180" name="arrow_drop_down" />
+        </summary>
+        <div className="grid gap-3 border-t border-slate-200 p-4 sm:p-6">
+        <details className="group/expected rounded-lg border border-slate-200" open>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden"><span><h3 className="font-semibold">Expected meals</h3><span className="muted mt-1 block text-xs">Daily kitchen estimate · {expectedDays.length}-day preview</span></span><WorkspaceIcon className="h-5 w-5 shrink-0 transition-transform group-open/expected:rotate-180" name="arrow_drop_down" /></summary>
+          <div className="space-y-3 border-t border-slate-200 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><p className="muted text-sm">Current residents minus those who marked themselves away.</p><a className="min-h-9 rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50" href={`/api/v1/organizations/${encodeURIComponent(orgId)}/reports/food-attendance?propertyId=${encodeURIComponent(property.publicId)}`}>Download 14-day kitchen plan</a></div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{expectedDays.map((day) => <div className="rounded-md bg-slate-50 p-3 text-sm" key={day.date.toISOString()}><strong>{dateLabel(day.date)}</strong><p className="muted mt-1">{day.expectedMeals} expected · {day.awayResidents} away of {day.totalResidents}</p></div>)}</div></div>
+        </details>
+        <details className="group/types rounded-lg border border-slate-200" open={!types.length}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden"><span><h3 className="font-semibold">Meal types</h3><span className="muted mt-1 block text-xs">{types.length} active · edit the meals offered at this property</span></span><WorkspaceIcon className="h-5 w-5 shrink-0 transition-transform group-open/types:rotate-180" name="arrow_drop_down" /></summary>
+          <form action={replaceFoodMealTypesAction} className="grid min-w-0 gap-3 border-t border-slate-200 p-4 sm:grid-cols-2">
           <input name="orgId" type="hidden" value={orgId}/><input name="propertyId" type="hidden" value={property.publicId}/>
           <label className={`${label} sm:col-span-2`}>Active meal types, one per line<textarea className={`${input} min-h-28 py-2`} defaultValue={types.map((mealType) => mealType.name).join("\n")} name="mealTypes" placeholder={"Breakfast\nLunch\nDinner"}/></label>
           <p className="muted text-xs sm:col-span-2">Removed meal types become inactive; historical polls keep their original labels.</p>
           <button className={`${button} w-full sm:col-span-2`} type="submit">Save meal types</button>
         </form>
+        </details>
         {canManageFood ? <>
-          <section className="space-y-3">
-            <header><h3 className="text-lg font-semibold">1. Publish the menu</h3><p className="muted mt-1 text-sm">Add the dishes residents should see. This does not start voting.</p></header>
-            <FoodMenuForm orgId={orgId} propertyId={property.publicId} mealTypes={types} initialFrom={localDate(actor.organizationTimezone)} initialTo={localDate(actor.organizationTimezone, 6)}/>
-          </section>
-          <div className="space-y-3">{data.menus.filter((menu) => menu.propertyId === property.id).map((menu) => <section className="min-w-0 rounded-lg border border-slate-200 p-4" key={menu.publicId}>
+          <details className="group/menus rounded-lg border border-slate-200" open={Boolean(types.length) && !menus.length}>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden"><span><h3 className="font-semibold">Menus</h3><span className="muted mt-1 block text-xs">Publish or update resident meal menus · {menus.length} published</span></span><WorkspaceIcon className="h-5 w-5 shrink-0 transition-transform group-open/menus:rotate-180" name="arrow_drop_down" /></summary>
+            <div className="grid gap-3 border-t border-slate-200 p-4">
+            <section className="space-y-3"><header><h4 className="font-semibold">Publish a menu</h4><p className="muted mt-1 text-sm">Add the dishes residents should see. This does not start voting.</p></header><FoodMenuForm orgId={orgId} propertyId={property.publicId} mealTypes={types} initialFrom={localDate(actor.organizationTimezone)} initialTo={localDate(actor.organizationTimezone, 6)}/></section>
+            {menus.map((menu) => <section className="min-w-0 rounded-lg border border-slate-200 p-4" key={menu.publicId}>
             <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">{menu.title || "Published menu"}</h3><p className="muted mt-1 text-xs">{dateLabel(menu.validFrom)} – {dateLabel(menu.validTo)}</p></div><span className="text-xs font-semibold uppercase text-emerald-700">Published</span></div>
             <details className="mt-4"><summary className="cursor-pointer text-sm font-semibold text-[#2563eb]">Edit this menu</summary><div className="mt-3"><FoodMenuForm orgId={orgId} propertyId={property.publicId} mealTypes={types} initialFrom={localDate(actor.organizationTimezone)} initialTo={localDate(actor.organizationTimezone, 6)} menu={menu}/></div></details>
-          </section>)}{!data.menus.some((menu) => menu.propertyId === property.id) ? <p className="muted rounded-lg bg-slate-50 p-4 text-sm">No menu has been published for this property.</p> : null}</div>
-          <section className="space-y-3"><header><h3 className="text-lg font-semibold">2. Ask residents to vote</h3><p className="muted mt-1 text-sm">Choose the meal and day. Residents can vote or change their choice until 11:59 pm the day before.</p></header><form action={createFoodPollAction} className="grid min-w-0 gap-3 rounded-lg border border-slate-200 p-4 sm:grid-cols-2 xl:grid-cols-3">
+          </section>)}{!menus.length ? <p className="muted rounded-lg bg-slate-50 p-4 text-sm">No menu has been published for this property.</p> : null}</div>
+          </details>
+          <details className="group/schedule rounded-lg border border-slate-200">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden"><span><h3 className="font-semibold">Schedule a meal poll</h3><span className="muted mt-1 block text-xs">Ask residents to choose a meal · {openPollCount} open polls</span></span><WorkspaceIcon className="h-5 w-5 shrink-0 transition-transform group-open/schedule:rotate-180" name="arrow_drop_down" /></summary>
+            <div className="space-y-3 border-t border-slate-200 p-4"><p className="muted text-sm">Choose the meal and day. Residents can vote or change their choice until 11:59 pm the day before.</p><form action={createFoodPollAction} className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <input name="orgId" type="hidden" value={orgId}/><input name="propertyId" type="hidden" value={property.publicId}/>
             <label className={label}>Meal type<select className={input} name="mealTypeId" required><option value="">Choose a meal type</option>{types.map((type) => <option key={type.publicId} value={type.publicId}>{type.name}</option>)}</select></label>
             <label className={label}>Meal date<input className={input} min={localDate(actor.organizationTimezone, 1)} name="mealDate" required type="date"/></label>
             <p className="muted text-xs sm:col-span-2 xl:col-span-3">Every poll includes a “Will Not Eat” choice. Residents who choose it must add a meal suggestion. Voting opens right away.</p>
             <button className={`${button} w-full sm:col-span-2 xl:col-span-3`} disabled={!types.length} type="submit">Publish poll</button>
-          </form></section>
-          <div className="space-y-3">{data.polls.filter((poll) => poll.propertyId === property.id).map((poll) => <section className="min-w-0 rounded-lg border border-slate-200 p-4" key={poll.publicId}>
+          </form></div>
+          </details>
+          <details className="group/polls rounded-lg border border-slate-200">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden"><span><h3 className="font-semibold">Poll results and meal suggestions</h3><span className="muted mt-1 block text-xs">{polls.length} total · {openPollCount} open</span></span><WorkspaceIcon className="h-5 w-5 shrink-0 transition-transform group-open/polls:rotate-180" name="arrow_drop_down" /></summary>
+            <div className="grid gap-3 border-t border-slate-200 p-4">{polls.map((poll) => <section className="min-w-0 rounded-lg border border-slate-200 p-4" key={poll.publicId}>
             <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">{poll.mealType.name} · {dateLabel(poll.mealDate)}</h3><p className="muted mt-1 text-xs">Voting closes {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: actor.organizationTimezone }).format(poll.closesAt)} · {poll.status.toLowerCase()}</p><p className="muted mt-1 text-xs">{poll.eligibleResidentCount === null ? `${poll.votesReceived} votes received` : `${poll.votesReceived} of ${poll.eligibleResidentCount} eligible residents voted${poll.status === "OPEN" ? ` · ${Math.max(0, poll.eligibleResidentCount - poll.votesReceived)} yet to vote` : ""}`}</p></div>{poll.status === "OPEN" ? <form action={closeFoodPollAction}><input name="orgId" type="hidden" value={orgId}/><input name="pollId" type="hidden" value={poll.publicId}/><button className="min-h-9 rounded-md border border-slate-300 px-3 text-xs font-semibold" type="submit">Close poll</button></form> : null}</div>
             <ul className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">{poll.options.map((option) => <li className="min-w-0 rounded-md bg-slate-50 px-3 py-2 text-sm" key={option.publicId}><div className="flex min-w-0 items-center justify-between gap-3"><span className="truncate">{option.label}</span><strong>{option._count.votes}</strong></div>{option.suggestions.length ? <ul className="mt-2 grid gap-1 border-t border-slate-200 pt-2 text-xs text-slate-600">{option.suggestions.map((suggestion, index) => <li key={`${option.publicId}-${index}`}>“{suggestion}”</li>)}</ul> : null}</li>)}</ul>
-          </section>)}{!data.polls.some((poll) => poll.propertyId === property.id) ? <p className="muted rounded-lg bg-slate-50 p-4 text-sm">No meal polls yet. Schedule the first poll after the owner configures meal types.</p> : null}</div>
+          </section>)}{!polls.length ? <p className="muted rounded-lg bg-slate-50 p-4 text-sm">No meal polls yet. Schedule the first poll after configuring meal types.</p> : null}</div>
+          </details>
         </> : null}
-      </article>;
+        </div>
+      </details>;
     })}</div> : <p className="surface-card muted p-6 text-sm">Create an active property before setting up meal polls.</p>}
   </section>;
 }

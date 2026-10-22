@@ -14,7 +14,7 @@ type NotificationItem = Readonly<{
   createdAt: string;
 }>;
 
-export function NotificationBell({ organizationId }: Readonly<{ organizationId: string }>) {
+export function NotificationBell({ organizationId, visibility = "all", mobileHeader = false }: Readonly<{ organizationId: string; visibility?: "all" | "mobile" | "desktop"; mobileHeader?: boolean }>) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -32,7 +32,19 @@ export function NotificationBell({ organizationId }: Readonly<{ organizationId: 
     }
   }, [endpoint]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (visibility === "all") {
+      void load();
+      return;
+    }
+    const viewport = window.matchMedia("(max-width: 1100px)");
+    const sync = () => {
+      if ((visibility === "mobile") === viewport.matches) void load();
+    };
+    sync();
+    viewport.addEventListener("change", sync);
+    return () => viewport.removeEventListener("change", sync);
+  }, [load, visibility]);
 
   async function markRead(id: string) {
     setItems((current) => current.map((item) => item.publicId === id && !item.readAt
@@ -52,7 +64,7 @@ export function NotificationBell({ organizationId }: Readonly<{ organizationId: 
         <WorkspaceIcon name="notifications" />
         {unreadCount > 0 && <span className={styles.badge}>{unreadCount > 9 ? "9+" : unreadCount}</span>}
       </button>
-      {open && <section aria-label="Notifications" className={styles.panel}>
+      {open && <section aria-label="Notifications" className={`${styles.panel} ${mobileHeader ? styles.mobileHeaderPanel : ""}`}>
         <header className={styles.panelHeader}>
           <strong>Notifications</strong>
           <button aria-label="Close notifications" className={styles.close} onClick={() => setOpen(false)} type="button">×</button>

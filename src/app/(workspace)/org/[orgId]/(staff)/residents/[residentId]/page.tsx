@@ -254,11 +254,11 @@ export default async function ResidentDetailPage({
         : <section className="surface-card p-5 sm:p-6"><p className="text-sm font-semibold text-[#2563eb]">RESIDENT ACCESS</p><h2 className="mt-1 text-lg font-semibold">Add an email to enable portal access</h2><p className="muted mt-2 text-sm">This resident profile has no email address, so StayPilot cannot send an activation invitation.</p></section>
         : null}
 
-      <section className="surface-card overflow-hidden" aria-labelledby="stay-history-heading">
-        <header className="border-b border-[#e2e8f0] px-5 py-4 sm:px-6">
-          <h2 className="font-semibold" id="stay-history-heading">Stay history</h2>
-          <p className="muted mt-1 text-sm">Recorded bed assignments for this resident</p>
-        </header>
+      <details className="surface-card group overflow-hidden" aria-labelledby="stay-history-heading">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#e2e8f0] px-5 py-4 sm:px-6 [&::-webkit-details-marker]:hidden">
+          <span><h2 className="font-semibold" id="stay-history-heading">Stay history</h2><span className="muted mt-1 block text-sm">{resident.stays.length} recorded {resident.stays.length === 1 ? "stay" : "stays"}</span></span>
+          <WorkspaceIcon className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" name="arrow_drop_down" />
+        </summary>
         {resident.stays.length ? (
           <div className="divide-y divide-[#e2e8f0]">
             {resident.stays.map((stay) => (
@@ -276,7 +276,7 @@ export default async function ResidentDetailPage({
         ) : (
           <p className="muted px-5 py-8 text-sm sm:px-6">No stay history is visible in your assigned properties.</p>
         )}
-      </section>
+      </details>
       <ResidentKycReview organizationId={orgId} residentId={residentId} documents={documents} />
     </section>
   );

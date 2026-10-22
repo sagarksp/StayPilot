@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
+import { WorkspaceIcon } from "@/components/ui/workspace-icon";
 import { reservationUseCases } from "@/modules/reservation/application";
 import { cancelReservationAction, createReservationAction, moveInReservationAction } from "@/modules/reservation/ui/actions";
 import { RentTermsFields } from "@/modules/billing/ui/rent-terms-fields";
@@ -130,7 +131,7 @@ export default async function ReservationsPage({ params, searchParams }: Readonl
       </details>
 
       <ReservationList title="Active reservations" items={active} orgId={orgId} today={today} />
-      <ReservationList title="Reservation history" items={history} orgId={orgId} today={today} />
+      <ReservationList title="Reservation history" items={history} orgId={orgId} today={today} collapsible />
     </section>
   );
 }
@@ -143,54 +144,61 @@ function Field({ label, name, type = "text", required = false, min, defaultValue
   return <label className="block space-y-2 text-sm font-medium" htmlFor={name}><span>{label}{required ? <span aria-hidden="true"> *</span> : null}</span><input className={inputClass} id={name} name={name} type={type} required={required} min={min} defaultValue={defaultValue} placeholder={placeholder} inputMode={name === "securityDepositReceived" ? "decimal" : undefined} /></label>;
 }
 
-function ReservationList({ title, items, orgId, today }: Readonly<{ title: string; items: Awaited<ReturnType<typeof reservationUseCases.listReservations>>; orgId: string; today: string }>) {
-  return (
-    <section className="surface-card overflow-hidden">
-      <header className="border-b border-[#e2e8f0] px-5 py-4 sm:px-6"><h2 className="text-lg font-semibold">{title}</h2><p className="muted mt-1 text-sm">{items.length} {items.length === 1 ? "reservation" : "reservations"}</p></header>
-      {items.length ? (
-        <div className="divide-y divide-[#e2e8f0]">
-          {items.map((item) => {
-            const startsOnOrBeforeToday = item.reservationStartDate.toISOString().slice(0, 10) <= today;
-            return (
-              <article className="grid gap-4 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-6" key={item.id}>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{item.residentName}</h3><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.status === "ACTIVE" ? "bg-[#eaf4ef] text-[#2563eb]" : "bg-slate-100 text-slate-700"}`}>{statusLabel(item.status)}</span></div>
-                  <p className="muted mt-1 text-sm">{item.residentPhone}{item.residentEmail ? ` · ${item.residentEmail}` : ""}</p>
-                  <p className="mt-3 text-sm font-medium">{item.bed.propertyName} · {item.bed.floorName} · Room {item.bed.roomNumber} · {item.bed.label}</p>
-                  <p className="muted mt-1 text-sm">{formatDate(item.reservationStartDate)} – {formatDate(item.reservationEndDate)}{item.expectedMoveInDate ? ` · Expected move-in ${formatDate(item.expectedMoveInDate)}` : ""}</p>
-                  {item.prepaidSecurityDepositPaise > BigInt(0) ? <p className="mt-2 text-sm font-medium">Security deposit already received: {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(item.prepaidSecurityDepositPaise) / 100)}</p> : null}
-                  {item.notes ? <p className="muted mt-2 whitespace-pre-wrap text-sm">{item.notes}</p> : null}
-                  {item.cancellationReason ? <p className="muted mt-2 text-sm">Cancellation reason: {item.cancellationReason}</p> : null}
-                </div>
-                {item.status === "ACTIVE" ? (
-                  <div className="flex flex-col gap-2 sm:min-w-52 sm:items-end">
-                    {startsOnOrBeforeToday ? (
-                      <form action={moveInReservationAction} className="grid gap-2 sm:w-72">
-                        <input name="orgId" type="hidden" value={orgId} /><input name="reservationId" type="hidden" value={item.id} />
-                        <input className={`${inputClass} min-h-10`} aria-label={`Move-in date for ${item.residentName}`} name="moveInDate" type="date" min={item.reservationStartDate.toISOString().slice(0, 10)} max={today} defaultValue={today} required />
-                        <RentTermsFields />
-                        <SecurityDepositTermsFields />
-                        <button className="min-h-10 rounded-lg bg-[#2563eb] px-3 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Confirm move-in</button>
-                      </form>
-                    ) : <p className="max-w-52 text-sm text-slate-600">Move-in can be recorded from {formatDate(item.reservationStartDate)}.</p>}
-                    <details className="text-sm">
-                      <summary className="cursor-pointer text-slate-600">Cancel reservation</summary>
-                      <form action={cancelReservationAction} className="mt-2 flex flex-col gap-2">
-                        <input name="orgId" type="hidden" value={orgId} /><input name="reservationId" type="hidden" value={item.id} />
-                        <label className="sr-only" htmlFor={`cancel-${item.id}`}>Cancellation reason</label>
-                        <input className={inputClass} id={`cancel-${item.id}`} name="reason" maxLength={500} placeholder="Reason (optional)" />
-                        <button className="min-h-10 rounded-lg border border-[#cbd5e1] px-3 font-semibold text-slate-700" type="submit">Confirm cancellation</button>
-                      </form>
-                    </details>
-                  </div>
-                ) : null}
-              </article>
-            );
-          })}
-        </div>
-      ) : <p className="muted px-5 py-10 text-center text-sm sm:px-6">No reservations in this section.</p>}
-    </section>
+function ReservationList({ title, items, orgId, today, collapsible = false }: Readonly<{ title: string; items: Awaited<ReturnType<typeof reservationUseCases.listReservations>>; orgId: string; today: string; collapsible?: boolean }>) {
+  const heading = <div><h2 className="text-lg font-semibold">{title}</h2><p className="muted mt-1 text-sm">{items.length} {items.length === 1 ? "reservation" : "reservations"}</p></div>;
+  const records = items.length ? (
+    <div className="divide-y divide-[#e2e8f0]">
+      {items.map((item) => {
+        const startsOnOrBeforeToday = item.reservationStartDate.toISOString().slice(0, 10) <= today;
+        return (
+          <article className="grid gap-4 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-6" key={item.id}>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{item.residentName}</h3><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.status === "ACTIVE" ? "bg-[#eaf4ef] text-[#2563eb]" : "bg-slate-100 text-slate-700"}`}>{statusLabel(item.status)}</span></div>
+              <p className="muted mt-1 text-sm">{item.residentPhone}{item.residentEmail ? ` · ${item.residentEmail}` : ""}</p>
+              <p className="mt-3 text-sm font-medium">{item.bed.propertyName} · {item.bed.floorName} · Room {item.bed.roomNumber} · {item.bed.label}</p>
+              <p className="muted mt-1 text-sm">{formatDate(item.reservationStartDate)} – {formatDate(item.reservationEndDate)}{item.expectedMoveInDate ? ` · Expected move-in ${formatDate(item.expectedMoveInDate)}` : ""}</p>
+              {item.prepaidSecurityDepositPaise > BigInt(0) ? <p className="mt-2 text-sm font-medium">Security deposit already received: {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(item.prepaidSecurityDepositPaise) / 100)}</p> : null}
+              {item.notes ? <p className="muted mt-2 whitespace-pre-wrap text-sm">{item.notes}</p> : null}
+              {item.cancellationReason ? <p className="muted mt-2 text-sm">Cancellation reason: {item.cancellationReason}</p> : null}
+            </div>
+            {item.status === "ACTIVE" ? (
+              <div className="flex flex-col gap-2 sm:min-w-52 sm:items-end">
+                {startsOnOrBeforeToday ? (
+                  <form action={moveInReservationAction} className="grid gap-2 sm:w-72">
+                    <input name="orgId" type="hidden" value={orgId} /><input name="reservationId" type="hidden" value={item.id} />
+                    <input className={`${inputClass} min-h-10`} aria-label={`Move-in date for ${item.residentName}`} name="moveInDate" type="date" min={item.reservationStartDate.toISOString().slice(0, 10)} max={today} defaultValue={today} required />
+                    <RentTermsFields />
+                    <SecurityDepositTermsFields />
+                    <button className="min-h-10 rounded-lg bg-[#2563eb] px-3 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Confirm move-in</button>
+                  </form>
+                ) : <p className="max-w-52 text-sm text-slate-600">Move-in can be recorded from {formatDate(item.reservationStartDate)}.</p>}
+                <details className="text-sm">
+                  <summary className="cursor-pointer text-slate-600">Cancel reservation</summary>
+                  <form action={cancelReservationAction} className="mt-2 flex flex-col gap-2">
+                    <input name="orgId" type="hidden" value={orgId} /><input name="reservationId" type="hidden" value={item.id} />
+                    <label className="sr-only" htmlFor={`cancel-${item.id}`}>Cancellation reason</label>
+                    <input className={inputClass} id={`cancel-${item.id}`} name="reason" maxLength={500} placeholder="Reason (optional)" />
+                    <button className="min-h-10 rounded-lg border border-[#cbd5e1] px-3 font-semibold text-slate-700" type="submit">Confirm cancellation</button>
+                  </form>
+                </details>
+              </div>
+            ) : null}
+          </article>
+        );
+      })}
+    </div>
+  ) : <p className="muted px-5 py-10 text-center text-sm sm:px-6">No reservations in this section.</p>;
+
+  if (collapsible) return (
+    <details className="surface-card group overflow-hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#e2e8f0] px-5 py-4 sm:px-6 [&::-webkit-details-marker]:hidden">
+        {heading}<WorkspaceIcon aria-hidden="true" className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" name="arrow_drop_down" />
+      </summary>
+      {records}
+    </details>
   );
+
+  return <section className="surface-card overflow-hidden"><header className="border-b border-[#e2e8f0] px-5 py-4 sm:px-6">{heading}</header>{records}</section>;
 }
 
 function statusLabel(status: string) { return status === "MOVED_IN" ? "Moved in" : status.charAt(0) + status.slice(1).toLowerCase(); }

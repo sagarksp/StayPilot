@@ -58,7 +58,6 @@
 .signOut:hover { background: var(--resident-subtle); }
 
 .main { width: calc(100% - 40px); max-width: 1280px; min-width: 0; min-height: calc(100vh - 73px); margin: 0 auto; padding: 34px 0 60px; }
-.mobileNav { display: none; }
 
 :global(html[data-theme="dark"]) .shell {
   --resident-canvas: #0f172a;
@@ -73,45 +72,25 @@
 :global(html[data-theme="dark"]) .header { background: rgb(19 28 48 / 96%); }
 :global(html[data-theme="dark"]) .signOut { border-color: var(--resident-line); background: #1e293b; color: #e6eeea; }
 :global(html[data-theme="dark"]) .signOut:hover { background: #263247; }
-:global(html[data-theme="dark"]) .navLink,
-:global(html[data-theme="dark"]) .mobileNavLink { color: #b5c2bc; }
+:global(html[data-theme="dark"]) .navLink { color: #dbe7e1; }
 :global(html[data-theme="dark"]) .navLink:hover,
-:global(html[data-theme="dark"]) .navLinkActive,
-:global(html[data-theme="dark"]) .mobileNavLinkActive { background: #263247; color: #bfdbfe; }
-:global(html[data-theme="dark"]) .mobileNav { border-color: #3b4a63; background: rgb(19 28 48 / 97%); }
-:global(html[data-theme="dark"]) .mobileMoreMenu { border-color: #3b4a63; background: #172033; }
-:global(html[data-theme="dark"]) .mobileMoreLink { color: #dbe7e1; }
+:global(html[data-theme="dark"]) .navLinkActive { background: #263247; color: #bfdbfe; }
 
 @media (max-width: 1100px) {
-  .headerInner { display: grid; width: calc(100% - 32px); min-height: 64px; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "brand notifications signout" "tools tools tools"; gap: 8px 10px; padding: 9px 0; }
+  .headerInner { display: grid; width: calc(100% - 32px); min-height: 64px; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "brand menu signout"; gap: 8px; padding: 9px 0; }
   .brandBlock { grid-area: brand; }
+  .headerMenu { grid-area: menu; }
+  .headerNotifications { display: none; }
+  .headerTools { display: none; }
   .brandMark { width: 36px; height: 36px; border-radius: 10px; }
   .brandName { font-size: 15px; }
-  .organization { max-width: 55vw; font-size: 10px; }
+  .organization { display: none; }
   .desktopNav { display: none; }
-  .headerInner > :nth-child(3) { grid-area: notifications; }
-  .headerInner > :nth-child(4) { grid-area: tools; width: 100%; }
-  .headerInner > :nth-child(5) { grid-area: signout; }
+  .headerMenu :global(button) { width: 40px; height: 40px; }
   .signOut { min-height: 36px; padding: 0 10px; font-size: 11px; }
-  .main { width: calc(100% - 32px); min-height: calc(100vh - 64px); padding: 24px 0 calc(96px + env(safe-area-inset-bottom)); }
-  .mobileNav {
-    position: fixed;
-    z-index: 50;
-    inset: auto 0 0;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    align-items: stretch;
-    padding: 7px 10px max(7px, env(safe-area-inset-bottom));
-    border-top: 1px solid var(--resident-line);
-    background: rgb(255 255 255 / 96%);
-    box-shadow: 0 -4px 20px rgb(15 23 42 / 7%);
-    backdrop-filter: blur(16px);
-  }
-  .mobileNavLink { display: grid; min-width: 0; min-height: 52px; align-content: center; justify-items: center; gap: 3px; border: 0; border-radius: 10px; background: transparent; color: #718096; cursor: pointer; font: 600 11px/1.1 Inter, Arial, sans-serif; white-space: nowrap; }
-  .mobileNavLink svg { width: 20px; height: 20px; }
-  .mobileNavLinkActive { color: var(--resident-brand); }
-  .mobileMoreMenu { position: absolute; right: 10px; bottom: calc(100% + 10px); display: grid; width: min(260px, calc(100vw - 20px)); gap: 3px; padding: 7px; border: 1px solid var(--resident-line); border-radius: 14px; background: #fff; box-shadow: 0 14px 38px rgb(15 23 42 / 18%); }
-  .mobileMoreLink { display: flex; min-width: 0; min-height: 48px; align-items: center; gap: 12px; padding: 0 12px; border-radius: 9px; color: #334155; font-size: 13px; font-weight: 600; }
+  .main { width: calc(100% - 32px); min-height: calc(100vh - 64px); padding: 24px 0 40px; }
+  .mobileMenuItems { display: grid; gap: 5px; }
+  .mobileMoreLink { display: flex; min-width: 0; min-height: 50px; align-items: center; gap: 12px; padding: 0 12px; border: 1px solid #e5eaf1; border-radius: 10px; color: #334155; font-size: 13px; font-weight: 600; }
   .mobileMoreLink:hover,
   .mobileMoreLink:focus-visible { background: #eff6ff; color: var(--resident-brand); }
   .mobileMoreLink svg { width: 20px; height: 20px; flex: none; color: var(--resident-brand); }
@@ -123,11 +102,9 @@
   .brandBlock { gap: 8px; }
   .brandMark { width: 33px; height: 33px; }
   .brandName { font-size: 14px; }
-  .organization { max-width: 48vw; font-size: 9px; }
+  .organization { display: none; }
+  .headerMenu :global(button) { width: 34px; height: 34px; }
   .signOut { padding: 0 8px; font-size: 10px; }
-  .mobileNav { padding-right: 8px; padding-left: 8px; }
-  .mobileNavLink { min-height: 48px; gap: 2px; font-size: 10px; }
-  .mobileNavLink svg { width: 19px; height: 19px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

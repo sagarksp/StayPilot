@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ReportSubmitButton } from "@/components/ui/report-submit-button";
 import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 import { AccessDeniedError } from "@/modules/property/domain/inventory";
 import { complaintCategories } from "@/modules/complaint/domain/complaint";
@@ -33,8 +34,8 @@ function Downloads({ orgId, type, propertyId, from, to, category = "", status = 
     return `/api/v1/organizations/${orgId}/reports/download?${query.toString()}`;
   };
   return <div className="flex flex-wrap gap-2">
-    <a className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#1e3a8a] px-4 text-sm font-semibold text-white hover:bg-[#172554]" href={makeHref("pdf")}>Download PDF</a>
-    <a className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50" href={makeHref("excel")}>Download Excel</a>
+    <a className="report-download report-download--pdf inline-flex min-h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold" href={makeHref("pdf")}>Download PDF</a>
+    <a className="report-download report-download--excel inline-flex min-h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold" href={makeHref("excel")}>Download Excel</a>
   </div>;
 }
 
@@ -126,7 +127,7 @@ export default async function ElectricityReportPage({ params, searchParams }: Re
 
     <form className="surface-card grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end" method="get">
       <label className="grid gap-1 text-xs font-medium text-slate-600">Report category<select className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900" defaultValue={type} name="type"><option value="electricity">Electricity billing and collections</option><option value="complaints">Maintenance and service complaints</option><option value="finance">Finance and collections</option><option value="occupancy">Property occupancy</option><option value="reservations">Reservations</option><option value="deposits">Security deposits</option></select></label>
-      <button className="min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Open report</button>
+      <ReportSubmitButton className="report-filter-submit min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" label="Open report" loadingLabel="Loading report..." />
     </form>
 
     {invalidFilters ? <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="alert">Some filters were invalid. Showing the current month instead.</p> : null}
@@ -138,7 +139,7 @@ export default async function ElectricityReportPage({ params, searchParams }: Re
         <label className="grid gap-1 text-xs font-medium text-slate-600">Property<select className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900" defaultValue={activePropertyId} name="propertyId"><option value="">All accessible properties</option>{properties.map((property) => <option key={property.publicId} value={property.publicId}>{property.name}</option>)}</select></label>
         <label className="grid gap-1 text-xs font-medium text-slate-600">Billing period from<input className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900" defaultValue={activeFrom} name="from" type="date"/></label>
         <label className="grid gap-1 text-xs font-medium text-slate-600">Billing period to<input className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900" defaultValue={activeTo} name="to" type="date"/></label>
-        <button className="min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Apply filters</button>
+        <ReportSubmitButton className="report-filter-submit min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" label="Apply filters" loadingLabel="Loading report..." />
       </form>
       <Downloads orgId={orgId} type="electricity" propertyId={activePropertyId} from={activeFrom} to={activeTo} />
       <section aria-label="Electricity report totals" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -161,7 +162,7 @@ export default async function ElectricityReportPage({ params, searchParams }: Re
         <label className="grid gap-1 text-xs font-medium text-slate-600">Submitted to<input className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900" defaultValue={activeTo} name="to" type="date"/></label>
         <label className="grid gap-1 text-xs font-medium text-slate-600">Complaint category<select className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900" defaultValue={complaintFilters.category} name="category"><option value="">All categories</option>{complaintCategories.map((category) => <option key={category} value={category}>{label(category)}</option>)}</select></label>
         <label className="grid gap-1 text-xs font-medium text-slate-600">Status<select className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900" defaultValue={complaintFilters.status} name="status"><option value="">All statuses</option>{["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"].map((status) => <option key={status} value={status}>{label(status)}</option>)}</select></label>
-        <button className="min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Apply filters</button>
+        <ReportSubmitButton className="report-filter-submit min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" label="Apply filters" loadingLabel="Loading report..." />
       </form>
       <Downloads orgId={orgId} type="complaints" propertyId={activePropertyId} from={activeFrom} to={activeTo} category={complaintFilters.category} status={complaintFilters.status} />
       <section aria-label="Complaint report totals" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

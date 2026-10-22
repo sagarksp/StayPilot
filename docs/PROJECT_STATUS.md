@@ -437,3 +437,55 @@ Removed the public self-service owner registration path. The registration page o
 Added an illustrative public landing dashboard and a demo request form with international calling-code selection. Demo requests appear in the developer dashboard, where the developer can close them or email a secure owner setup link with a 1-to-720-hour access window. The timer starts when the invited owner creates their workspace; tenant access is blocked after expiry and the owner sees an expiration page.
 
 **Key areas:** `src/app/(public)/page.tsx`, `src/app/(public)/landing-content.ts`, `src/app/(public)/demo/`, `src/app/(public)/demo-expired/`, `src/app/(platform)/platform-admin/`, `src/infrastructure/demo-requests/`, `src/infrastructure/auth/actor-context.ts`, `src/infrastructure/auth/prisma-organization-setup.ts`, `prisma/schema.prisma`, `prisma/migrations/20261021120000_demo_requests_and_access/migration.sql`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-22 - Vercel production deployment preparation
+
+**Status:** Code prepared; AWS database and Vercel project configuration remain
+
+Added Vercel Cron schedules for rent drafts, reminders, and per-PG platform
+invoices. The authenticated scheduler handlers now accept Vercel's GET
+invocations while retaining POST support. Documented production setup, secret
+configuration, database migration, and Preview/Production separation.
+
+**Key areas:** `vercel.json`, `src/app/api/internal/`, `README.md`,
+`docs/PROJECT_STATUS.md`
+
+### 2026-10-22 - Responsive dashboard navigation
+
+**Status:** Implemented; visual review on mobile devices remains
+
+Added a consistent hamburger side drawer for owner, manager, resident, and
+platform-admin workspaces. The drawer supports keyboard focus, Escape to close,
+backdrop dismissal, and scroll locking. Mobile headers and content now adapt to
+narrow screens while desktop navigation remains in place.
+
+**Key areas:** `src/components/workspace/mobile-navigation-drawer.tsx`,
+`src/components/workspace/*shell*`, `src/components/workspace/resident-mobile-nav.tsx`,
+`src/components/ui/workspace-icon.tsx`, `docs/PROJECT_STATUS.md`
+
+### 2026-10-22 - Collapsible operational records
+
+**Status:** Implemented
+
+Added collapsible sections for reservation history, resident records and stay
+history, notice history, and the property food workflow. Food setup now groups
+attendance estimates, meal types, menus, poll creation, and vote suggestions
+under compact headings with useful record counts.
+
+**Key areas:** `src/app/(workspace)/org/[orgId]/(staff)/food/page.tsx`,
+`src/app/(workspace)/org/[orgId]/(staff)/reservations/page.tsx`,
+`src/app/(workspace)/org/[orgId]/(staff)/residents/`,
+`src/app/(workspace)/org/[orgId]/(staff)/notices/page.tsx`,
+`docs/PROJECT_STATUS.md`
+
+### 2026-10-22 - Global activity and feedback
+
+**Status:** Implemented; visual review across role-specific layouts remains
+
+Added a shared activity indicator for internal navigation and form submissions.
+Accessible success and error messages now appear as dismissible, timed popups,
+and one-time feedback query parameters are cleared after display to prevent
+repeated messages on refresh.
+
+**Key areas:** `src/components/ui/global-feedback.tsx`, `src/app/layout.tsx`,
+`src/app/globals.css`, `docs/PROJECT_STATUS.md`

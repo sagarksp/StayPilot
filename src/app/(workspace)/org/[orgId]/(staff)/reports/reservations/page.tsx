@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ReportSubmitButton } from "@/components/ui/report-submit-button";
 import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
 import { AccessDeniedError } from "@/modules/property/domain/inventory";
 import { reservationReportFilterSchema } from "@/modules/reservation/application/schemas";
@@ -65,12 +66,12 @@ export default async function ReservationsReportPage({ params, searchParams }: R
       <label className="grid gap-1 text-xs font-medium text-slate-600">Stay window from<input className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900" defaultValue={filters.from} name="from" type="date" /></label>
       <label className="grid gap-1 text-xs font-medium text-slate-600">Stay window to<input className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900" defaultValue={filters.to} name="to" type="date" /></label>
       <label className="grid gap-1 text-xs font-medium text-slate-600">Status<select className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900" defaultValue={filters.status} name="status"><option value="">All statuses</option>{["ACTIVE", "MOVED_IN", "CANCELLED", "EXPIRED"].map((status) => <option key={status} value={status}>{label(status)}</option>)}</select></label>
-      <button className="min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Apply filters</button>
+      <ReportSubmitButton className="report-filter-submit min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" label="Apply filters" loadingLabel="Loading report..." />
     </form>
 
     <div className="flex flex-wrap gap-2">
-      <a className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#1e3a8a] px-4 text-sm font-semibold text-white hover:bg-[#172554]" href={downloadHref("pdf")}>Download PDF</a>
-      <a className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50" href={downloadHref("excel")}>Download Excel</a>
+      <a className="report-download report-download--pdf inline-flex min-h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold" href={downloadHref("pdf")}>Download PDF</a>
+      <a className="report-download report-download--excel inline-flex min-h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold" href={downloadHref("excel")}>Download Excel</a>
     </div>
 
     <section aria-label="Reservation report totals" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
 const shapes: Record<string, ReactNode> = {
+  menu: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
+  close: <><path d="m6 6 12 12M18 6 6 18" /></>,
   apartment: <><path d="M4 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17" /><path d="M2 21h20M8 7h1m3 0h1M8 11h1m3 0h1M8 15h1m3 0h1m4-5h2v11h-2" /></>,
   domain: <><path d="M3 21h18M5 21V5l7-3 7 3v16M9 8h1m4 0h1M9 12h1m4 0h1M10 21v-5h4v5" /></>,
   bed: <><path d="M2 18V7m0 8h20v5M2 12h8V8H4a2 2 0 0 0-2 2m8 2h10a2 2 0 0 1 2 2v1M7 18v2m13-2v2" /></>,

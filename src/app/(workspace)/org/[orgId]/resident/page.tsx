@@ -12,7 +12,6 @@ import { residentDocumentUseCases } from "@/modules/resident-document/applicatio
 import { ResidentDocuments } from "@/modules/resident-document/ui/resident-documents";
 import { residentUseCases } from "@/modules/resident/application";
 import { submitResidentMoveOutNoticeAction, updateResidentSelfProfileAction } from "@/modules/resident/ui/actions";
-import { ResidentMobileNav } from "@/components/workspace/resident-mobile-nav";
 import styles from "./resident-dashboard.module.css";
 
 function formatDate(date: Date) {
@@ -153,10 +152,9 @@ export default async function ResidentHomePage({
 
     <div className={styles.services}>
       <div className={styles.bottomNavAnchor}><ResidentDocuments organizationId={orgId} documents={documents} canUpload={Boolean(currentStay)} /></div>
-      <div className={styles.bottomNavAnchor}><ResidentNoticeBoard notices={notices}/></div>
+      <div className={styles.bottomNavAnchor} id="notices-heading"><ResidentNoticeBoard notices={notices}/></div>
       <div id="food-heading" className={styles.bottomNavAnchor}><div className="grid gap-4"><ResidentFoodMenu menus={foodMenus} />{currentStay && ["ACTIVE", "NOTICE_PERIOD"].includes(currentStay.status) ? <ResidentFoodAvailability orgId={orgId} ranges={foodAvailability} today={today} message={query["food-availability"] === "saved" ? "Your away dates have been saved." : query["food-availability"] === "cancelled" ? "Your away dates have been cancelled." : query["food-availability-error"] === "food-availability-overlap" ? "These dates overlap another away period. Edit the existing dates or choose a different range." : query["food-availability-error"] === "food-availability-outside-stay" ? "Away dates must fall within your current stay and start today or later." : query["food-availability-error"] ? "The away dates could not be saved. Check the dates and try again." : null} /> : null}<ResidentFoodPolls orgId={orgId} polls={foodPolls} timezone={actor.organizationTimezone} message={query["food-voted"] ? "Your meal choice has been saved." : query["food-error"] === "poll-closed" ? "Voting has closed for that poll." : query["food-error"] === "invalid-poll-option" ? "That choice is no longer available. Refresh the page and choose again." : query["food-error"] === "invalid-vote" ? "Choose an option before submitting your vote." : query["food-error"] === "food-suggestion-required" ? "Add a meal suggestion when choosing Will Not Eat." : query["food-error"] === "resident-away" ? "You marked yourself away for this meal, so you cannot vote." : query["food-error"] ? "Your vote could not be saved. Refresh and try again." : null} /></div></div>
-      <div className={styles.bottomNavAnchor}><ResidentComplaints orgId={orgId} stays={resident.stays} complaints={complaints} errorCode={query["complaint-error"]} created={query["complaint-created"]} /></div>
+      <div className={styles.bottomNavAnchor} id="support-heading"><ResidentComplaints orgId={orgId} stays={resident.stays} complaints={complaints} errorCode={query["complaint-error"]} created={query["complaint-created"]} /></div>
     </div>
-    <ResidentMobileNav orgId={orgId} />
   </section>;
 }

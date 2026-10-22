@@ -5,6 +5,7 @@ import { SignOutButton } from "@/modules/auth/ui/sign-out-button";
 import styles from "./resident-portal-shell.module.css";
 import { NotificationBell } from "./notification-bell";
 import { HeaderTools } from "./header-tools";
+import { ResidentMobileNav } from "./resident-mobile-nav";
 
 export function ResidentPortalShell({
   children,
@@ -19,6 +20,7 @@ export function ResidentPortalShell({
             <span className={styles.brandMark}><WorkspaceIcon name="domain" /></span>
             <span className={styles.brandCopy}><span className={styles.brandName}>StayPilot</span><span className={styles.organization}>{organizationName} · Resident Hub</span></span>
           </Link>
+          <div className={styles.headerMenu}><ResidentMobileNav orgId={orgId} leadingActions={<><NotificationBell organizationId={orgId} visibility="mobile" mobileHeader /><HeaderTools compact /></>} /></div>
           <nav aria-label="Resident portal" className={styles.desktopNav}>
             <Link className={`${styles.navLink} ${styles.navLinkActive}`} href={`/org/${orgId}/resident`}><WorkspaceIcon name="domain" />Home</Link>
             <Link className={styles.navLink} href={`/org/${orgId}/resident#invoices-heading`}><WorkspaceIcon name="receipt_long" />Bills</Link>
@@ -26,8 +28,8 @@ export function ResidentPortalShell({
             <Link className={styles.navLink} href={`/org/${orgId}/resident#notices-heading`}><WorkspaceIcon name="campaign" />Notices</Link>
             <Link className={styles.navLink} href={`/org/${orgId}/resident#support-heading`}><WorkspaceIcon name="support_agent" />Support</Link>
           </nav>
-          <NotificationBell organizationId={orgId} />
-          <HeaderTools />
+          <div className={styles.headerNotifications}><NotificationBell organizationId={orgId} visibility="desktop" /></div>
+          <div className={styles.headerTools}><HeaderTools /></div>
           <SignOutButton className={styles.signOut} />
         </div>
       </header>

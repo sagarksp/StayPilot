@@ -1,23 +1,30 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
+import type { ReactNode } from "react";
 import { WorkspaceIcon } from "@/components/ui/workspace-icon";
+import { MobileNavigationDrawer } from "./mobile-navigation-drawer";
 import styles from "./resident-portal-shell.module.css";
 
-export function ResidentMobileNav({ orgId }: Readonly<{ orgId: string }>) {
-  const [moreOpen, setMoreOpen] = useState(false);
+export function ResidentMobileNav({ orgId, leadingActions }: Readonly<{ orgId: string; leadingActions?: ReactNode }>) {
   const base = `/org/${orgId}/resident`;
+  const links = [
+    { label: "Home", icon: "domain", href: `${base}#top` },
+    { label: "Bills", icon: "receipt_long", href: `${base}#invoices-heading` },
+    { label: "Food", icon: "restaurant", href: `${base}#food-heading` },
+    { label: "Notices", icon: "campaign", href: `${base}#notices-heading` },
+    { label: "Support", icon: "support_agent", href: `${base}#support-heading` },
+    { label: "Stay profile", icon: "person", href: `${base}#stay-heading` },
+  ];
 
-  return <nav aria-label="Resident dashboard" className={styles.mobileNav} onKeyDown={(event) => { if (event.key === "Escape") setMoreOpen(false); }}>
-    {moreOpen ? <div className={styles.mobileMoreMenu} id="resident-more-links">
-      <Link className={styles.mobileMoreLink} href={`${base}#notices-heading`} onClick={() => setMoreOpen(false)}><WorkspaceIcon name="campaign" /><span>Notices</span></Link>
-      <Link className={styles.mobileMoreLink} href={`${base}#support-heading`} onClick={() => setMoreOpen(false)}><WorkspaceIcon name="support_agent" /><span>Support</span></Link>
-      <Link className={styles.mobileMoreLink} href={`${base}#stay-heading`} onClick={() => setMoreOpen(false)}><WorkspaceIcon name="person" /><span>Stay profile</span></Link>
-    </div> : null}
-    <Link className={`${styles.mobileNavLink} ${styles.mobileNavLinkActive}`} href={`${base}#top`}><WorkspaceIcon name="domain" /><span>Home</span></Link>
-    <Link className={styles.mobileNavLink} href={`${base}#invoices-heading`}><WorkspaceIcon name="receipt_long" /><span>Bills</span></Link>
-    <Link className={styles.mobileNavLink} href={`${base}#food-heading`}><WorkspaceIcon name="restaurant" /><span>Food</span></Link>
-    <button aria-controls="resident-more-links" aria-expanded={moreOpen} className={`${styles.mobileNavLink} ${moreOpen ? styles.mobileNavLinkActive : ""}`} onClick={() => setMoreOpen((open) => !open)} type="button"><WorkspaceIcon name="more_horiz" /><span>More</span></button>
-  </nav>;
+  return (
+    <MobileNavigationDrawer title="Resident portal" leadingActions={leadingActions}>
+      <div className={styles.mobileMenuItems}>
+        {links.map((link) => (
+          <Link className={styles.mobileMoreLink} href={link.href} key={link.label}>
+            <WorkspaceIcon name={link.icon} />
+            <span>{link.label}</span>
+          </Link>
+        ))}
+      </div>
+    </MobileNavigationDrawer>
+  );
 }

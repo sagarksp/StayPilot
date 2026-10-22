@@ -11,7 +11,7 @@ function applyTheme(theme: Theme) {
   document.documentElement.style.colorScheme = theme;
 }
 
-export function HeaderTools() {
+export function HeaderTools({ compact = false }: Readonly<{ compact?: boolean }>) {
   const [now, setNow] = useState<Date | null>(null);
   const [theme, setTheme] = useState<Theme>("light");
 
@@ -25,10 +25,11 @@ export function HeaderTools() {
     const initialTheme: Theme = savedTheme === "dark" ? "dark" : "light";
     setTheme(initialTheme);
     applyTheme(initialTheme);
+    if (compact) return;
     setNow(new Date());
     const timer = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [compact]);
 
   function toggleTheme() {
     const nextTheme: Theme = theme === "dark" ? "light" : "dark";
@@ -44,7 +45,7 @@ export function HeaderTools() {
   const date = now ? new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short" }).format(now) : "Loading date";
   const time = now ? new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(now) : "--:--:--";
 
-  return <div className={styles.tools}>
+  return <div className={`${styles.tools} ${compact ? styles.compact : ""}`}>
     <button aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} className={styles.themeButton} onClick={toggleTheme} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} type="button">
       <WorkspaceIcon name={theme === "dark" ? "light_mode" : "dark_mode"} />
     </button>

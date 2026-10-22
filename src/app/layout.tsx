@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import type { ReactNode } from "react";
+import { GlobalFeedback } from "@/components/ui/global-feedback";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +19,10 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <link href="https://fonts.googleapis.com" rel="preconnect" />
         <link crossOrigin="anonymous" href="https://fonts.gstatic.com" rel="preconnect" />
       </head>
-      <body>{children}</body>
+      <body>
+        <Suspense fallback={null}><GlobalFeedback /></Suspense>
+        {children}
+      </body>
     </html>
   );
 }

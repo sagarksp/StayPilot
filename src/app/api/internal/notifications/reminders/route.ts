@@ -11,3 +11,6 @@ export async function POST(request: Request) {
   const created = await notificationUseCases.generateDueReminders();
   return Response.json({ data: { createdNotifications: created } });
 }
+
+// Vercel Cron invokes route handlers with GET requests.
+export const GET = POST;

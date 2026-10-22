@@ -122,14 +122,14 @@ export default async function ResidentsPage({
         </div>
       </details>
 
-      <section className="surface-card overflow-hidden" aria-labelledby="resident-list-heading">
-        <header className="flex flex-col justify-between gap-2 border-b border-[#e2e8f0] px-5 py-4 sm:flex-row sm:items-center sm:px-6">
+      <details className="surface-card group overflow-hidden" aria-labelledby="resident-list-heading">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[#e2e8f0] px-5 py-4 sm:px-6 [&::-webkit-details-marker]:hidden">
           <div>
             <h2 className="text-lg font-semibold" id="resident-list-heading">Resident records</h2>
             <p className="muted mt-1 text-sm">{residents.length} {residents.length === 1 ? "resident" : "residents"} in your accessible properties</p>
           </div>
-          <span className="rounded-full bg-[#eaf4ef] px-3 py-1 text-xs font-semibold text-[#2563eb]">Live records</span>
-        </header>
+          <span className="flex shrink-0 items-center gap-2"><span className="rounded-full bg-[#eaf4ef] px-3 py-1 text-xs font-semibold text-[#2563eb]">Live records</span><WorkspaceIcon aria-hidden="true" className="h-5 w-5 transition-transform group-open:rotate-180" name="arrow_drop_down" /></span>
+        </summary>
         {residents.length ? (
           <div className="grid gap-3 p-3 sm:p-4">
             {residents.map((resident) => {
@@ -159,7 +159,7 @@ export default async function ResidentsPage({
             <Link className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" href={`/org/${orgId}/reservations`}>Create reservation</Link>
           </div>
         )}
-      </section>
+      </details>
     </section>
   );
 }

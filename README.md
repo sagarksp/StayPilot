@@ -74,6 +74,47 @@ Prerequisites: Node.js 22.12 or newer, npm, and a local MySQL database.
    first owner from `/platform-admin`, and have the owner finish setup from the
    emailed invitation.
 
+## Production deployment
+
+StayPilot can be deployed to Vercel from the GitHub repository. Use a managed
+MySQL-compatible database reachable by Vercel and keep production data separate
+from local and preview environments. The current GitHub working branch is
+`dev`; choose the intended production branch in Vercel before connecting the
+production domain.
+
+Before the first production deployment:
+
+1. Create the production database and a restricted application database user.
+   Configure TLS and database network access for the deployment and migration
+   runner. Avoid opening the database to all internet addresses.
+2. Import the GitHub repository into Vercel and set the repository root as the
+   project root. The project uses Node.js 22.12 or newer and `npm run build`.
+3. Configure the production environment variables from `.env.example` in
+   Vercel: `DATABASE_URL`, `APP_URL`, `AUTH_SECRET`,
+   `PLATFORM_ADMIN_EMAILS`, `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`, and
+   `CRON_SECRET`. Also configure `AWS_REGION`, `AWS_S3_BUCKET`,
+   `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` to enable private file
+   uploads. Keep these values server-side; never use `NEXT_PUBLIC_` names for
+   secrets. Set `APP_URL` to the final HTTPS domain and use a random
+   `AUTH_SECRET` with at least 32 characters.
+4. Apply all checked-in Prisma migrations to the production database with
+   `npm run db:migrate:deploy` from a trusted runner that can reach the database.
+   Back up the database first. Do not run `migrate dev`, `db push`, or reset
+   commands against production.
+5. Deploy, attach the custom domain, and verify sign-in, verification email,
+   owner invitations, demo requests, private file uploads, and billing.
+
+Vercel Cron is configured in `vercel.json` to run rent draft generation,
+notifications, and platform invoice generation daily at staggered times in UTC.
+Each route validates the `Authorization: Bearer <CRON_SECRET>` header and
+supports the GET method Vercel Cron invokes. Platform invoice generation
+requires a developer-configured monthly price and currency; configure these
+before expecting scheduled platform invoices.
+
+Configure separate Preview environment values and a separate Preview database
+before enabling preview deployments. Do not point Preview deployments at the
+production database.
+
 Set `APP_URL` to the exact origin used in the browser. For the command above,
 use `http://localhost:3000`; `localhost` and `127.0.0.1` use separate browser
 cookies, so invitation links opened on the other host will not carry the sign-in

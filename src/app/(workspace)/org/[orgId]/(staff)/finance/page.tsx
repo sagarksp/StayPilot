@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { randomUUID } from "node:crypto";
 import { getOrganizationActor } from "@/infrastructure/auth/actor-context";
+import { WorkspaceIcon } from "@/components/ui/workspace-icon";
 import { billingUseCases } from "@/modules/billing/application/use-cases";
 import { finalizeInvoiceAction, recordPaymentAction, reversePaymentAction } from "@/modules/billing/ui/actions";
 
@@ -28,15 +29,19 @@ export default async function FinancePage({ params, searchParams }: Readonly<{ p
     {query.error?.startsWith("reversal-") || query.error === "payment-not-reversible" ? <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="alert">The payment could not be reversed with those details. Refresh to see the current balance and eligible payments.</p> : null}
     <div className="surface-card overflow-hidden">
       <header className="border-b border-[#e2e8f0] px-5 py-4 sm:px-6"><h2 className="text-lg font-semibold">Invoices</h2><p className="muted mt-1 text-sm">{invoices.length} {invoices.length === 1 ? "invoice" : "invoices"}</p></header>
-      {invoices.length ? <div className="divide-y divide-[#e2e8f0]">{invoices.map((invoice) => <article className="grid gap-4 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6" key={invoice.publicId}>
+      {invoices.length ? <div className="divide-y divide-[#e2e8f0]">{invoices.map((invoice) => <details className="group" key={invoice.publicId}>
+        <summary className="grid cursor-pointer list-none items-center gap-3 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-6 [&::-webkit-details-marker]:hidden">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{invoice.residentStay.resident.name}</h3><span className={invoice.status === "DRAFT" ? "rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800" : invoice.status === "PAID" ? "rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800" : "rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800"}>{invoice.status.replaceAll("_", " ")}</span></div>
           <p className="muted mt-1 text-sm">{invoice.property.name} · Room {invoice.residentStay.bed.room.number} · Bed {invoice.residentStay.bed.label}</p>
           <p className="muted mt-1 text-sm">{invoice.invoiceNumber} · {date(invoice.billingPeriodStart)} – {date(invoice.billingPeriodEnd)} · Due {date(invoice.dueDate)}</p>
-          <p className="mt-3 text-sm">{invoice.items.map((item) => item.description).join(" · ")}</p>
         </div>
-        <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end"><strong className="text-lg">{money(invoice.totalPaise + invoice.adjustmentPaise)}</strong>{invoice.status === "DRAFT" ? <form action={finalizeInvoiceAction}><input name="orgId" type="hidden" value={orgId} /><input name="invoiceId" type="hidden" value={invoice.publicId} /><button className="min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Review and finalize</button></form> : <div className="text-right text-xs text-slate-500"><p>Paid {money(invoice.amountPaidPaise)}</p><p>Balance {money(invoice.totalPaise + invoice.adjustmentPaise > invoice.amountPaidPaise ? invoice.totalPaise + invoice.adjustmentPaise - invoice.amountPaidPaise : BigInt(0))}</p>{invoice.adjustmentPaise !== BigInt(0) ? <p>Checkout adjustment {money(invoice.adjustmentPaise)}</p> : null}{invoice.finalizedAt ? <p>Finalized {date(invoice.finalizedAt)}</p> : null}</div>}</div>
-        {invoice.status !== "DRAFT" ? <div className="sm:col-span-2">
+        <div className="flex items-center justify-between gap-3 sm:justify-end"><div className="text-right"><strong className="block text-lg">{money(invoice.totalPaise + invoice.adjustmentPaise)}</strong>{invoice.status !== "DRAFT" ? <span className="muted text-xs">Balance {money(invoice.totalPaise + invoice.adjustmentPaise > invoice.amountPaidPaise ? invoice.totalPaise + invoice.adjustmentPaise - invoice.amountPaidPaise : BigInt(0))}</span> : null}</div><WorkspaceIcon aria-hidden="true" className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" name="arrow_drop_down" /></div>
+        </summary>
+        <div className="grid gap-4 border-t border-[#e2e8f0] bg-slate-50/50 px-5 py-5 sm:px-6">
+        <p className="text-sm">{invoice.items.map((item) => item.description).join(" · ")}</p>
+        {invoice.status === "DRAFT" ? <form action={finalizeInvoiceAction}><input name="orgId" type="hidden" value={orgId} /><input name="invoiceId" type="hidden" value={invoice.publicId} /><button className="min-h-10 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]" type="submit">Review and finalize</button></form> : <div className="text-right text-xs text-slate-500"><p>Paid {money(invoice.amountPaidPaise)}</p><p>Balance {money(invoice.totalPaise + invoice.adjustmentPaise > invoice.amountPaidPaise ? invoice.totalPaise + invoice.adjustmentPaise - invoice.amountPaidPaise : BigInt(0))}</p>{invoice.adjustmentPaise !== BigInt(0) ? <p>Checkout adjustment {money(invoice.adjustmentPaise)}</p> : null}{invoice.finalizedAt ? <p>Finalized {date(invoice.finalizedAt)}</p> : null}</div>}
+        {invoice.status !== "DRAFT" ? <div className="grid gap-4">
           {invoice.payments.length ? <div className="mb-4 rounded-lg bg-slate-50 p-3"><h4 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Payment history</h4><ul className="mt-2 space-y-2">{invoice.payments.map((payment) => <li className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-sm" key={payment.publicId}><span>{payment.transactionType === "REVERSAL" ? "Reversal" : "Payment"} · {date(payment.paymentDate)} · {payment.method.replaceAll("_", " ")}{payment.reference ? ` · Ref ${payment.reference}` : ""}{payment.notes ? <span className="block text-xs text-slate-500">{payment.transactionType === "REVERSAL" ? "Reason: " : "Note: "}{payment.notes}</span> : null}</span><strong className={payment.amountPaise < BigInt(0) ? "text-slate-600" : ""}>{money(payment.amountPaise)}</strong></li>)}</ul></div> : null}
           {invoice.payments.some((payment) => payment.transactionType === "PAYMENT" && payment.purpose === "INVOICE" && payment.depositTransactions.length === 0 && invoice.residentStay.status !== "COMPLETED" && payment.amountPaise + payment.reversals.reduce((sum, reversal) => sum + reversal.amountPaise, BigInt(0)) > BigInt(0)) ? <div className="mb-4 space-y-3">{invoice.payments.filter((payment) => payment.transactionType === "PAYMENT" && payment.purpose === "INVOICE" && payment.depositTransactions.length === 0 && invoice.residentStay.status !== "COMPLETED").map((payment) => {
             const remainingPaise = payment.amountPaise + payment.reversals.reduce((sum, reversal) => sum + reversal.amountPaise, BigInt(0));
@@ -53,7 +58,8 @@ export default async function FinancePage({ params, searchParams }: Readonly<{ p
             <label className="grid gap-1 text-xs font-medium text-slate-600 sm:col-span-2 lg:col-span-4">Notes (optional)<input className="min-h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-900" maxLength={500} name="notes" placeholder="Add a short note for your records" /></label>
           </form> : null}
         </div> : null}
-      </article>)}</div> : <div className="px-5 py-14 text-center sm:px-6"><h2 className="font-semibold">No rent invoices yet</h2><p className="muted mx-auto mt-2 max-w-lg text-sm leading-6">Drafts appear five days before a stay’s billing date. New stays need rent terms, and the scheduled billing endpoint must be configured with CRON_SECRET.</p></div>}
+        </div>
+      </details>)}</div> : <div className="px-5 py-14 text-center sm:px-6"><h2 className="font-semibold">No rent invoices yet</h2><p className="muted mx-auto mt-2 max-w-lg text-sm leading-6">Drafts appear five days before a stay’s billing date. New stays need rent terms, and the scheduled billing endpoint must be configured with CRON_SECRET.</p></div>}
     </div>
   </section>;
 }

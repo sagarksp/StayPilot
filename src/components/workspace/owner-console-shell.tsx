@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
 import type { ReactNode } from "react";
 import { SignOutButton } from "@/modules/auth/ui/sign-out-button";
 import type { OrganizationActor } from "@/modules/property/domain/inventory";
@@ -10,6 +9,7 @@ import { WorkspaceIcon } from "@/components/ui/workspace-icon";
 import styles from "./owner-console-shell.module.css";
 import { NotificationBell } from "./notification-bell";
 import { HeaderTools } from "./header-tools";
+import { MobileNavigationDrawer } from "./mobile-navigation-drawer";
 
 type OwnerNavigationItem = Readonly<{
   label: string;
@@ -64,9 +64,30 @@ export function OwnerConsoleShell({
 }: Readonly<{ children: ReactNode; actor: OrganizationActor }>) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const ownerPath = `/org/${actor.organizationId}/owner`;
   const propertiesPath = `/org/${actor.organizationId}/properties`;
+  const navigationContent = navigation.map((section) => (
+    <div className={styles.navigationSection} key={section.title}>
+      <h2>{section.title}</h2>
+      <div className={styles.navigationLinks}>
+        {section.links.map((item) => {
+          const href = item.available && item.route ? `/org/${actor.organizationId}/${item.route}` : undefined;
+          const selected = item.route === "owner"
+            ? pathname === ownerPath
+            : item.route === "properties"
+              ? pathname?.startsWith(propertiesPath)
+              : Boolean(item.route && pathname?.startsWith(`/org/${actor.organizationId}/${item.route}`));
+          const className = [styles.navigationLink, selected ? styles.navigationLinkActive : ""].filter(Boolean).join(" ");
+          const content = <><WorkspaceIcon name={item.icon} /><span>{item.label}</span></>;
+          return href ? (
+            <Link aria-current={selected ? "page" : undefined} className={className} href={href} key={item.label}>{content}</Link>
+          ) : (
+            <span aria-disabled="true" className={`${className} ${styles.navigationLinkDisabled}`} key={item.label} title="This workspace is not available yet">{content}</span>
+          );
+        })}
+      </div>
+    </div>
+  ));
 
   return (
     <div className={styles.shell}>
@@ -88,39 +109,15 @@ export function OwnerConsoleShell({
           </Link>
         </div>
 
-        <nav aria-label="Owner workspace" className={`${styles.navigation} ${mobileMenuOpen ? styles.navigationOpen : ""}`} id="owner-workspace-menu">
-          <button aria-controls="owner-workspace-menu-list" aria-expanded={mobileMenuOpen} className={styles.mobileMenuToggle} onClick={() => setMobileMenuOpen(true)} type="button">
-            <WorkspaceIcon name="table_rows" />Menu
-          </button>
-          <div className={styles.mobileMenuHeader}>
-            <strong>Owner workspace</strong>
-            <button aria-label="Close owner workspace menu" className={styles.mobileMenuClose} onClick={() => setMobileMenuOpen(false)} type="button">Close</button>
-          </div>
-          <div id="owner-workspace-menu-list">
-            {navigation.map((section) => (
-              <div className={styles.navigationSection} key={section.title}>
-                <h2>{section.title}</h2>
-                <div className={styles.navigationLinks}>
-                  {section.links.map((item) => {
-                    const href = item.available && item.route ? `/org/${actor.organizationId}/${item.route}` : undefined;
-                    const selected = item.route === "owner"
-                      ? pathname === ownerPath
-                      : item.route === "properties"
-                        ? pathname?.startsWith(propertiesPath)
-                        : Boolean(item.route && pathname?.startsWith(`/org/${actor.organizationId}/${item.route}`));
-                    const className = [styles.navigationLink, selected ? styles.navigationLinkActive : ""].filter(Boolean).join(" ");
-                    const content = <><WorkspaceIcon name={item.icon} /><span>{item.label}</span></>;
-                    return href ? (
-                      <Link aria-current={selected ? "page" : undefined} className={className} href={href} key={item.label} onClick={() => setMobileMenuOpen(false)}>{content}</Link>
-                    ) : (
-                      <span aria-disabled="true" className={`${className} ${styles.navigationLinkDisabled}`} key={item.label} title="This workspace is not available yet">{content}</span>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
+        <nav aria-label="Owner workspace" className={styles.navigation}>
+          {navigationContent}
         </nav>
+        <MobileNavigationDrawer title="Owner workspace" leadingActions={<><NotificationBell organizationId={actor.organizationId} visibility="mobile" mobileHeader /><HeaderTools compact /></>}>
+          <div className={styles.mobileNavigationContent}>
+            {navigationContent}
+            <div className={styles.mobileSignOut}><SignOutButton className={styles.mobileSignOutButton} /></div>
+          </div>
+        </MobileNavigationDrawer>
 
         <div className={styles.accountBlock}>
           <div className={styles.accountCard}>
@@ -155,7 +152,7 @@ export function OwnerConsoleShell({
             <input aria-label="Search properties" defaultValue={searchParams.get("q") ?? ""} key={searchParams.get("q") ?? ""} name="q" placeholder="Search properties..." />
           </form>
           <div className={styles.topbarActions}>
-            <NotificationBell organizationId={actor.organizationId} />
+            <NotificationBell organizationId={actor.organizationId} visibility="desktop" />
             <HeaderTools />
             <span className={styles.connectedStatus}><i aria-hidden="true" />Portfolio records</span>
             <Link className={styles.addProperty} href={`/org/${actor.organizationId}/properties/new`}>

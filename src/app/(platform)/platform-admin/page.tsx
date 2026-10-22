@@ -37,7 +37,7 @@ function statusLabel(value: string) {
 }
 
 function Section({ id, eyebrow, title, detail, children, open = false }: Readonly<{ id: string; eyebrow: string; title: string; detail: string; children: ReactNode; open?: boolean }>) {
-  return <details className={styles.directory} open={open}>
+  return <details className={styles.directory} id={`${id}-section`} open={open}>
     <summary className={styles.sectionHeader} aria-controls={id}>
       <span><span className={styles.eyebrow}>{eyebrow}</span><span className={styles.sectionTitle}>{title}</span></span>
       <span className={styles.sectionDetail}>{detail}<span className={styles.chevron} aria-hidden="true" /></span>

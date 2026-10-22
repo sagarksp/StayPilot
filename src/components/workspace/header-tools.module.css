@@ -1,4 +1,6 @@
 .tools { display: inline-flex; min-width: 0; flex: none; align-items: center; gap: 10px; }
+.compact { gap: 0; }
+.compact .clock { display: none; }
 .clock { display: grid; min-width: 0; justify-items: end; gap: 2px; color: #475569; line-height: 1.1; white-space: nowrap; }
 .clockDate { font-size: 10px; font-weight: 600; }
 .clockTime { color: #172b4d; font: 650 12px/1.1 "JetBrains Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
