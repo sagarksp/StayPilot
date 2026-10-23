@@ -15,6 +15,9 @@ export default async function ForgotPasswordPage() {
         <h1 className="mt-4 text-3xl font-semibold">Reset your password</h1>
         <p className="muted mt-3 leading-7">Enter the email address on your account. If it matches, we’ll send you a secure reset link.</p>
         <PasswordResetRequestForm />
+        <p className="muted mt-6 rounded-lg border border-[#dbeafe] bg-[#eff8f3] p-4 text-sm leading-6">
+          First time setting up a developer account on a fresh database? <Link className="font-semibold text-[#2563eb] hover:underline" href="/register?platformAdmin=1">Create your platform admin account</Link> with an email listed in <code>PLATFORM_ADMIN_EMAILS</code>.
+        </p>
         <p className="muted mt-6 text-center text-sm">Remembered your password? <Link className="font-semibold text-[#2563eb] hover:underline" href="/login">Sign in</Link></p>
       </section>
     </main>

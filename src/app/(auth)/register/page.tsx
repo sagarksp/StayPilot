@@ -3,16 +3,33 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/infrastructure/auth/auth";
 import { RegisterForm } from "@/modules/auth/ui/register-form";
+import { PlatformAdminRegistrationForm } from "@/modules/auth/ui/platform-admin-registration-form";
 import { isPlatformAdminIdentity } from "@/infrastructure/auth/platform-admin-access";
 import { getPlatformOwnerInvitation } from "@/infrastructure/platform-admin/owner-invitations";
 
-export default async function RegisterPage({ searchParams }: Readonly<{ searchParams: Promise<{ invite?: string }> }>) {
+export default async function RegisterPage({ searchParams }: Readonly<{ searchParams: Promise<{ invite?: string; platformAdmin?: string }> }>) {
   const query = await searchParams;
+  const platformAdminSetup = query.platformAdmin === "1" && !query.invite;
   const invitation = query.invite ? await getPlatformOwnerInvitation(query.invite) : null;
-  if (!query.invite) redirect("/login");
+  if (!query.invite && !platformAdminSetup) redirect("/login");
   const session = await auth.api.getSession({ headers: await headers() });
   if (session) redirect(isPlatformAdminIdentity(session.user) ? "/platform-admin" : `/setup${query.invite ? `?invite=${encodeURIComponent(query.invite)}` : ""}`);
   const invitationIsValid = Boolean(invitation);
+
+  if (platformAdminSetup) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-lg items-center px-6 py-12">
+        <section className="surface-card w-full p-8 md:p-10">
+          <p className="text-sm font-semibold text-[#2563eb]">StayPilot</p>
+          <p className="mt-5 text-sm font-semibold text-[#2563eb]">Developer account</p>
+          <h1 className="mt-2 text-3xl font-semibold">Set up platform admin</h1>
+          <p className="muted mt-3 leading-7">On a fresh database, create the developer account using an email listed in <code>PLATFORM_ADMIN_EMAILS</code>. Verify that email before signing in.</p>
+          <PlatformAdminRegistrationForm />
+          <p className="muted mt-6 text-center text-sm">Already have an account? <Link className="font-semibold text-[#2563eb] hover:underline" href="/forgot-password">Reset your password</Link></p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg items-center px-6 py-12">
