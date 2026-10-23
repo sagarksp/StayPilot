@@ -17,3 +17,9 @@ linked to the exact resident profile and directs the user to that organization's
 resident portal. Resending replaces the previous token. If acceptance has no
 session, direct the invitee to sign in with the invited email rather than
 reporting the link as expired.
+
+On a fresh database, a developer whose email is listed in
+`PLATFORM_ADMIN_EMAILS` can open password recovery and enter that email to
+create the first platform-admin identity. The account must verify its email
+before it gains platform-admin access. The recovery page sends password reset
+links for existing, verified platform-admin identities.

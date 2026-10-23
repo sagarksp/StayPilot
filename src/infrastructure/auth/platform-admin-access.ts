@@ -9,10 +9,14 @@ const platformAdminEmails = new Set(
     .filter(Boolean),
 );
 
+export function isPlatformAdminEmail(email: string | null | undefined) {
+  return Boolean(email && platformAdminEmails.has(email.trim().toLowerCase()));
+}
+
 export function isPlatformAdminIdentity(identity: PlatformAdminIdentity | null | undefined) {
   return Boolean(
     identity?.email &&
     identity.emailVerified === true &&
-    platformAdminEmails.has(identity.email.trim().toLowerCase()),
+    isPlatformAdminEmail(identity.email),
   );
 }
