@@ -69,12 +69,11 @@ Prerequisites: Node.js 22.12 or newer, npm, and a local MySQL database.
 2. Install the dependencies with `npm install`.
 3. Generate the Prisma client with `npm run db:generate`.
 4. Apply the checked-in local schema with `npm run db:migrate:deploy`.
-5. Set `PLATFORM_ADMIN_EMAILS` to the developer email address, then from the
-   `C:\StayPilot` project root start the development server with
-   `npm run dev -- --hostname localhost --port 3000`. On a fresh database, open
-   `/register?platformAdmin=1` to create and verify the developer account. After
-   signing in, invite the first owner from `/platform-admin` and have the owner
-   finish setup from the emailed invitation.
+5. From the `C:\StayPilot` project root, start the development server with
+   `npm run dev -- --hostname localhost --port 3000`. Sign in with the verified
+   platform-admin account configured in `PLATFORM_ADMIN_EMAILS`, invite the
+   first owner from `/platform-admin`, and have the owner finish setup from the
+   emailed invitation.
 
 ## Production deployment
 
